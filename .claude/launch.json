@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/Users/aayushiyer/.nvm/versions/node/v22.22.0/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite"],
+      "port": 5173
+    },
+    {
+      "name": "preview",
+      "runtimeExecutable": "/Users/aayushiyer/.nvm/versions/node/v22.22.0/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "preview"],
+      "port": 4173
+    }
+  ]
+}

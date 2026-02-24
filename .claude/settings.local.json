@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(brew:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(npm run build:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl:*)",
+      "Bash(bash)",
+      "WebFetch(domain:scryfall.com)",
+      "Bash(/Users/aayushiyer/.nvm/versions/node/v22.22.0/bin/node node_modules/.bin/tsc:*)",
+      "Bash(/Users/aayushiyer/.nvm/versions/node/v22.22.0/bin/node node_modules/.bin/vite:*)",
+      "Bash(grep:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
