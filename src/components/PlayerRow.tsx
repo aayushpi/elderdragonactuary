@@ -19,7 +19,7 @@ interface FieldErrors {
 interface PlayerRowProps {
   player: Partial<Player>
   isMe: boolean
-  opponentIndex?: number
+  playerOrder: number
   takenSeats: SeatPosition[]
   totalPlayers: number
   isWinner: boolean
@@ -35,7 +35,7 @@ interface PlayerRowProps {
 export function PlayerRow({
   player,
   isMe,
-  opponentIndex,
+  playerOrder,
   takenSeats,
   totalPlayers,
   isWinner,
@@ -101,59 +101,68 @@ export function PlayerRow({
 
   const selectedCards = player.fastMana?.cards ?? []
 
-  const label = isMe ? "Me" : `Opponent ${opponentIndex}`
+  const ordinalLabels = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"]
+  const positionLabel = ordinalLabels[playerOrder - 1] ?? `${playerOrder}th`
+  const label = `${positionLabel} Player`
 
   return (
-    <div className={`relative space-y-3 p-3 rounded-lg border bg-card transition-colors ${isWinner ? "border-primary" : "border-border"}`}>
-      {/* Winner in top right */}
-      <div className="absolute top-3 right-3 flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant={isWinner ? "default" : "outline"}
-          className={`gap-1.5 text-xs h-7 px-2 ${
-            isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
-          }`}
-          onClick={onSetWinner}
-        >
-          <Trophy className="h-3 w-3" />
-          Winner
-        </Button>
-        {isWinner && (
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 w-7 p-0"
-              onClick={decrementTurn}
-            >
-              <Minus className="h-3 w-3" />
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              placeholder="turn"
-              value={winTurn}
-              onChange={(e) => onWinTurnChange(e.target.value)}
-              className={`w-16 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 w-7 p-0"
-              onClick={incrementTurn}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
-      </div>
+    <div className={`space-y-3 p-3 rounded-lg border bg-card transition-colors ${isWinner ? "border-primary" : "border-border"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 pt-0.5">
+          <span className="text-sm font-semibold">{label}</span>
+          {isMe && (
+            <span className="inline-flex items-center rounded-md bg-primary/10 text-primary text-[11px] font-medium px-2 py-0.5">
+              Me
+            </span>
+          )}
+        </div>
 
-      {/* Label */}
-      <span className="text-sm font-semibold">{label}</span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={isWinner ? "default" : "outline"}
+            className={`gap-1.5 text-xs h-7 px-2 ${
+              isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
+            }`}
+            onClick={onSetWinner}
+          >
+            <Trophy className="h-3 w-3" />
+            Winner
+          </Button>
+          {isWinner && (
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                onClick={decrementTurn}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                placeholder="turn"
+                value={winTurn}
+                onChange={(e) => onWinTurnChange(e.target.value)}
+                className={`w-16 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                onClick={incrementTurn}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Commander */}
       <div className="space-y-1.5">
