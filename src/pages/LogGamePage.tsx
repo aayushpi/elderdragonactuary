@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react"
 import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
 import { useGames } from "@/hooks/useGames"
+import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
 
 function generateId() {
@@ -32,6 +33,19 @@ interface FormErrors {
   noWinner: boolean
   winTurn: boolean
 }
+
+const WIN_CONDITION_CATEGORIES = [
+  "Players Scooped",
+  "Lethal Combat Damage",
+  "Combat Trick",
+  "Lethal Non-Combat Damage",
+  "Players Decked Out",
+  "Alternate Wincon",
+  "Infinite Loop",
+  "Infinite Life-Gain",
+  "Infinite Mana",
+  "Asymmetric Board Wipe"
+] as const
 
 const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false }
 
@@ -66,6 +80,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   const [winnerId, setWinnerId] = useState<string | null>(null)
   const [winTurn, setWinTurn] = useState("")
   const [notes, setNotes] = useState("")
+  const [winConditions, setWinConditions] = useState<string[]>([])
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
 
   function initPlayers(total: number) {
@@ -147,6 +162,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
       winnerId: winnerId!,
       winTurn: parseInt(winTurn, 10),
       notes: notes.trim() || undefined,
+      winConditions: winConditions.length > 0 ? winConditions : undefined,
     }
     onSave(game)
   }
@@ -218,17 +234,51 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
             </div>
           </div>
 
+          {/* Win Conditions */}
+          <Separator />
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                How did they win (Optional)
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {WIN_CONDITION_CATEGORIES.map((condition) => (
+                <button
+                  key={condition}
+                  type="button"
+                  onClick={() => {
+                    setWinConditions(prev =>
+                      prev.includes(condition)
+                        ? prev.filter(c => c !== condition)
+                        : [...prev, condition]
+                    )
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-md border transition-colors",
+                    winConditions.includes(condition)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:bg-muted"
+                  )}
+                >
+                  {condition}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Notes */}
           <Separator />
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground uppercase tracking-wide" htmlFor="notes">
               Notes (optional)
             </label>
-            <Input
+            <Textarea
               id="notes"
-              placeholder="Any notes…"
+              placeholder="Any additional notes…"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              rows={3}
             />
           </div>
         </>
