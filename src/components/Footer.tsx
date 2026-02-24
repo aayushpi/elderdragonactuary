@@ -32,6 +32,15 @@ export function Footer({ onShowReleaseNotes }: FooterProps) {
             </a>
           </div>
 
+          <a
+            href="https://aayush.fyi/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Made by Aayush
+          </a>
+
         </div>
       </div>
     </footer>

@@ -107,7 +107,7 @@ export function PlayerRow({
 
   return (
     <div className={`space-y-3 p-3 rounded-lg border transition-colors bg-card ${isWinner ? "border-primary" : "border-border"} ${isMe ? "border-[3px] border-primary" : "border"}`}>
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-2 pt-0.5">
           <span className="text-sm font-semibold">{label}</span>
           {isMe && (
@@ -117,7 +117,22 @@ export function PlayerRow({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 sm:hidden">
+          <Button
+            type="button"
+            size="sm"
+            variant={isWinner ? "default" : "outline"}
+            className={`gap-1.5 text-xs h-7 px-2 ${
+              isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
+            }`}
+            onClick={onSetWinner}
+          >
+            <Trophy className="h-3 w-3" />
+            Winner
+          </Button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-2 self-end sm:self-auto max-w-full">
           <Button
             type="button"
             size="sm"
@@ -131,7 +146,7 @@ export function PlayerRow({
             Winner
           </Button>
           {isWinner && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 justify-end">
               <Button
                 type="button"
                 size="sm"
@@ -148,7 +163,7 @@ export function PlayerRow({
                 placeholder="turn"
                 value={winTurn}
                 onChange={(e) => onWinTurnChange(e.target.value)}
-                className={`w-16 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
+                className={`w-14 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
               />
               <Button
                 type="button"
@@ -163,6 +178,38 @@ export function PlayerRow({
           )}
         </div>
       </div>
+
+      {isWinner && (
+        <div className="flex items-center justify-end gap-1 sm:hidden">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            onClick={decrementTurn}
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
+          <Input
+            type="number"
+            min={1}
+            max={50}
+            placeholder="turn"
+            value={winTurn}
+            onChange={(e) => onWinTurnChange(e.target.value)}
+            className={`w-14 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            onClick={incrementTurn}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
 
       {/* Commander */}
       <div className="space-y-1.5">
