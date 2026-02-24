@@ -26,12 +26,12 @@ function sortCommanders(commanders: CommanderStat[], sort: CommanderSort): Comma
   })
 }
 
-interface DashboardPageProps {
+interface StatsPageProps {
   games: Game[]
   onNavigate: (view: AppView) => void
 }
 
-export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
+export function StatsPage({ games, onNavigate }: StatsPageProps) {
   const stats = useStats(games)
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
   const [winRateExpanded, setWinRateExpanded] = useState(true)

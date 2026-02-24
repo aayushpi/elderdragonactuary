@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import type { ScryfallCard } from "@/types"
 import type { CommanderSuggestion } from "@/lib/scryfall"
-import { fetchCommanderSuggestions, fetchCardByName } from "@/lib/scryfall"
+import { fetchCommanderSuggestions, fetchCardSuggestions, fetchCardByName } from "@/lib/scryfall"
 
-export function useScryfall() {
+export function useScryfall(searchType: "commander" | "card" = "commander") {
   const [query, setQuery] = useState("")
   const [suggestions, setSuggestions] = useState<CommanderSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -19,7 +19,9 @@ export function useScryfall() {
     debounceRef.current = setTimeout(async () => {
       setIsLoading(true)
       try {
-        const results = await fetchCommanderSuggestions(query)
+        const results = searchType === "commander"
+          ? await fetchCommanderSuggestions(query)
+          : await fetchCardSuggestions(query)
         setSuggestions(results)
       } catch {
         setSuggestions([])
@@ -31,7 +33,7 @@ export function useScryfall() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query])
+  }, [query, searchType])
 
   const fetchCard = useCallback(async (name: string): Promise<ScryfallCard | null> => {
     try {

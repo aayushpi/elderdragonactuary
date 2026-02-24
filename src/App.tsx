@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Toaster, toast } from "sonner"
 import { Nav } from "@/components/Nav"
 import { Footer } from "@/components/Footer"
-import { DashboardPage } from "@/pages/DashboardPage"
+import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
@@ -38,9 +38,9 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="bottom-center" richColors />
-      <Nav currentView={view} onNavigate={setView} />
+      <Nav currentView={view} onNavigate={setView} onShowReleaseNotes={() => setShowReleaseNotes(true)} />
       <main className="container mx-auto max-w-3xl px-4 py-6">
-        {view === "dashboard" && <DashboardPage games={games} onNavigate={setView} />}
+        {view === "dashboard" && <StatsPage games={games} onNavigate={setView} />}
         {view === "log-game" && (
           <LogGamePage
             onSave={handleSaveGame}
