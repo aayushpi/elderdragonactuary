@@ -70,6 +70,70 @@ export function exportData(): string {
   return JSON.stringify(file, null, 2)
 }
 
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return ""
+  const s = String(value)
+  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"'
+  }
+  return s
+}
+
+export function exportCSV(): string {
+  const file = JSON.parse(exportData()) as { exportedAt: string; games: ExportGame[] }
+
+  const headers = [
+    "playedAt",
+    "winTurn",
+    "winnerIndex",
+    "notes",
+    "playerIndex",
+    "seatPosition",
+    "commanderName",
+    "commanderManaCost",
+    "commanderTypeLine",
+    "commanderColorIdentity",
+    "commanderImageUri",
+    "partnerName",
+    "partnerManaCost",
+    "partnerTypeLine",
+    "partnerImageUri",
+    "fastManaHasFastMana",
+    "fastManaCards",
+  ]
+
+  const rows: string[] = []
+  rows.push(headers.join(','))
+
+  file.games.forEach((g) => {
+    g.players.forEach((p, playerIndex) => {
+      const row = [
+        g.playedAt,
+        String(g.winTurn ?? ""),
+        String(g.winnerIndex ?? ""),
+        g.notes ?? "",
+        String(playerIndex),
+        String(p.seatPosition ?? ""),
+        p.commanderName ?? "",
+        p.commanderManaCost ?? "",
+        p.commanderTypeLine ?? "",
+        Array.isArray(p.commanderColorIdentity) ? p.commanderColorIdentity.join('|') : "",
+        p.commanderImageUri ?? "",
+        p.partnerName ?? "",
+        p.partnerManaCost ?? "",
+        p.partnerTypeLine ?? "",
+        p.partnerImageUri ?? "",
+        String(Boolean(p.fastMana?.hasFastMana)),
+        Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join('|') : "",
+      ]
+
+      rows.push(row.map(csvEscape).join(','))
+    })
+  })
+
+  return rows.join('\n')
+}
+
 // ── Import ────────────────────────────────────────────────────────────────────
 
 export function importData(json: string): { success: boolean; count: number; error?: string } {
