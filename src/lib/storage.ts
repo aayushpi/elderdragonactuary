@@ -105,7 +105,11 @@ export function exportCSV(): string {
     for (let i = 0; i < maxPlayers; i++) {
       const p = g.players[i]
       if (p) {
-        row.push(p.commanderName ?? "")
+        // Combine commander and partner names if partner exists
+        const commanderDisplay = p.partnerName 
+          ? `${p.commanderName ?? ""} // ${p.partnerName}`
+          : (p.commanderName ?? "")
+        row.push(commanderDisplay)
         const hasFast = p.fastMana?.hasFastMana
         const fastVal = hasFast ? (Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join(', ') : '') : "No"
         row.push(fastVal)
@@ -116,7 +120,9 @@ export function exportCSV(): string {
     }
 
     const winnerName = typeof g.winnerIndex === "number" && g.players[g.winnerIndex]
-      ? g.players[g.winnerIndex].commanderName ?? ""
+      ? (g.players[g.winnerIndex].partnerName 
+          ? `${g.players[g.winnerIndex].commanderName ?? ""} // ${g.players[g.winnerIndex].partnerName}`
+          : (g.players[g.winnerIndex].commanderName ?? ""))
       : ""
     row.push(winnerName)
     row.push(String(g.winTurn ?? ""))
