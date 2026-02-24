@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -31,6 +31,7 @@ export function CommanderSearch({
   const [open, setOpen] = useState(false)
   const [loadingCard, setLoadingCard] = useState(false)
   const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall("commander")
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   async function handleSelect(name: string) {
     setOpen(false)
@@ -50,10 +51,21 @@ export function CommanderSearch({
   const hasRecents = recentCommanders && recentCommanders.length > 0
   const showRecents = query.length < 2 && hasRecents
 
+  function handleOpenChange(newOpen: boolean) {
+    setOpen(newOpen)
+    if (newOpen && triggerRef.current) {
+      // On mobile, scroll the input into view when keyboard appears
+      setTimeout(() => {
+        triggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
