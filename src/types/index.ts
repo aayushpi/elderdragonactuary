@@ -91,6 +91,26 @@ export interface CommanderStat {
   averageWinTurn: number | null
   withFastMana: WinRateStat
   againstFastMana: WinRateStat
+  recentResults: Array<{
+    result: "W" | "L"
+    date: string
+    winTurn: number
+    winningCommander: string
+  }>
+  keyCards: Array<{
+    name: string
+    count: number
+  }>
+}
+
+export interface CommanderColorIdentityStat {
+  key: string
+  colors: MtgColor[]
+  uniqueCommanders: number
+  wins: number
+  games: number
+  winRate: number
+  lossRate: number
 }
 
 export interface ComputedStats {
@@ -99,6 +119,10 @@ export interface ComputedStats {
   againstFastMana: WinRateStat
   bySeat: SeatStats
   byCommander: CommanderStat[]
+  byCommanderColorIdentity: CommanderColorIdentityStat[]
+  mostPlayedCommanderColorIdentity: CommanderColorIdentityStat | null
+  mostSuccessfulCommanderColorIdentity: CommanderColorIdentityStat | null
+  archnemesisCommanderColorIdentity: CommanderColorIdentityStat | null
   averageWinTurn: number | null
   gamesPlayed: number
 }

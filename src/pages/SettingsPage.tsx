@@ -12,6 +12,7 @@ interface SettingsPageProps {
 export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const isDevOrLocalhost = import.meta.env.DEV || window.location.hostname === "localhost"
 
   function handleExport() {
     const json = exportData()
@@ -39,6 +40,32 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
     }
     reader.readAsText(file)
     e.target.value = ""
+  }
+
+  async function handleLoadTestJson() {
+    try {
+      const response = await fetch("/load-test-games.json")
+      if (!response.ok) {
+        toast.error("Could not load test JSON.")
+        return
+      }
+
+      const json = await response.text()
+      const trimmed = json.trim()
+      if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
+        toast.error("Load test JSON file was not found or is not valid JSON.")
+        return
+      }
+
+      const result = onImport(json)
+      if (result.success) {
+        toast.success(`Loaded test JSON with ${result.count} game${result.count !== 1 ? "s" : ""}.`)
+      } else {
+        toast.error(`Load test JSON failed: ${result.error}`)
+      }
+    } catch {
+      toast.error("Could not load test JSON.")
+    }
   }
 
   return (
@@ -83,15 +110,27 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
               <p className="text-xs text-muted-foreground mt-0.5">Import game logs from a previously exported JSON</p>
               <p className="text-xs text-destructive mt-1 font-medium">Warning: this will erase your current data.</p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 shrink-0"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-3.5 w-3.5" />
-              Import
-            </Button>
+            <div className="flex gap-2">
+              {isDevOrLocalhost && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 shrink-0"
+                  onClick={handleLoadTestJson}
+                >
+                  Load Test JSON
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Import
+              </Button>
+            </div>
           </div>
         </div>
         <input
