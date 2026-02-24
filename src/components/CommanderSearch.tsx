@@ -51,7 +51,7 @@ export function CommanderSearch({
   const showRecents = query.length < 2 && hasRecents
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
