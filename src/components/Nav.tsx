@@ -18,12 +18,20 @@ export function Nav({ currentView, onNavigate }: NavProps) {
   return (
     <nav className="sticky top-0 z-50 bg-background">
       <div className="container mx-auto max-w-3xl px-4">
-        <div className="flex items-center justify-between h-12">
-          <span className="font-bold text-sm shrink-0">🔎 Elder Dragon Actuary</span>
-          <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <div className="flex items-center justify-between py-3 mb-4">
+          <span className="font-bold text-lg shrink-0">
+            <span role="img" aria-label="Search" className="mr-2 text-xl">🔎</span>
+            Elder Dragon Actuary
+          </span>
+          <a
+            href="https://github.com/aayushpi/elderdragonactuary/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
             <Bug className="h-3.5 w-3.5" />
             Report a bug
-          </button>
+          </a>
         </div>
         <div className="flex items-center justify-between pb-3">
           <div className="flex gap-1">
