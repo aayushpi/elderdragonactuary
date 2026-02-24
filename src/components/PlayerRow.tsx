@@ -1,22 +1,14 @@
 import { useState } from "react"
-import { Trophy, UserPlus, X } from "lucide-react"
+import { Trophy, UserPlus, X, Minus, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { CommanderSearch, extractCardData } from "@/components/CommanderSearch"
 import { CommanderCard } from "@/components/CommanderCard"
+import { CardSearch } from "@/components/CardSearch"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
 import { resolveArtCrop } from "@/lib/scryfall"
 import type { Player, RecentCommander, SeatPosition, ScryfallCard } from "@/types"
-
-const FAST_MANA_CARDS = [
-  "Sol Ring", "Mana Crypt", "Mana Vault", "Chrome Mox", "Mox Diamond",
-  "Jeweled Lotus", "Lotus Petal", "Arcane Signet", "Fellwar Stone",
-  "Dark Ritual", "Cabal Ritual", "Elvish Spirit Guide", "Simian Spirit Guide",
-  "Mox Amber", "Mox Opal", "Grim Monolith", "Basalt Monolith",
-  "Ancient Tomb", "City of Traitors",
-]
 
 interface FieldErrors {
   commanderName?: boolean
@@ -56,7 +48,6 @@ export function PlayerRow({
   showWinnerError,
 }: PlayerRowProps) {
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
-  const [fastManaSearch, setFastManaSearch] = useState("")
 
   function handleCommanderChange(name: string, card: ScryfallCard | null) {
     if (card) {
@@ -71,7 +62,7 @@ export function PlayerRow({
       onChange({
         partnerName: name,
         partnerImageUri: resolveArtCrop(card),
-        partnerManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
+        partnerManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
         partnerTypeLine: card.type_line,
       })
     } else {
@@ -84,35 +75,83 @@ export function PlayerRow({
     onChange({ partnerName: undefined, partnerImageUri: undefined, partnerManaCost: undefined, partnerTypeLine: undefined })
   }
 
-  function handleFastManaToggle(checked: boolean) {
-    if (!checked) setFastManaSearch("")
-    onChange({ fastMana: { hasFastMana: checked, cards: checked ? (player.fastMana?.cards ?? []) : [] } })
-  }
-
   function addFastManaCard(card: string) {
     const trimmed = card.trim()
     if (!trimmed) return
     const cards = [...(player.fastMana?.cards ?? []), trimmed]
     onChange({ fastMana: { hasFastMana: true, cards } })
-    setFastManaSearch("")
   }
 
   function removeFastManaCard(card: string) {
     const cards = (player.fastMana?.cards ?? []).filter((c) => c !== card)
-    onChange({ fastMana: { hasFastMana: player.fastMana?.hasFastMana ?? false, cards } })
+    onChange({ fastMana: { hasFastMana: cards.length > 0, cards } })
+  }
+
+  function incrementTurn() {
+    const currentTurn = parseInt(winTurn) || 0
+    onWinTurnChange((currentTurn + 1).toString())
+  }
+
+  function decrementTurn() {
+    const currentTurn = parseInt(winTurn) || 1
+    if (currentTurn > 1) {
+      onWinTurnChange((currentTurn - 1).toString())
+    }
   }
 
   const selectedCards = player.fastMana?.cards ?? []
-  const filteredSuggestions = fastManaSearch.length > 0
-    ? FAST_MANA_CARDS.filter(
-        (c) => c.toLowerCase().includes(fastManaSearch.toLowerCase()) && !selectedCards.includes(c)
-      ).slice(0, 6)
-    : []
 
   const label = isMe ? "Me" : `Opponent ${opponentIndex}`
 
   return (
-    <div className={`space-y-3 p-3 rounded-lg border bg-card transition-colors ${isWinner ? "border-primary" : "border-border"}`}>
+    <div className={`relative space-y-3 p-3 rounded-lg border bg-card transition-colors ${isWinner ? "border-primary" : "border-border"}`}>
+      {/* Winner in top right */}
+      <div className="absolute top-3 right-3 flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={isWinner ? "default" : "outline"}
+          className={`gap-1.5 text-xs h-7 px-2 ${
+            isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
+          }`}
+          onClick={onSetWinner}
+        >
+          <Trophy className="h-3 w-3" />
+          Winner
+        </Button>
+        {isWinner && (
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 w-7 p-0"
+              onClick={decrementTurn}
+            >
+              <Minus className="h-3 w-3" />
+            </Button>
+            <Input
+              type="number"
+              min={1}
+              max={50}
+              placeholder="turn"
+              value={winTurn}
+              onChange={(e) => onWinTurnChange(e.target.value)}
+              className={`w-16 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 w-7 p-0"
+              onClick={incrementTurn}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Label */}
       <span className="text-sm font-semibold">{label}</span>
 
@@ -200,94 +239,15 @@ export function PlayerRow({
 
       <Separator />
 
-      {/* Winner */}
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant={isWinner ? "default" : "outline"}
-          className={`gap-1.5 text-xs h-7 px-2 ${
-            isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
-          }`}
-          onClick={onSetWinner}
-        >
-          <Trophy className="h-3 w-3" />
-          Winner
-        </Button>
-        {isWinner && (
-          <Input
-            type="number"
-            min={1}
-            max={50}
-            placeholder="turn"
-            value={winTurn}
-            onChange={(e) => onWinTurnChange(e.target.value)}
-            className={`w-20 h-7 text-sm ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
-          />
-        )}
-      </div>
-
-      <Separator />
-
       {/* Fast mana */}
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
-          <Switch
-            checked={player.fastMana?.hasFastMana ?? false}
-            onCheckedChange={handleFastManaToggle}
-          />
-          <label className="text-xs text-muted-foreground cursor-pointer">Fast mana</label>
-        </div>
-
-        {player.fastMana?.hasFastMana && (
-          <div className="space-y-1.5">
-            {selectedCards.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {selectedCards.map((card) => (
-                  <span
-                    key={card}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs"
-                  >
-                    {card}
-                    <button
-                      type="button"
-                      onClick={() => removeFastManaCard(card)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="relative">
-              <Input
-                placeholder="Add card…"
-                value={fastManaSearch}
-                onChange={(e) => setFastManaSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); addFastManaCard(fastManaSearch) }
-                  if (e.key === "Escape") setFastManaSearch("")
-                }}
-                className="text-sm h-8"
-              />
-              {filteredSuggestions.length > 0 && (
-                <div className="absolute z-20 w-full bg-popover border border-border rounded-md shadow-md mt-1 overflow-hidden">
-                  {filteredSuggestions.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                      onMouseDown={(e) => { e.preventDefault(); addFastManaCard(s) }}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <label className="text-xs text-muted-foreground uppercase tracking-wide">Fast Mana</label>
+        <CardSearch
+          selectedCards={selectedCards}
+          onAddCard={addFastManaCard}
+          onRemoveCard={removeFastManaCard}
+          placeholder="Search for fast mana cards…"
+        />
       </div>
     </div>
   )

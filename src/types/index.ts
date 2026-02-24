@@ -61,6 +61,7 @@ export interface Game {
   winTurn: number
   notes?: string
   winConditions?: string[]
+  keyWinconCards?: string[]
 }
 
 // ─── Stats ──────────────────────────────────────────────────────────────────

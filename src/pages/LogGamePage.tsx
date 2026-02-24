@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
+import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
@@ -62,7 +63,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
     const result: RecentCommander[] = []
     for (const game of games) {
       const me = game.players.find((p) => p.isMe)
-      if (!me || seen.has(me.commanderName)) continue
+      if (!me || seen.has(me.commanderName) || !me.commanderManaCost) continue
       seen.add(me.commanderName)
       result.push({
         name: me.commanderName,
@@ -81,6 +82,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   const [winTurn, setWinTurn] = useState("")
   const [notes, setNotes] = useState("")
   const [winConditions, setWinConditions] = useState<string[]>([])
+  const [keyWinconCards, setKeyWinconCards] = useState<string[]>([])
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
 
   function initPlayers(total: number) {
@@ -163,6 +165,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
       winTurn: parseInt(winTurn, 10),
       notes: notes.trim() || undefined,
       winConditions: winConditions.length > 0 ? winConditions : undefined,
+      keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
     }
     onSave(game)
   }
@@ -232,6 +235,22 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
               />
             ))}
             </div>
+          </div>
+
+          {/* Key Wincon Cards */}
+          <Separator />
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                Key wincon cards (Optional)
+              </label>
+            </div>
+            <CardSearch
+              selectedCards={keyWinconCards}
+              onAddCard={(cardName) => setKeyWinconCards(prev => [...prev, cardName])}
+              onRemoveCard={(cardName) => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}
+              placeholder="Search for key wincon cards…"
+            />
           </div>
 
           {/* Win Conditions */}

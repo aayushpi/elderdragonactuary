@@ -20,6 +20,19 @@ export async function fetchCommanderSuggestions(q: string): Promise<CommanderSug
   }))
 }
 
+export async function fetchCardSuggestions(q: string): Promise<CommanderSuggestion[]> {
+  const res = await fetch(
+    `${BASE}/cards/search?q=${encodeURIComponent(q)}&order=name&unique=cards`
+  )
+  if (res.status === 404) return []
+  if (!res.ok) throw new Error("Search failed")
+  const json = await res.json() as { data: ScryfallCard[] }
+  return json.data.slice(0, 20).map((card) => ({
+    name: card.name,
+    manaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
+  }))
+}
+
 export async function fetchCardByName(name: string): Promise<ScryfallCard> {
   const res = await fetch(`${BASE}/cards/named?exact=${encodeURIComponent(name)}`)
   if (!res.ok) throw new Error(`Card not found: ${name}`)
