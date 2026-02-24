@@ -21,7 +21,7 @@ export function StatCard({ label, stat, value, description, className }: StatCar
   const subtext = stat
     ? stat.games === 0
       ? "no games"
-      : `${stat.wins}W / ${stat.games}G`
+      : `${stat.wins} wins / ${stat.games} games`
     : description
 
   return (
