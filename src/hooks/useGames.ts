@@ -40,5 +40,10 @@ export function useGames() {
     return result
   }, [])
 
-  return { games, addGame, updateGame, deleteGame, getGame, replaceGames }
+  const clearGames = useCallback(() => {
+    setGames([])
+    saveGames([])
+  }, [])
+
+  return { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames }
 }

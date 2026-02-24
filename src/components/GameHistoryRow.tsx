@@ -34,11 +34,20 @@ export function GameHistoryRow({ game, onClick }: GameHistoryRowProps) {
       </div>
 
       {me && (
-        <CommanderCard
-          commanderName={me.commanderName}
-          imageUri={me.commanderImageUri}
-          compact
-        />
+        <div className="space-y-1">
+          <CommanderCard
+            commanderName={me.commanderName}
+            imageUri={me.commanderImageUri}
+            compact
+          />
+          {me.partnerName && (
+            <CommanderCard
+              commanderName={me.partnerName}
+              imageUri={me.partnerImageUri}
+              compact
+            />
+          )}
+        </div>
       )}
 
       {me?.fastMana.hasFastMana && (

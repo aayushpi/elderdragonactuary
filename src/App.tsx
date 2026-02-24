@@ -1,22 +1,40 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { Toaster, toast } from "sonner"
 import { Nav } from "@/components/Nav"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
+import { SettingsPage } from "@/pages/SettingsPage"
 import { useGames } from "@/hooks/useGames"
 import type { AppView, Game } from "@/types"
 
 function App() {
   const [view, setView] = useState<AppView>("dashboard")
-  const { games, addGame, deleteGame, replaceGames } = useGames()
+  const { games, addGame, deleteGame, replaceGames, clearGames } = useGames()
 
   function handleSaveGame(game: Game) {
     addGame(game)
     setView("dashboard")
+    toast.success("Game logged!")
   }
+
+  // Keyboard shortcut: n → log new game (when not focused in a text field)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "n") return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const tag = (e.target as HTMLElement).tagName.toLowerCase()
+      if (tag === "input" || tag === "textarea" || tag === "select") return
+      if ((e.target as HTMLElement).isContentEditable) return
+      setView("log-game")
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
+      <Toaster position="bottom-center" richColors />
       <Nav currentView={view} onNavigate={setView} />
       <main className="container mx-auto max-w-3xl px-4 py-6">
         {view === "dashboard" && <DashboardPage games={games} onNavigate={setView} />}
@@ -27,7 +45,10 @@ function App() {
           />
         )}
         {view === "history" && (
-          <HistoryPage games={games} onDeleteGame={deleteGame} onImport={replaceGames} />
+          <HistoryPage games={games} onDeleteGame={deleteGame} />
+        )}
+        {view === "settings" && (
+          <SettingsPage onImport={replaceGames} onClearAll={clearGames} />
         )}
       </main>
     </div>

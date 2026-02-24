@@ -191,7 +191,7 @@ export function PlayerRow({
         <label className="text-xs text-muted-foreground uppercase tracking-wide">Seat (turn order)</label>
         <SeatPicker
           value={player.seatPosition ?? null}
-          onChange={(seat: SeatPosition) => onChange({ seatPosition: seat })}
+          onChange={(seat) => onChange({ seatPosition: seat ?? undefined })}
           takenSeats={takenSeats}
           totalPlayers={totalPlayers}
           hasError={fieldErrors?.seatPosition}

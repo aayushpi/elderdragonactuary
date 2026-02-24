@@ -1,13 +1,28 @@
+import { useState } from "react"
 import { PlusCircle, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
+import { CommanderStatCard } from "@/components/CommanderStatCard"
 import { useStats } from "@/hooks/useStats"
-import type { AppView, Game } from "@/types"
+import type { AppView, CommanderStat, Game } from "@/types"
 
 const SEAT_ORDINALS: Record<number, string> = {
   1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th",
+}
+
+type CommanderSort = "win-rate" | "win-turn"
+
+function sortCommanders(commanders: CommanderStat[], sort: CommanderSort): CommanderStat[] {
+  return [...commanders].sort((a, b) => {
+    if (sort === "win-turn") {
+      if (a.averageWinTurn === null && b.averageWinTurn === null) return 0
+      if (a.averageWinTurn === null) return 1
+      if (b.averageWinTurn === null) return -1
+      return a.averageWinTurn - b.averageWinTurn
+    }
+    return b.rate - a.rate || b.games - a.games
+  })
 }
 
 interface DashboardPageProps {
@@ -17,14 +32,11 @@ interface DashboardPageProps {
 
 export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
   const stats = useStats(games)
+  const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
 
   if (stats.gamesPlayed === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Overview</h1>
-          <p className="text-muted-foreground text-sm mt-1">Your Commander stats</p>
-        </div>
         <div className="rounded-lg border border-dashed border-border p-12 text-center space-y-4">
           <div>
             <p className="text-muted-foreground text-sm">No games logged yet.</p>
@@ -56,16 +68,10 @@ export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
     ] as [number, (typeof stats.bySeat.seat1)][]
   ).filter(([, stat]) => stat.games > 0)
 
+  const sortedCommanders = sortCommanders(stats.byCommander, commanderSort)
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Overview</h1>
-        <Button onClick={() => onNavigate("log-game")} size="sm" className="gap-1.5">
-          <PlusCircle className="h-4 w-4" />
-          Log a game
-        </Button>
-      </div>
-
       {/* Games logged card */}
       <div className="rounded-lg border bg-card px-4 py-3 flex items-center justify-between">
         <div>
@@ -89,47 +95,46 @@ export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
         <StatCard label="vs Fast Mana" stat={stats.againstFastMana} />
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="seat">
-        <TabsList className="w-full">
-          <TabsTrigger value="seat" className="flex-1">Win rate by starting turn</TabsTrigger>
-          <TabsTrigger value="winturn" className="flex-1">Win rate by win turn</TabsTrigger>
-        </TabsList>
+      {/* Win rate by starting turn */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Win rate by starting turn
+        </h2>
+        {activeSeatEntries.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
+        ) : (
+          activeSeatEntries.map(([seat, stat]) => (
+            <WinRateBar
+              key={seat}
+              label={`${SEAT_ORDINALS[seat]} to play`}
+              stat={stat}
+            />
+          ))
+        )}
+      </div>
 
-        <TabsContent value="seat" className="pt-4 space-y-3">
-          {activeSeatEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
-          ) : (
-            activeSeatEntries.map(([seat, stat]) => (
-              <WinRateBar
-                key={seat}
-                label={`${SEAT_ORDINALS[seat]} to play`}
-                stat={stat}
-              />
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="winturn" className="pt-4 space-y-3">
-          {stats.byWinTurn.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No data yet.</p>
-          ) : (
-            stats.byWinTurn.map(({ turn, stat }) => (
-              <WinRateBar key={turn} label={`Turn ${turn}`} stat={stat} />
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Performance by commander */}
+      {/* Commander performance */}
       {stats.byCommander.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Performance by commander
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Commander performance
+            </h2>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Sort by</span>
+              <select
+                value={commanderSort}
+                onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
+                className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground cursor-pointer"
+              >
+                <option value="win-rate">Win rate</option>
+                <option value="win-turn">Winning turn</option>
+              </select>
+            </div>
+          </div>
           <div className="space-y-3">
-            {stats.byCommander.map((c) => (
-              <WinRateBar key={c.name} label={c.name} stat={{ wins: c.wins, games: c.games, rate: c.rate }} />
+            {sortedCommanders.map((c, i) => (
+              <CommanderStatCard key={c.name} stat={c} rank={i + 1} />
             ))}
           </div>
         </div>

@@ -51,52 +51,53 @@ export function computeStats(games: Game[]): ComputedStats {
     {} as SeatStats
   )
 
-  // By win turn (which turn number the game ended on)
-  const turnMap = new Map<number, { total: number; myWins: number }>()
-  for (const game of myGames) {
-    const me = getMe(game)
-    if (!me) continue
-    const t = game.winTurn
-    const entry = turnMap.get(t) ?? { total: 0, myWins: 0 }
-    entry.total++
-    if (game.winnerId === me.id) entry.myWins++
-    turnMap.set(t, entry)
-  }
-  const byWinTurn = Array.from(turnMap.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([turn, { total, myWins }]) => ({ turn, stat: winRate(myWins, total) }))
+  // By commander (with per-commander breakdowns)
+  const commanderMap = new Map<string, {
+    wins: number
+    games: number
+    manaCost?: string
+    imageUri?: string
+    winTurnSum: number
+    withFmWins: number
+    withFmGames: number
+    vsFmWins: number
+    vsFmGames: number
+  }>()
 
-  // By commander
-  const commanderMap = new Map<string, { wins: number; games: number; manaCost?: string; imageUri?: string }>()
   for (const game of myGames) {
     const me = getMe(game)
     if (!me) continue
+    const iWon = game.winnerId === me.id
     const name = me.commanderName
-    const existing = commanderMap.get(name)
-    if (existing) {
-      existing.games++
-      if (game.winnerId === me.id) existing.wins++
-    } else {
-      commanderMap.set(name, {
-        wins: game.winnerId === me.id ? 1 : 0,
-        games: 1,
-        manaCost: me.commanderManaCost,
-        imageUri: me.commanderImageUri,
-      })
+    const entry = commanderMap.get(name) ?? {
+      wins: 0, games: 0,
+      manaCost: me.commanderManaCost, imageUri: me.commanderImageUri,
+      winTurnSum: 0,
+      withFmWins: 0, withFmGames: 0,
+      vsFmWins: 0, vsFmGames: 0,
     }
+    entry.games++
+    if (iWon) { entry.wins++; entry.winTurnSum += game.winTurn }
+    if (me.fastMana.hasFastMana) { entry.withFmGames++; if (iWon) entry.withFmWins++ }
+    if (game.players.some((p) => !p.isMe && p.fastMana.hasFastMana)) { entry.vsFmGames++; if (iWon) entry.vsFmWins++ }
+    commanderMap.set(name, entry)
   }
+
   const byCommander = Array.from(commanderMap.entries())
-    .map(([name, { wins, games, manaCost, imageUri }]) => ({
+    .map(([name, e]) => ({
       name,
-      manaCost,
-      imageUri,
-      wins,
-      games,
-      rate: games === 0 ? 0 : wins / games,
+      manaCost: e.manaCost,
+      imageUri: e.imageUri,
+      wins: e.wins,
+      games: e.games,
+      rate: e.games === 0 ? 0 : e.wins / e.games,
+      averageWinTurn: e.wins === 0 ? null : e.winTurnSum / e.wins,
+      withFastMana: winRate(e.withFmWins, e.withFmGames),
+      againstFastMana: winRate(e.vsFmWins, e.vsFmGames),
     }))
     .sort((a, b) => b.rate - a.rate || b.games - a.games)
 
-  // Average win turn
+  // Average win turn (overall)
   const myWins = myGames.filter((g) => {
     const me = getMe(g)
     return me && g.winnerId === me.id
@@ -111,7 +112,6 @@ export function computeStats(games: Game[]): ComputedStats {
     withFastMana,
     againstFastMana,
     bySeat,
-    byWinTurn,
     byCommander,
     averageWinTurn,
     gamesPlayed: myGames.length,

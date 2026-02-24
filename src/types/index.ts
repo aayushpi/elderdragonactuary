@@ -86,6 +86,9 @@ export interface CommanderStat {
   wins: number
   games: number
   rate: number
+  averageWinTurn: number | null
+  withFastMana: WinRateStat
+  againstFastMana: WinRateStat
 }
 
 export interface ComputedStats {
@@ -93,7 +96,6 @@ export interface ComputedStats {
   withFastMana: WinRateStat
   againstFastMana: WinRateStat
   bySeat: SeatStats
-  byWinTurn: { turn: number; stat: WinRateStat }[]
   byCommander: CommanderStat[]
   averageWinTurn: number | null
   gamesPlayed: number
@@ -101,7 +103,7 @@ export interface ComputedStats {
 
 // ─── Routing ────────────────────────────────────────────────────────────────
 
-export type AppView = "dashboard" | "log-game" | "history" | "game-detail"
+export type AppView = "dashboard" | "log-game" | "history" | "settings" | "game-detail"
 
 export interface AppState {
   view: AppView

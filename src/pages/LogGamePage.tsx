@@ -11,13 +11,13 @@ function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-function makePlayer(isMe: boolean, seat: SeatPosition): Partial<Player> {
+function makePlayer(isMe: boolean): Partial<Player> {
   return {
     id: generateId(),
     isMe,
     commanderName: "",
     fastMana: { hasFastMana: false, cards: [] },
-    seatPosition: seat,
+    // seatPosition intentionally omitted — user selects via SeatPicker
   }
 }
 
@@ -74,12 +74,12 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
     if (players.length === 0) {
       newPlayers = []
       for (let i = 0; i < total; i++) {
-        newPlayers.push(makePlayer(i === 0, (i + 1) as SeatPosition))
+        newPlayers.push(makePlayer(i === 0))
       }
     } else if (total > players.length) {
       newPlayers = [...players]
       for (let i = players.length; i < total; i++) {
-        newPlayers.push(makePlayer(false, (i + 1) as SeatPosition))
+        newPlayers.push(makePlayer(false))
       }
     } else {
       newPlayers = players.slice(0, total).map((p) => ({

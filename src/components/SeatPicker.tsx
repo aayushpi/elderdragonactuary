@@ -3,7 +3,7 @@ import type { SeatPosition } from "@/types"
 
 interface SeatPickerProps {
   value: SeatPosition | null
-  onChange: (seat: SeatPosition) => void
+  onChange: (seat: SeatPosition | null) => void
   takenSeats: SeatPosition[]
   totalPlayers: number
   hasError?: boolean
@@ -28,7 +28,7 @@ export function SeatPicker({ value, onChange, takenSeats, totalPlayers, hasError
             variant={value === seat ? "default" : "outline"}
             disabled={taken}
             className="flex-1 min-w-[3rem]"
-            onClick={() => onChange(seat)}
+            onClick={() => onChange(value === seat ? null : seat)}
           >
             {SEAT_LABELS[seat]}
           </Button>

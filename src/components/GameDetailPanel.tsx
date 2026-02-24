@@ -29,7 +29,7 @@ export function GameDetailPanel({ game, open, onClose }: GameDetailPanelProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o: boolean) => !o && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Badge variant={iWon ? "default" : "secondary"}>{iWon ? "Win" : "Loss"}</Badge>
@@ -37,7 +37,7 @@ export function GameDetailPanel({ game, open, onClose }: GameDetailPanelProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
           <div className="flex items-center gap-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Players</p>
