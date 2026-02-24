@@ -3,6 +3,7 @@ import { PlusCircle, ArrowRight, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
+import { WinStreakCard } from "@/components/WinStreakCard"
 import { CommanderStatCard } from "@/components/CommanderStatCard"
 import { useStats } from "@/hooks/useStats"
 import type { AppView, CommanderStat, Game } from "@/types"
@@ -96,6 +97,9 @@ export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
         <StatCard label="With Fast Mana" stat={stats.withFastMana} />
         <StatCard label="vs Fast Mana" stat={stats.againstFastMana} />
       </div>
+
+      {/* Win streak card */}
+      <WinStreakCard games={games} />
 
       {/* Win rate by starting turn */}
       <div className="space-y-3">
