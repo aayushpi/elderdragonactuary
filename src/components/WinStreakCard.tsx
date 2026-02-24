@@ -2,6 +2,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Game } from "@/types"
 
+function commanderDisplayName(game: Game, playerId: string | undefined): string {
+  if (!playerId) return "Unknown Commander"
+  const player = game.players.find((p) => p.id === playerId)
+  if (!player) return "Unknown Commander"
+  return player.partnerName
+    ? `${player.commanderName} // ${player.partnerName}`
+    : player.commanderName
+}
+
 interface WinStreakCardProps {
   games: Game[]
 }
@@ -39,10 +48,7 @@ export function WinStreakCard({ games }: WinStreakCardProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">
-              Current Streak
-            </p>
-            <p className="text-lg font-bold">
-              {currentStreak} {currentStreakType === "win" ? "🏆" : "📉"}
+              {currentStreak} {currentStreakType === "win" ? "win" : "loss"} Streak
             </p>
           </div>
 
@@ -54,6 +60,8 @@ export function WinStreakCard({ games }: WinStreakCardProps) {
                 if (!me) return null
 
                 const isWin = game.winnerId === me.id
+                const winningCommander = commanderDisplayName(game, game.winnerId)
+                const losingCommander = commanderDisplayName(game, me.id)
                 const date = new Date(game.playedAt).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -75,7 +83,9 @@ export function WinStreakCard({ games }: WinStreakCardProps) {
                     <TooltipContent>
                       <div className="text-xs">
                         <p className={isWin ? "text-emerald-400" : "text-red-400"}>
-                          {isWin ? "Win" : "Loss"}
+                          {isWin
+                            ? `${winningCommander} won on turn ${game.winTurn}`
+                            : `${losingCommander} lost to ${winningCommander} on turn ${game.winTurn}`}
                         </p>
                         <p className="text-muted-foreground">{date}</p>
                       </div>

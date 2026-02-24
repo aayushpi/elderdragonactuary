@@ -1,6 +1,8 @@
 import { useState } from "react"
-import { Plus, ArrowRight, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, ArrowRight, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { ManaCost } from "@/components/ManaCost"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
 import { WinStreakCard } from "@/components/WinStreakCard"
@@ -12,17 +14,30 @@ const SEAT_ORDINALS: Record<number, string> = {
   1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th",
 }
 
-type CommanderSort = "win-rate" | "win-turn"
+type CommanderSort = "win-rate" | "win-turn" | "total-wins"
+type SortDirection = "asc" | "desc"
 
-function sortCommanders(commanders: CommanderStat[], sort: CommanderSort): CommanderStat[] {
+function colorIdentityToManaCost(colors: string[]): string {
+  if (colors.length === 0) return "{C}"
+  return colors.map((color) => `{${color}}`).join("")
+}
+
+function sortCommanders(commanders: CommanderStat[], sort: CommanderSort, direction: SortDirection): CommanderStat[] {
   return [...commanders].sort((a, b) => {
+    let comparison = 0
+
     if (sort === "win-turn") {
-      if (a.averageWinTurn === null && b.averageWinTurn === null) return 0
-      if (a.averageWinTurn === null) return 1
-      if (b.averageWinTurn === null) return -1
-      return a.averageWinTurn - b.averageWinTurn
+      if (a.averageWinTurn === null && b.averageWinTurn === null) comparison = 0
+      else if (a.averageWinTurn === null) comparison = 1
+      else if (b.averageWinTurn === null) comparison = -1
+      else comparison = a.averageWinTurn - b.averageWinTurn
+    } else if (sort === "total-wins") {
+      comparison = a.wins - b.wins || a.games - b.games
+    } else {
+      comparison = a.rate - b.rate || a.games - b.games
     }
-    return b.rate - a.rate || b.games - a.games
+
+    return direction === "asc" ? comparison : -comparison
   })
 }
 
@@ -34,7 +49,9 @@ interface StatsPageProps {
 export function StatsPage({ games, onNavigate }: StatsPageProps) {
   const stats = useStats(games)
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [winRateExpanded, setWinRateExpanded] = useState(true)
+  const [commanderColorsExpanded, setCommanderColorsExpanded] = useState(true)
   const [commanderExpanded, setCommanderExpanded] = useState(true)
 
   if (stats.gamesPlayed === 0) {
@@ -74,7 +91,7 @@ export function StatsPage({ games, onNavigate }: StatsPageProps) {
     ] as [number, (typeof stats.bySeat.seat1)][]
   ).filter(([, stat]) => stat.games > 0)
 
-  const sortedCommanders = sortCommanders(stats.byCommander, commanderSort)
+  const sortedCommanders = sortCommanders(stats.byCommander, commanderSort, sortDirection)
 
   return (
     <div className="space-y-6">
@@ -136,6 +153,85 @@ export function StatsPage({ games, onNavigate }: StatsPageProps) {
         )}
       </div>
 
+      {/* Stats about your commander colors */}
+      <div className="space-y-3">
+        <button
+          onClick={() => setCommanderColorsExpanded(!commanderColorsExpanded)}
+          className="flex items-center gap-2 text-left"
+        >
+          {commanderColorsExpanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Commander colors
+          </h2>
+        </button>
+        {commanderColorsExpanded && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Most played</p>
+              {stats.mostPlayedCommanderColorIdentity ? (
+                <>
+                  <div className="mt-2">
+                    <ManaCost cost={colorIdentityToManaCost(stats.mostPlayedCommanderColorIdentity.colors)} size="sm" />
+                  </div>
+                  <p className="text-2xl font-bold mt-1 leading-none">{stats.mostPlayedCommanderColorIdentity.games} game{stats.mostPlayedCommanderColorIdentity.games !== 1 ? "s" : ""}</p>
+
+                </>
+              ) : (
+                <p className="text-2xl font-bold mt-1 leading-none">—</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Most successful</p>
+              {stats.mostSuccessfulCommanderColorIdentity ? (
+                <>
+                  <div className="mt-2">
+                    <ManaCost cost={colorIdentityToManaCost(stats.mostSuccessfulCommanderColorIdentity.colors)} size="sm" />
+                  </div>
+                  <p className="text-2xl font-bold mt-1 leading-none">
+                    {Math.round(stats.mostSuccessfulCommanderColorIdentity.winRate * 100)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {stats.mostSuccessfulCommanderColorIdentity.wins} wins / {stats.mostSuccessfulCommanderColorIdentity.games} games
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl font-bold mt-1 leading-none">—</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Archnemesis colors</p>
+              {stats.archnemesisCommanderColorIdentity ? (
+                <>
+                  <div className="mt-2">
+                    <ManaCost cost={colorIdentityToManaCost(stats.archnemesisCommanderColorIdentity.colors)} size="sm" />
+                  </div>
+                  <p className="text-2xl font-bold mt-1 leading-none">
+                    {Math.round(stats.archnemesisCommanderColorIdentity.lossRate * 100)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {stats.archnemesisCommanderColorIdentity.games - stats.archnemesisCommanderColorIdentity.wins} losses / {stats.archnemesisCommanderColorIdentity.games} games
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl font-bold mt-1 leading-none">—</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        )}
+      </div>
+
       {/* Commander performance */}
       {stats.byCommander.length > 0 && (
         <div className="space-y-3">
@@ -163,7 +259,17 @@ export function StatsPage({ games, onNavigate }: StatsPageProps) {
                 >
                   <option value="win-rate">Win rate</option>
                   <option value="win-turn">Winning turn</option>
+                  <option value="total-wins">Total wins</option>
                 </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
+                >
+                  <ArrowUpDown className="h-3 w-3" />
+                  {sortDirection === "asc" ? "Asc" : "Desc"}
+                </Button>
               </div>
             )}
           </div>

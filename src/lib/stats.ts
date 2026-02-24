@@ -1,4 +1,4 @@
-import type { Game, WinRateStat, SeatStats, ComputedStats, SeatPosition } from "@/types"
+import type { Game, WinRateStat, SeatStats, ComputedStats, SeatPosition, MtgColor } from "@/types"
 
 function winRate(wins: number, games: number): WinRateStat {
   return { wins, games, rate: games === 0 ? 0 : wins / games }
@@ -6,6 +6,17 @@ function winRate(wins: number, games: number): WinRateStat {
 
 function getMe(game: Game) {
   return game.players.find((p) => p.isMe)
+}
+
+const COLOR_ORDER: MtgColor[] = ["W", "U", "B", "R", "G"]
+
+function normalizeColorIdentity(colors?: MtgColor[]): MtgColor[] {
+  if (!colors || colors.length === 0) return []
+  return [...new Set(colors)].sort((a, b) => COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b))
+}
+
+function colorIdentityKey(colors: MtgColor[]): string {
+  return colors.length === 0 ? "C" : colors.join("")
 }
 
 export function computeStats(games: Game[]): ComputedStats {
@@ -85,6 +96,10 @@ export function computeStats(games: Game[]): ComputedStats {
 
   const byCommander = Array.from(commanderMap.entries())
     .map(([name, e]) => ({
+      commanderGames: myGames
+        .filter((g) => getMe(g)?.commanderName === name)
+        .slice()
+        .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()),
       name,
       manaCost: e.manaCost,
       imageUri: e.imageUri,
@@ -95,7 +110,101 @@ export function computeStats(games: Game[]): ComputedStats {
       withFastMana: winRate(e.withFmWins, e.withFmGames),
       againstFastMana: winRate(e.vsFmWins, e.vsFmGames),
     }))
+    .map((entry) => {
+      const recentResults = entry.commanderGames
+        .slice(0, 10)
+        .map((game) => {
+          const me = getMe(game)
+          const winner = game.players.find((p) => p.id === game.winnerId)
+          return {
+            result: me && game.winnerId === me.id ? "W" as const : "L" as const,
+            date: game.playedAt,
+            winTurn: game.winTurn,
+            winningCommander: winner?.commanderName ?? "Unknown Commander",
+          }
+        })
+
+      const keyCardCounts = new Map<string, number>()
+      for (const game of entry.commanderGames) {
+        for (const card of game.keyWinconCards ?? []) {
+          keyCardCounts.set(card, (keyCardCounts.get(card) ?? 0) + 1)
+        }
+      }
+
+      const keyCards = Array.from(keyCardCounts.entries())
+        .map(([cardName, count]) => ({ name: cardName, count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+        .slice(0, 5)
+
+      const { commanderGames, ...rest } = entry
+      return {
+        ...rest,
+        recentResults,
+        keyCards,
+      }
+    })
     .sort((a, b) => b.rate - a.rate || b.games - a.games)
+
+  const colorIdentityMap = new Map<string, {
+    colors: MtgColor[]
+    commanders: Set<string>
+    wins: number
+    games: number
+  }>()
+
+  for (const game of myGames) {
+    const me = getMe(game)
+    if (!me) continue
+
+    const colors = normalizeColorIdentity(me.commanderColorIdentity)
+    const key = colorIdentityKey(colors)
+    const entry = colorIdentityMap.get(key) ?? {
+      colors,
+      commanders: new Set<string>(),
+      wins: 0,
+      games: 0,
+    }
+
+    entry.commanders.add(me.commanderName)
+    entry.games++
+    if (game.winnerId === me.id) {
+      entry.wins++
+    }
+
+    colorIdentityMap.set(key, entry)
+  }
+
+  const byCommanderColorIdentity = Array.from(colorIdentityMap.entries())
+    .map(([key, entry]) => {
+      const winRate = entry.games === 0 ? 0 : entry.wins / entry.games
+      return {
+        key,
+        colors: entry.colors,
+        uniqueCommanders: entry.commanders.size,
+        wins: entry.wins,
+        games: entry.games,
+        winRate,
+        lossRate: 1 - winRate,
+      }
+    })
+    .sort((a, b) => b.games - a.games || b.uniqueCommanders - a.uniqueCommanders || a.key.localeCompare(b.key))
+
+  const mostPlayedCommanderColorIdentity =
+    byCommanderColorIdentity[0] ?? null
+
+  const mostSuccessfulCommanderColorIdentity =
+    byCommanderColorIdentity.length === 0
+      ? null
+      : [...byCommanderColorIdentity].sort(
+          (a, b) => b.winRate - a.winRate || b.games - a.games || b.uniqueCommanders - a.uniqueCommanders
+        )[0]
+
+  const archnemesisCommanderColorIdentity =
+    byCommanderColorIdentity.length === 0
+      ? null
+      : [...byCommanderColorIdentity].sort(
+          (a, b) => b.lossRate - a.lossRate || b.games - a.games || b.uniqueCommanders - a.uniqueCommanders
+        )[0]
 
   // Average win turn (overall)
   const myWins = myGames.filter((g) => {
@@ -113,6 +222,10 @@ export function computeStats(games: Game[]): ComputedStats {
     againstFastMana,
     bySeat,
     byCommander,
+    byCommanderColorIdentity,
+    mostPlayedCommanderColorIdentity,
+    mostSuccessfulCommanderColorIdentity,
+    archnemesisCommanderColorIdentity,
     averageWinTurn,
     gamesPlayed: myGames.length,
   }
