@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -48,6 +48,37 @@ const WIN_CONDITION_CATEGORIES = [
   "Asymmetric Board Wipe"
 ] as const
 
+function getMirroredSeatOrder(totalPlayers: number): number[] {
+  if (totalPlayers < 1) return []
+
+  if (totalPlayers === 5) {
+    return [1, 2, 3, 5, 4]
+  }
+
+  if (totalPlayers === 6) {
+    return [1, 2, 3, 6, 5, 4]
+  }
+
+  const rightEnd = Math.floor(totalPlayers / 2) + 1
+  const leftSeats = [1]
+  const rightSeats: number[] = []
+
+  for (let seat = totalPlayers; seat >= rightEnd + 1; seat--) {
+    leftSeats.push(seat)
+  }
+  for (let seat = 2; seat <= rightEnd; seat++) {
+    rightSeats.push(seat)
+  }
+
+  const mirrored: number[] = []
+  const rows = Math.max(leftSeats.length, rightSeats.length)
+  for (let i = 0; i < rows; i++) {
+    if (leftSeats[i] !== undefined) mirrored.push(leftSeats[i])
+    if (rightSeats[i] !== undefined) mirrored.push(rightSeats[i])
+  }
+  return mirrored
+}
+
 const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false }
 
 interface LogGamePageProps {
@@ -57,6 +88,16 @@ interface LogGamePageProps {
 
 export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   const { games } = useGames()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)")
+    const updateMobileState = () => setIsMobile(mediaQuery.matches)
+
+    updateMobileState()
+    mediaQuery.addEventListener("change", updateMobileState)
+    return () => mediaQuery.removeEventListener("change", updateMobileState)
+  }, [])
 
   const recentMyCommanders = useMemo((): RecentCommander[] => {
     const seen = new Set<string>()
@@ -171,6 +212,85 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   }
 
   const totalPlayers = playerCount ?? 0
+  // Desktop-only table mirroring: mobile keeps original card layout static.
+  const playerGridColumns = isMobile ? 2 : totalPlayers >= 5 ? 3 : 2
+  const mirroredSeatIndex = useMemo(() => {
+    const mirroredOrder = getMirroredSeatOrder(totalPlayers)
+    return new Map(mirroredOrder.map((seat, index) => [seat, index]))
+  }, [totalPlayers])
+
+  const sortedPlayerEntries = useMemo(() => {
+    // Mobile behavior: preserve initial visual order; seat choice is logged only.
+    if (isMobile) {
+      return players.map((player, originalIndex) => ({
+        player,
+        originalIndex,
+        playerOrder: originalIndex + 1,
+      }))
+    }
+
+    const seatByPlayerId = new Map<string, number>()
+
+    const assignedSeats = players
+      .map((player) => player.seatPosition)
+      .filter((seat): seat is SeatPosition => seat !== undefined)
+    const assignedSeatSet = new Set(assignedSeats)
+
+    const allPossibleSeats: SeatPosition[] = [1, 2, 3, 4, 5, 6]
+    const remainingSeats: SeatPosition[] = []
+    for (const seat of allPossibleSeats.slice(0, totalPlayers)) {
+      if (!assignedSeatSet.has(seat)) {
+        remainingSeats.push(seat)
+      }
+    }
+
+    let remainingSeatIndex = 0
+    for (const player of players) {
+      const playerId = player.id
+      if (!playerId) continue
+
+      if (player.seatPosition !== undefined) {
+        seatByPlayerId.set(playerId, player.seatPosition)
+      } else {
+        const fallbackSeat = remainingSeats[remainingSeatIndex] ?? totalPlayers
+        seatByPlayerId.set(playerId, fallbackSeat)
+        remainingSeatIndex += 1
+      }
+    }
+
+    return players
+      .map((player, originalIndex) => ({ player, originalIndex }))
+      .sort((a, b) => {
+        const aSeat = a.player.id ? seatByPlayerId.get(a.player.id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER
+        const bSeat = b.player.id ? seatByPlayerId.get(b.player.id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER
+        const aPosition = mirroredSeatIndex.get(aSeat) ?? Number.MAX_SAFE_INTEGER
+        const bPosition = mirroredSeatIndex.get(bSeat) ?? Number.MAX_SAFE_INTEGER
+        return aPosition - bPosition || a.originalIndex - b.originalIndex
+      })
+      .map((entry, index) => {
+        const seatOrder = entry.player.id ? seatByPlayerId.get(entry.player.id) : undefined
+        return { ...entry, playerOrder: seatOrder ?? (index + 1) }
+      })
+  }, [players, mirroredSeatIndex, totalPlayers, isMobile])
+
+  const playerGridEntries = useMemo(() => {
+    // Mobile behavior: do not inject placeholder slots for mirrored alignment.
+    if (isMobile) {
+      return sortedPlayerEntries
+    }
+
+    const remainder = sortedPlayerEntries.length % playerGridColumns
+    if (remainder === 0) return sortedPlayerEntries
+
+    const emptySlots = playerGridColumns - remainder
+    const tailStart = sortedPlayerEntries.length - remainder
+    return [
+      ...sortedPlayerEntries.slice(0, tailStart),
+      ...Array.from({ length: emptySlots }, () => null),
+      ...sortedPlayerEntries.slice(tailStart),
+    ]
+  }, [sortedPlayerEntries, playerGridColumns, isMobile])
+
   const hasAnyError = errors.playerCount
     || errors.players.some((p) => p.commanderName || p.seatPosition)
     || errors.noWinner
@@ -211,29 +331,36 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Players
             </h2>
-            <div className="grid grid-cols-2 gap-3">
-            {players.map((player, i) => (
-              <PlayerRow
-                key={player.id}
-                player={player}
-                isMe={i === 0}
-                opponentIndex={i > 0 ? i : undefined}
-                takenSeats={takenSeats(i)}
-                totalPlayers={totalPlayers}
-                isWinner={player.id === winnerId}
-                winTurn={player.id === winnerId ? winTurn : ""}
-                onSetWinner={() => { setWinnerId(player.id ?? null); setWinTurn("") }}
-                onWinTurnChange={setWinTurn}
-                onChange={(updated) => updatePlayer(i, updated)}
-                recentCommanders={i === 0 ? recentMyCommanders : undefined}
-                fieldErrors={{
-                  commanderName: errors.players[i]?.commanderName,
-                  seatPosition: errors.players[i]?.seatPosition,
-                  winTurn: player.id === winnerId ? errors.winTurn : false,
-                }}
-                showWinnerError={errors.noWinner}
-              />
-            ))}
+            <div className={cn("grid gap-3", playerGridColumns === 3 ? "grid-cols-3" : "grid-cols-2")}>
+            {playerGridEntries.map((entry, gridIndex) => {
+                if (!entry) {
+                  return <div key={`empty-slot-${gridIndex}`} aria-hidden="true" />
+                }
+
+                const { player, originalIndex, playerOrder } = entry
+                return (
+                  <PlayerRow
+                    key={player.id}
+                    player={player}
+                    isMe={player.isMe ?? false}
+                    playerOrder={playerOrder}
+                    takenSeats={takenSeats(originalIndex)}
+                    totalPlayers={totalPlayers}
+                    isWinner={player.id === winnerId}
+                    winTurn={player.id === winnerId ? winTurn : ""}
+                    onSetWinner={() => { setWinnerId(player.id ?? null); setWinTurn("") }}
+                    onWinTurnChange={setWinTurn}
+                    onChange={(updated) => updatePlayer(originalIndex, updated)}
+                    recentCommanders={player.isMe ? recentMyCommanders : undefined}
+                    fieldErrors={{
+                      commanderName: errors.players[originalIndex]?.commanderName,
+                      seatPosition: errors.players[originalIndex]?.seatPosition,
+                      winTurn: player.id === winnerId ? errors.winTurn : false,
+                    }}
+                    showWinnerError={errors.noWinner}
+                  />
+                )
+              })}
             </div>
           </div>
 
