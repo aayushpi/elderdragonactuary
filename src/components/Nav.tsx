@@ -21,29 +21,32 @@ export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
     <nav className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto max-w-5xl px-4">
         {/* Header row with title */}
-        <div className="flex items-center justify-between py-3">
-          <span className="font-bold text-lg shrink-0">
-            <span role="img" aria-label="Search" className="mr-2 text-xl">🔎</span>
-            Elder Dragon Actuary
+        <div className="flex items-center justify-between py-3 gap-2">
+          <span className="font-bold text-base sm:text-lg shrink-0 min-w-0">
+            <span role="img" aria-label="Search" className="mr-1 sm:mr-2 text-lg sm:text-xl">🔎</span>
+            <span className="hidden min-[400px]:inline">Elder Dragon Actuary</span>
+            <span className="min-[400px]:hidden">EDA</span>
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={onShowReleaseNotes}
-              className="gap-1.5 text-xs h-7 px-2"
+              className="gap-1 sm:gap-1.5 text-xs h-7 px-1.5 sm:px-2"
+              title="Release Notes"
             >
               <FileText className="h-3 w-3" />
-              Release Notes
+              <span className="hidden sm:inline">Release Notes</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => window.open('https://github.com/aayushpi/elderdragonactuary/issues/new', '_blank')}
-              className="gap-1.5 text-xs h-7 px-2"
+              className="gap-1 sm:gap-1.5 text-xs h-7 px-1.5 sm:px-2"
+              title="Report Bug"
             >
               <Bug className="h-3 w-3" />
-              Report Bug
+              <span className="hidden sm:inline">Report Bug</span>
             </Button>
           </div>
         </div>
