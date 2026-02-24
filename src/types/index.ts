@@ -60,6 +60,7 @@ export interface Game {
   winnerId: string
   winTurn: number
   notes?: string
+  winConditions?: string[]
 }
 
 // ─── Stats ──────────────────────────────────────────────────────────────────
