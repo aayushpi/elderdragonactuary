@@ -30,7 +30,7 @@ export function CommanderSearch({
 }: CommanderSearchProps) {
   const [open, setOpen] = useState(false)
   const [loadingCard, setLoadingCard] = useState(false)
-  const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall()
+  const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall("commander")
 
   async function handleSelect(name: string) {
     setOpen(false)
@@ -154,7 +154,7 @@ export function extractCardData(card: ScryfallCard) {
   return {
     commanderImageUri: resolveArtCrop(card),
     commanderColorIdentity: card.color_identity as MtgColor[],
-    commanderManaCost: card.mana_cost,
+    commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
     commanderTypeLine: card.type_line,
   }
 }
