@@ -106,7 +106,7 @@ export function PlayerRow({
   const label = `${positionLabel} Player`
 
   return (
-    <div className={`space-y-3 p-3 rounded-lg border bg-card transition-colors ${isWinner ? "border-primary" : "border-border"}`}>
+    <div className={`space-y-3 p-3 rounded-lg border transition-colors bg-card ${isWinner ? "border-primary" : "border-border"} ${isMe ? "border-[3px] border-primary" : "border"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 pt-0.5">
           <span className="text-sm font-semibold">{label}</span>
