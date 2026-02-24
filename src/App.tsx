@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Analytics } from "@vercel/analytics/react"
 import { Nav } from "@/components/Nav"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { LogGamePage } from "@/pages/LogGamePage"
@@ -30,6 +31,7 @@ function App() {
           <HistoryPage games={games} onDeleteGame={deleteGame} onImport={replaceGames} />
         )}
       </main>
+      <Analytics />
     </div>
   )
 }
