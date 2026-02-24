@@ -45,7 +45,7 @@ export function Nav({ currentView, onNavigate }: NavProps) {
           </div>
           <Button size="sm" onClick={() => onNavigate("log-game")} className="gap-1.5">
             <Plus className="h-4 w-4" />
-            New game
+            Track a game
             <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
               N
             </kbd>
