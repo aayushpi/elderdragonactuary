@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Download, Upload, Trash2 } from "lucide-react"
+import { Download, Upload, Trash2, FileText } from "lucide-react"
 import { exportData, exportCSV } from "@/lib/storage"
 
 interface SettingsPageProps {
@@ -50,7 +50,7 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
           <div className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="text-sm font-medium">Export games</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Download all games as JSON or CSV (game log only)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Download all game data as a JSON (can be imported later) or CSV</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={handleExport}>
@@ -72,7 +72,7 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
                   URL.revokeObjectURL(url)
                 }}
               >
-                <Download className="h-3.5 w-3.5" />
+                <FileText className="h-3.5 w-3.5" />
                 Download CSV
               </Button>
             </div>
@@ -80,7 +80,7 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
           <div className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="text-sm font-medium">Import games</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Replace all games from a JSON export file</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Import game logs from a previously exported JSON</p>
               <p className="text-xs text-destructive mt-1 font-medium">Warning: this will erase your current data.</p>
             </div>
             <Button
@@ -105,7 +105,7 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
 
       {/* Danger zone */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Danger zone</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Board Wipe</h2>
         <div className="rounded-lg border border-destructive/30 bg-card p-4 space-y-3">
           <div>
             <p className="text-sm font-medium">Delete all data</p>

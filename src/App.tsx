@@ -5,11 +5,13 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
+import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
 import type { AppView, Game } from "@/types"
 
 function App() {
   const [view, setView] = useState<AppView>("dashboard")
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const { games, addGame, deleteGame, replaceGames, clearGames } = useGames()
 
   function handleSaveGame(game: Game) {
@@ -35,7 +37,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="bottom-center" richColors />
-      <Nav currentView={view} onNavigate={setView} />
+      <Nav currentView={view} onNavigate={setView} onShowReleaseNotes={() => setShowReleaseNotes(true)} />
       <main className="container mx-auto max-w-3xl px-4 py-6">
         {view === "dashboard" && <DashboardPage games={games} onNavigate={setView} />}
         {view === "log-game" && (
@@ -51,6 +53,7 @@ function App() {
           <SettingsPage onImport={replaceGames} onClearAll={clearGames} />
         )}
       </main>
+      <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
     </div>
   )
 }

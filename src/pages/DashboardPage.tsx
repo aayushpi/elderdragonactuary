@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { PlusCircle, ArrowRight } from "lucide-react"
+import { PlusCircle, ArrowRight, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
@@ -33,6 +33,8 @@ interface DashboardPageProps {
 export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
   const stats = useStats(games)
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
+  const [winRateExpanded, setWinRateExpanded] = useState(true)
+  const [commanderExpanded, setCommanderExpanded] = useState(true)
 
   if (stats.gamesPlayed === 0) {
     return (
@@ -97,19 +99,33 @@ export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
 
       {/* Win rate by starting turn */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Win rate by starting turn
-        </h2>
-        {activeSeatEntries.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
-        ) : (
-          activeSeatEntries.map(([seat, stat]) => (
-            <WinRateBar
-              key={seat}
-              label={`${SEAT_ORDINALS[seat]} to play`}
-              stat={stat}
-            />
-          ))
+        <button
+          onClick={() => setWinRateExpanded(!winRateExpanded)}
+          className="flex items-center gap-2 text-left"
+        >
+          {winRateExpanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Win rate by starting turn
+          </h2>
+        </button>
+        {winRateExpanded && (
+          <>
+            {activeSeatEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
+            ) : (
+              activeSeatEntries.map(([seat, stat]) => (
+                <WinRateBar
+                  key={seat}
+                  label={`${SEAT_ORDINALS[seat]} to play`}
+                  stat={stat}
+                />
+              ))
+            )}
+          </>
         )}
       </div>
 
@@ -117,26 +133,40 @@ export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
       {stats.byCommander.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Commander performance
-            </h2>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">Sort by</span>
-              <select
-                value={commanderSort}
-                onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
-                className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground cursor-pointer"
-              >
-                <option value="win-rate">Win rate</option>
-                <option value="win-turn">Winning turn</option>
-              </select>
+            <button
+              onClick={() => setCommanderExpanded(!commanderExpanded)}
+              className="flex items-center gap-2 text-left"
+            >
+              {commanderExpanded ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Commander performance
+              </h2>
+            </button>
+            {commanderExpanded && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Sort by</span>
+                <select
+                  value={commanderSort}
+                  onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
+                  className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground cursor-pointer"
+                >
+                  <option value="win-rate">Win rate</option>
+                  <option value="win-turn">Winning turn</option>
+                </select>
+              </div>
+            )}
+          </div>
+          {commanderExpanded && (
+            <div className="space-y-3">
+              {sortedCommanders.map((c, i) => (
+                <CommanderStatCard key={c.name} stat={c} rank={i + 1} />
+              ))}
             </div>
-          </div>
-          <div className="space-y-3">
-            {sortedCommanders.map((c, i) => (
-              <CommanderStatCard key={c.name} stat={c} rank={i + 1} />
-            ))}
-          </div>
+          )}
         </div>
       )}
     </div>

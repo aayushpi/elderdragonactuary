@@ -1,4 +1,4 @@
-import { LayoutDashboard, History, Settings, Plus, Bug } from "lucide-react"
+import { LayoutDashboard, History, Download, Plus, Bug, Megaphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { AppView } from "@/types"
@@ -6,15 +6,16 @@ import type { AppView } from "@/types"
 interface NavProps {
   currentView: AppView
   onNavigate: (view: AppView) => void
+  onShowReleaseNotes: () => void
 }
 
 const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { view: "dashboard", label: "Overview", Icon: LayoutDashboard },
   { view: "history", label: "Game History", Icon: History },
-  { view: "settings", label: "Settings", Icon: Settings },
+  { view: "settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentView, onNavigate }: NavProps) {
+export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
   return (
     <nav className="sticky top-0 z-50 bg-background">
       <div className="container mx-auto max-w-3xl px-4">
@@ -23,18 +24,31 @@ export function Nav({ currentView, onNavigate }: NavProps) {
             <span role="img" aria-label="Search" className="mr-2 text-xl">🔎</span>
             Elder Dragon Actuary
           </span>
-          <a
-            href="https://github.com/aayushpi/elderdragonactuary/issues/new"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Bug className="h-3.5 w-3.5" />
-            Report a bug
-          </a>
+          <div className="flex items-center gap-4">
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault()
+                onShowReleaseNotes()
+              }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <Megaphone className="h-3.5 w-3.5" />
+              Release Notes
+            </a>
+            <a
+              href="https://github.com/aayushpi/elderdragonactuary/issues/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Bug className="h-3.5 w-3.5" />
+              Report a bug
+            </a>
+          </div>
         </div>
         <div className="flex items-center justify-between pb-3">
-          <div className="flex gap-1">
+          <div className="flex gap-2">
             {NAV_ITEMS.map(({ view, label, Icon }) => (
               <button
                 key={view}
