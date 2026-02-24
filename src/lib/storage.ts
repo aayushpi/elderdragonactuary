@@ -40,6 +40,7 @@ interface ExportGame {
   winTurn: number
   winnerIndex: number     // index into players array (0 = you)
   notes?: string
+  winConditions?: string[]
   players: ExportPlayer[]
 }
 
@@ -58,6 +59,7 @@ export function exportData(): string {
       winTurn: g.winTurn,
       winnerIndex: winnerIndex >= 0 ? winnerIndex : 0,
       notes: g.notes,
+      winConditions: g.winConditions,
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
   })
@@ -94,6 +96,7 @@ export function exportCSV(): string {
   headers.push("Winner")
   headers.push("Win Turn")
   headers.push("Notes")
+  headers.push("Win Conditions")
 
   const rows: string[] = []
   rows.push(headers.join(','))
@@ -127,6 +130,7 @@ export function exportCSV(): string {
     row.push(winnerName)
     row.push(String(g.winTurn ?? ""))
     row.push(g.notes ?? "")
+    row.push(g.winConditions?.join(", ") ?? "")
 
     rows.push(row.map(csvEscape).join(','))
   })
