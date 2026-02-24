@@ -29,9 +29,9 @@ export function GameDetailPanel({ game, open, onClose }: GameDetailPanelProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o: boolean) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg w-[95vw] max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
             <Badge variant={iWon ? "default" : "secondary"}>{iWon ? "Win" : "Loss"}</Badge>
             <span className="font-normal text-muted-foreground text-sm">{date}</span>
           </DialogTitle>
