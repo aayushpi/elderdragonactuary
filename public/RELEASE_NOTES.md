@@ -4,6 +4,7 @@
 
 - Added support for wincon cards
 - Lots of UX tweaks.
+- Lots of UX to map the table seating. Needs more mobile testing
 
 ## v0.0.1 - February 23, 2026
 

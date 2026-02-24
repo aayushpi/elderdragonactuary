@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -88,6 +88,16 @@ interface LogGamePageProps {
 
 export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   const { games } = useGames()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)")
+    const updateMobileState = () => setIsMobile(mediaQuery.matches)
+
+    updateMobileState()
+    mediaQuery.addEventListener("change", updateMobileState)
+    return () => mediaQuery.removeEventListener("change", updateMobileState)
+  }, [])
 
   const recentMyCommanders = useMemo((): RecentCommander[] => {
     const seen = new Set<string>()
@@ -202,13 +212,23 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   }
 
   const totalPlayers = playerCount ?? 0
-  const playerGridColumns = totalPlayers >= 5 ? 3 : 2
+  // Desktop-only table mirroring: mobile keeps original card layout static.
+  const playerGridColumns = isMobile ? 2 : totalPlayers >= 5 ? 3 : 2
   const mirroredSeatIndex = useMemo(() => {
     const mirroredOrder = getMirroredSeatOrder(totalPlayers)
     return new Map(mirroredOrder.map((seat, index) => [seat, index]))
   }, [totalPlayers])
 
   const sortedPlayerEntries = useMemo(() => {
+    // Mobile behavior: preserve initial visual order; seat choice is logged only.
+    if (isMobile) {
+      return players.map((player, originalIndex) => ({
+        player,
+        originalIndex,
+        playerOrder: originalIndex + 1,
+      }))
+    }
+
     const seatByPlayerId = new Map<string, number>()
 
     const assignedSeats = players
@@ -251,9 +271,14 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
         const seatOrder = entry.player.id ? seatByPlayerId.get(entry.player.id) : undefined
         return { ...entry, playerOrder: seatOrder ?? (index + 1) }
       })
-  }, [players, mirroredSeatIndex, totalPlayers])
+  }, [players, mirroredSeatIndex, totalPlayers, isMobile])
 
   const playerGridEntries = useMemo(() => {
+    // Mobile behavior: do not inject placeholder slots for mirrored alignment.
+    if (isMobile) {
+      return sortedPlayerEntries
+    }
+
     const remainder = sortedPlayerEntries.length % playerGridColumns
     if (remainder === 0) return sortedPlayerEntries
 
@@ -264,7 +289,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
       ...Array.from({ length: emptySlots }, () => null),
       ...sortedPlayerEntries.slice(tailStart),
     ]
-  }, [sortedPlayerEntries, playerGridColumns])
+  }, [sortedPlayerEntries, playerGridColumns, isMobile])
 
   const hasAnyError = errors.playerCount
     || errors.players.some((p) => p.commanderName || p.seatPosition)
