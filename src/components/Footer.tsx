@@ -7,7 +7,7 @@ interface FooterProps {
 export function Footer({ onShowReleaseNotes }: FooterProps) {
   return (
     <footer className="border-t bg-background mt-12">
-      <div className="container mx-auto max-w-3xl px-4 py-6">
+      <div className="container mx-auto max-w-5xl px-4 py-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <a
