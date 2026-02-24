@@ -82,53 +82,47 @@ function csvEscape(value: unknown): string {
 export function exportCSV(): string {
   const file = JSON.parse(exportData()) as { exportedAt: string; games: ExportGame[] }
 
-  const headers = [
-    "playedAt",
-    "winTurn",
-    "winnerIndex",
-    "notes",
-    "playerIndex",
-    "seatPosition",
-    "commanderName",
-    "commanderManaCost",
-    "commanderTypeLine",
-    "commanderColorIdentity",
-    "commanderImageUri",
-    "partnerName",
-    "partnerManaCost",
-    "partnerTypeLine",
-    "partnerImageUri",
-    "fastManaHasFastMana",
-    "fastManaCards",
-  ]
+  // Determine the maximum number of players across all games so columns are consistent
+  const maxPlayers = file.games.reduce((m, g) => Math.max(m, g.players.length), 0)
+
+  const headers: string[] = []
+  headers.push("Date")
+  for (let i = 1; i <= maxPlayers; i++) {
+    headers.push(`Player ${i} Commander`)
+    headers.push(`Player ${i} Fast Mana`)
+  }
+  headers.push("Winner")
+  headers.push("Win Turn")
+  headers.push("Notes")
 
   const rows: string[] = []
   rows.push(headers.join(','))
 
   file.games.forEach((g) => {
-    g.players.forEach((p, playerIndex) => {
-      const row = [
-        g.playedAt,
-        String(g.winTurn ?? ""),
-        String(g.winnerIndex ?? ""),
-        g.notes ?? "",
-        String(playerIndex),
-        String(p.seatPosition ?? ""),
-        p.commanderName ?? "",
-        p.commanderManaCost ?? "",
-        p.commanderTypeLine ?? "",
-        Array.isArray(p.commanderColorIdentity) ? p.commanderColorIdentity.join('|') : "",
-        p.commanderImageUri ?? "",
-        p.partnerName ?? "",
-        p.partnerManaCost ?? "",
-        p.partnerTypeLine ?? "",
-        p.partnerImageUri ?? "",
-        String(Boolean(p.fastMana?.hasFastMana)),
-        Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join('|') : "",
-      ]
+    const row: string[] = []
+    row.push(g.playedAt)
 
-      rows.push(row.map(csvEscape).join(','))
-    })
+    for (let i = 0; i < maxPlayers; i++) {
+      const p = g.players[i]
+      if (p) {
+        row.push(p.commanderName ?? "")
+        const hasFast = p.fastMana?.hasFastMana
+        const fastVal = hasFast ? (Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join(', ') : '') : "No"
+        row.push(fastVal)
+      } else {
+        row.push("")
+        row.push("")
+      }
+    }
+
+    const winnerName = typeof g.winnerIndex === "number" && g.players[g.winnerIndex]
+      ? g.players[g.winnerIndex].commanderName ?? ""
+      : ""
+    row.push(winnerName)
+    row.push(String(g.winTurn ?? ""))
+    row.push(g.notes ?? "")
+
+    rows.push(row.map(csvEscape).join(','))
   })
 
   return rows.join('\n')
