@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { PlusCircle, ArrowRight, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, ArrowRight, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
@@ -26,12 +26,12 @@ function sortCommanders(commanders: CommanderStat[], sort: CommanderSort): Comma
   })
 }
 
-interface DashboardPageProps {
+interface StatsPageProps {
   games: Game[]
   onNavigate: (view: AppView) => void
 }
 
-export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
+export function StatsPage({ games, onNavigate }: StatsPageProps) {
   const stats = useStats(games)
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
   const [winRateExpanded, setWinRateExpanded] = useState(true)
@@ -45,9 +45,12 @@ export function DashboardPage({ games, onNavigate }: DashboardPageProps) {
             <p className="text-muted-foreground text-sm">No games logged yet.</p>
             <p className="text-muted-foreground text-xs mt-1">Log a game to see your stats here.</p>
           </div>
-          <Button onClick={() => onNavigate("log-game")} className="gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Log a new game
+          <Button onClick={() => onNavigate("log-game")} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Track a game
+            <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+              N
+            </kbd>
           </Button>
         </div>
       </div>

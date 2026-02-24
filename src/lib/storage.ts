@@ -41,6 +41,7 @@ interface ExportGame {
   winnerIndex: number     // index into players array (0 = you)
   notes?: string
   winConditions?: string[]
+  keyWinconCards?: string[]
   players: ExportPlayer[]
 }
 
@@ -60,6 +61,7 @@ export function exportData(): string {
       winnerIndex: winnerIndex >= 0 ? winnerIndex : 0,
       notes: g.notes,
       winConditions: g.winConditions,
+      keyWinconCards: g.keyWinconCards,
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
   })
@@ -97,6 +99,7 @@ export function exportCSV(): string {
   headers.push("Win Turn")
   headers.push("Notes")
   headers.push("Win Conditions")
+  headers.push("Key Wincon Cards")
 
   const rows: string[] = []
   rows.push(headers.join(','))
@@ -131,6 +134,7 @@ export function exportCSV(): string {
     row.push(String(g.winTurn ?? ""))
     row.push(g.notes ?? "")
     row.push(g.winConditions?.join(", ") ?? "")
+    row.push(g.keyWinconCards?.join(", ") ?? "")
 
     rows.push(row.map(csvEscape).join(','))
   })
@@ -174,6 +178,8 @@ export function importData(json: string): { success: boolean; count: number; err
           winTurn: typeof g.winTurn === "number" ? g.winTurn : 0,
           winnerId: players[g.winnerIndex]?.id ?? players[0].id,
           notes: typeof g.notes === "string" ? g.notes : undefined,
+          winConditions: Array.isArray(g.winConditions) ? g.winConditions as string[] : undefined,
+          keyWinconCards: Array.isArray(g.keyWinconCards) ? g.keyWinconCards as string[] : undefined,
           players,
         } as Game
       }

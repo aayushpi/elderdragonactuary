@@ -1,5 +1,10 @@
 # Elder Dragon Actuary
 
+## v0.0.2 - February 24, 2026
+
+- Added support for wincon cards
+- Lots of UX tweaks.
+
 ## v0.0.1 - February 23, 2026
 
 - Init
