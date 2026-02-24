@@ -247,7 +247,10 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
         const bPosition = mirroredSeatIndex.get(bSeat) ?? Number.MAX_SAFE_INTEGER
         return aPosition - bPosition || a.originalIndex - b.originalIndex
       })
-      .map((entry, index) => ({ ...entry, playerOrder: index + 1 }))
+      .map((entry, index) => {
+        const seatOrder = entry.player.id ? seatByPlayerId.get(entry.player.id) : undefined
+        return { ...entry, playerOrder: seatOrder ?? (index + 1) }
+      })
   }, [players, mirroredSeatIndex, totalPlayers])
 
   const playerGridEntries = useMemo(() => {
