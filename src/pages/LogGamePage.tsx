@@ -255,7 +255,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
                     )
                   }}
                   className={cn(
-                    "px-3 py-1.5 text-xs rounded-md border transition-colors",
+                    "px-3 py-2 text-xs rounded-md border transition-colors whitespace-nowrap",
                     winConditions.includes(condition)
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-muted-foreground border-border hover:bg-muted"
