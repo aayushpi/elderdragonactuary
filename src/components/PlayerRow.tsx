@@ -108,28 +108,13 @@ export function PlayerRow({
   return (
     <div className={`space-y-3 p-3 rounded-lg border transition-colors bg-card ${isWinner ? "border-primary" : "border-border"} ${isMe ? "border-[3px] border-primary" : "border"}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-2 pt-0.5">
+        <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
           <span className="text-sm font-semibold">{label}</span>
           {isMe && (
             <span className="inline-flex items-center rounded-md bg-primary/10 text-primary text-[11px] font-medium px-2 py-0.5">
               Me
             </span>
           )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 sm:hidden">
-          <Button
-            type="button"
-            size="sm"
-            variant={isWinner ? "default" : "outline"}
-            className={`gap-1.5 text-xs h-7 px-2 ${
-              isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
-            }`}
-            onClick={onSetWinner}
-          >
-            <Trophy className="h-3 w-3" />
-            Winner
-          </Button>
         </div>
 
         <div className="hidden sm:flex items-center gap-2 self-end sm:self-auto max-w-full">
@@ -179,8 +164,24 @@ export function PlayerRow({
         </div>
       </div>
 
+      {/* Mobile winner controls */}
+      <div className="flex items-center justify-center gap-2 sm:hidden">
+        <Button
+          type="button"
+          size="sm"
+          variant={isWinner ? "default" : "outline"}
+          className={`gap-1.5 text-xs h-7 px-2 ${
+            isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
+          }`}
+          onClick={onSetWinner}
+        >
+          <Trophy className="h-3 w-3" />
+          Winner
+        </Button>
+      </div>
+
       {isWinner && (
-        <div className="flex items-center justify-end gap-1 sm:hidden">
+        <div className="flex items-center justify-center gap-1 sm:hidden">
           <Button
             type="button"
             size="sm"
