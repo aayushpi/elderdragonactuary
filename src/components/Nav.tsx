@@ -17,7 +17,7 @@ export function Nav({ currentView, onNavigate }: NavProps) {
     <nav className="sticky top-0 z-50 bg-background border-b border-border">
       <div className="container mx-auto max-w-3xl px-4">
         <div className="flex items-center h-14 gap-1">
-          <span className="font-bold text-sm mr-4 shrink-0">⚔️ Commando</span>
+          <span className="font-bold text-sm mr-4 shrink-0">🔎 Elder Dragon Actuary</span>
           {NAV_ITEMS.map(({ view, label, Icon }) => (
             <button
               key={view}
