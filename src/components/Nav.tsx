@@ -19,7 +19,7 @@ const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ cla
 export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
   return (
     <nav className="sticky top-0 z-50 bg-background border-b">
-      <div className="container mx-auto max-w-3xl px-4">
+      <div className="container mx-auto max-w-5xl px-4">
         {/* Header row with title */}
         <div className="flex items-center justify-between py-3">
           <span className="font-bold text-lg shrink-0">
