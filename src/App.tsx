@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Toaster, toast } from "sonner"
 import { Nav } from "@/components/Nav"
+import { Footer } from "@/components/Footer"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
@@ -37,7 +38,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="bottom-center" richColors />
-      <Nav currentView={view} onNavigate={setView} onShowReleaseNotes={() => setShowReleaseNotes(true)} />
+      <Nav currentView={view} onNavigate={setView} />
       <main className="container mx-auto max-w-3xl px-4 py-6">
         {view === "dashboard" && <DashboardPage games={games} onNavigate={setView} />}
         {view === "log-game" && (
@@ -53,6 +54,7 @@ function App() {
           <SettingsPage onImport={replaceGames} onClearAll={clearGames} />
         )}
       </main>
+      <Footer onShowReleaseNotes={() => setShowReleaseNotes(true)} />
       <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
     </div>
   )

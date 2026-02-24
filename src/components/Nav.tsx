@@ -1,4 +1,4 @@
-import { LayoutDashboard, History, Download, Plus, Bug, Megaphone } from "lucide-react"
+import { LayoutDashboard, History, Download, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { AppView } from "@/types"
@@ -6,7 +6,6 @@ import type { AppView } from "@/types"
 interface NavProps {
   currentView: AppView
   onNavigate: (view: AppView) => void
-  onShowReleaseNotes: () => void
 }
 
 const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -15,39 +14,16 @@ const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ cla
   { view: "settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
+export function Nav({ currentView, onNavigate }: NavProps) {
   return (
     <nav className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto max-w-3xl px-4">
-        {/* Header row with title and utility links */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-2 sm:gap-4">
+        {/* Header row with title */}
+        <div className="flex items-center justify-center py-3">
           <span className="font-bold text-lg shrink-0">
             <span role="img" aria-label="Search" className="mr-2 text-xl">🔎</span>
-            <span className="hidden sm:inline">Elder Dragon Actuary</span>
-            <span className="sm:hidden">EDA</span>
+            Elder Dragon Actuary
           </span>
-          <div className="flex items-center gap-3 sm:gap-4">
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault()
-                onShowReleaseNotes()
-              }}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              <Megaphone className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Release Notes</span>
-            </a>
-            <a
-              href="https://github.com/aayushpi/elderdragonactuary/issues/new"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Bug className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Report a bug</span>
-            </a>
-          </div>
         </div>
 
         {/* Navigation row with buttons */}

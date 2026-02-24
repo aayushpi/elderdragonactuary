@@ -72,7 +72,7 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
       </div>
 
       {/* Floating stat cards grid */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <MiniStatCard label="Win Rate" value={overall.val} sub={overall.sub} />
         <MiniStatCard
           label="Avg Win Turn"
