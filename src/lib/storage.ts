@@ -70,6 +70,64 @@ export function exportData(): string {
   return JSON.stringify(file, null, 2)
 }
 
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return ""
+  const s = String(value)
+  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"'
+  }
+  return s
+}
+
+export function exportCSV(): string {
+  const file = JSON.parse(exportData()) as { exportedAt: string; games: ExportGame[] }
+
+  // Determine the maximum number of players across all games so columns are consistent
+  const maxPlayers = file.games.reduce((m, g) => Math.max(m, g.players.length), 0)
+
+  const headers: string[] = []
+  headers.push("Date")
+  for (let i = 1; i <= maxPlayers; i++) {
+    headers.push(`Player ${i} Commander`)
+    headers.push(`Player ${i} Fast Mana`)
+  }
+  headers.push("Winner")
+  headers.push("Win Turn")
+  headers.push("Notes")
+
+  const rows: string[] = []
+  rows.push(headers.join(','))
+
+  file.games.forEach((g) => {
+    const row: string[] = []
+    row.push(g.playedAt)
+
+    for (let i = 0; i < maxPlayers; i++) {
+      const p = g.players[i]
+      if (p) {
+        row.push(p.commanderName ?? "")
+        const hasFast = p.fastMana?.hasFastMana
+        const fastVal = hasFast ? (Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join(', ') : '') : "No"
+        row.push(fastVal)
+      } else {
+        row.push("")
+        row.push("")
+      }
+    }
+
+    const winnerName = typeof g.winnerIndex === "number" && g.players[g.winnerIndex]
+      ? g.players[g.winnerIndex].commanderName ?? ""
+      : ""
+    row.push(winnerName)
+    row.push(String(g.winTurn ?? ""))
+    row.push(g.notes ?? "")
+
+    rows.push(row.map(csvEscape).join(','))
+  })
+
+  return rows.join('\n')
+}
+
 // ── Import ────────────────────────────────────────────────────────────────────
 
 export function importData(json: string): { success: boolean; count: number; error?: string } {

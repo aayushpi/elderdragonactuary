@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Download, Upload, Trash2 } from "lucide-react"
-import { exportData } from "@/lib/storage"
+import { exportData, exportCSV } from "@/lib/storage"
 
 interface SettingsPageProps {
   onImport: (json: string) => { success: boolean; count: number; error?: string }
@@ -50,12 +50,32 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
           <div className="flex items-center justify-between px-4 py-3">
             <div>
               <p className="text-sm font-medium">Export games</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Download all games as a JSON file</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Download all games as JSON or CSV (game log only)</p>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5" />
-              Export
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={handleExport}>
+                <Download className="h-3.5 w-3.5" />
+                Export JSON
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0"
+                onClick={() => {
+                  const csv = exportCSV()
+                  const blob = new Blob([csv], { type: "text/csv" })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement("a")
+                  a.href = url
+                  a.download = `commando-games-${new Date().toISOString().slice(0, 10)}.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download CSV
+              </Button>
+            </div>
           </div>
           <div className="flex items-center justify-between px-4 py-3">
             <div>
