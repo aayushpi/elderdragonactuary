@@ -25,6 +25,7 @@ export function CardSearch({
   const [open, setOpen] = useState(false)
   const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall("card")
   const inputRef = useRef<HTMLInputElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const [hoveredCard, setHoveredCard] = useState<{ name: string; imageUri?: string } | null>(null)
   const [hoverPosition, setHoverPosition] = useState<'top' | 'bottom'>('bottom')
   const hoverCardRef = useRef<HTMLDivElement>(null)
@@ -77,6 +78,12 @@ export function CardSearch({
   function handleOpenChange(open: boolean) {
     setOpen(open)
     if (open) {
+      // On mobile, scroll the input into view when keyboard appears
+      if (triggerRef.current) {
+        setTimeout(() => {
+          triggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 100)
+      }
       // Focus input when dropdown opens
       setTimeout(() => {
         inputRef.current?.focus()
@@ -153,6 +160,7 @@ export function CardSearch({
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
+            ref={triggerRef}
             variant="outline"
             role="combobox"
             aria-expanded={open}
