@@ -19,7 +19,7 @@ export function Nav({ currentView, onNavigate }: NavProps) {
     <nav className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto max-w-3xl px-4">
         {/* Header row with title */}
-        <div className="flex items-center justify-center py-3">
+        <div className="flex items-center py-3">
           <span className="font-bold text-lg shrink-0">
             <span role="img" aria-label="Search" className="mr-2 text-xl">🔎</span>
             Elder Dragon Actuary
