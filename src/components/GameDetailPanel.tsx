@@ -103,6 +103,22 @@ export function GameDetailPanel({ game, open, onClose }: GameDetailPanelProps) {
               </div>
             </>
           )}
+
+          {game.winConditions && game.winConditions.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Win Conditions</p>
+                <div className="flex flex-wrap gap-1">
+                  {game.winConditions.map((condition) => (
+                    <Badge key={condition} variant="outline" className="text-xs">
+                      {condition}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
