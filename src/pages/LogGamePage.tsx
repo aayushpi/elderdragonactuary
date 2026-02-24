@@ -331,7 +331,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Players
             </h2>
-            <div className={cn("grid gap-3", playerGridColumns === 3 ? "grid-cols-3" : "grid-cols-2")}>
+            <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : playerGridColumns === 3 ? "grid-cols-3" : "grid-cols-2")}>
             {playerGridEntries.map((entry, gridIndex) => {
                 if (!entry) {
                   return <div key={`empty-slot-${gridIndex}`} aria-hidden="true" />
