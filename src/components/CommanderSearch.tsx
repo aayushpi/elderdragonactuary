@@ -51,7 +51,7 @@ export function CommanderSearch({
   const showRecents = query.length < 2 && hasRecents
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -70,7 +70,7 @@ export function CommanderSearch({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[480px] p-0" align="start">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[480px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Type a commander name…"
