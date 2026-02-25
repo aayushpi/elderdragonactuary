@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
 import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
+import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
 
@@ -19,6 +20,7 @@ interface FormErrors {
   players: PlayerFieldErrors[]
   noWinner: boolean
   winTurn: boolean
+  koTiming: boolean
 }
 
 const WIN_CONDITION_CATEGORIES = [
@@ -66,7 +68,7 @@ function getMirroredSeatOrder(totalPlayers: number): number[] {
   return mirrored
 }
 
-const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false }
+const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false, koTiming: false }
 
 interface EditGamePageProps {
   game: Game
@@ -110,6 +112,7 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
   const [players, setPlayers] = useState<Partial<Player>[]>(game.players)
   const [winnerId, setWinnerId] = useState<string | null>(game.winnerId)
   const [winTurn, setWinTurn] = useState(game.winTurn.toString())
+  const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState(game.notes || "")
   const [winConditions, setWinConditions] = useState<string[]>(game.winConditions || [])
   const [keyWinconCards, setKeyWinconCards] = useState<string[]>(game.keyWinconCards || [])
@@ -135,6 +138,8 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
     })
 
     const turn = parseInt(winTurn, 10)
+    const hasKoTimingError = hasInvalidKoTiming(players, winnerId, winTurn)
+
     const newErrors: FormErrors = {
       playerCount: false, // We don't allow changing player count in edit mode
       players: players.map((p) => ({
@@ -143,23 +148,66 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       })),
       noWinner: !winnerId,
       winTurn: !!winnerId && (!winTurn || isNaN(turn) || turn < 1),
+      koTiming: hasKoTimingError,
     }
 
     const hasError = newErrors.players.some((p) => p.commanderName || p.seatPosition)
       || newErrors.noWinner
       || newErrors.winTurn
+      || newErrors.koTiming
 
     setErrors(hasError ? newErrors : EMPTY_ERRORS)
     return !hasError
   }
 
+  function getKoTurnValue(player: Partial<Player>): string {
+    if (!winnerId || player.id === winnerId) return ""
+    if (typeof player.knockoutTurn === "number") return player.knockoutTurn.toString()
+    if (player.id && clearedKoTurnPlayerIds.has(player.id)) return ""
+    return winTurn
+  }
+
+  function handleKoTurnChange(index: number, turn: string) {
+    const playerId = players[index]?.id
+    if (!playerId) return
+
+    const trimmed = turn.trim()
+    if (!trimmed) {
+      setClearedKoTurnPlayerIds((prev) => new Set(prev).add(playerId))
+      updatePlayer(index, { knockoutTurn: undefined })
+      return
+    }
+
+    const parsed = parseInt(trimmed, 10)
+    if (isNaN(parsed) || parsed < 1) {
+      updatePlayer(index, { knockoutTurn: undefined })
+      return
+    }
+
+    setClearedKoTurnPlayerIds((prev) => {
+      const next = new Set(prev)
+      next.delete(playerId)
+      return next
+    })
+    updatePlayer(index, { knockoutTurn: parsed })
+  }
+
   function handleSubmit() {
     if (!validate()) return
+    const winningTurn = parseInt(winTurn, 10)
+    const finalizedPlayers = players.map((player) => {
+      if (player.id === winnerId) return { ...player, knockoutTurn: undefined }
+      if (!player.id) return player
+      if (typeof player.knockoutTurn === "number") return player
+      if (clearedKoTurnPlayerIds.has(player.id)) return { ...player, knockoutTurn: undefined }
+      return { ...player, knockoutTurn: winningTurn }
+    })
+
     const updatedGame: Game = {
       ...game, // Keep original id and playedAt
-      players: players as Player[],
+      players: finalizedPlayers as Player[],
       winnerId: winnerId!,
-      winTurn: parseInt(winTurn, 10),
+      winTurn: winningTurn,
       notes: notes.trim() || undefined,
       winConditions: winConditions.length > 0 ? winConditions : undefined,
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
@@ -251,6 +299,11 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
   const hasAnyError = errors.players.some((p) => p.commanderName || p.seatPosition)
     || errors.noWinner
     || errors.winTurn
+    || errors.koTiming
+
+  const formErrorMessage = errors.koTiming
+    ? "Winning turn can't be after all opponents are knocked out"
+    : "Please fill in all highlighted fields."
 
   return (
     <div className="space-y-6">
@@ -280,9 +333,12 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
                 takenSeats={takenSeats(originalIndex)}
                 totalPlayers={totalPlayers}
                 isWinner={player.id === winnerId}
+                showKoTurnControls={!!winnerId}
                 winTurn={player.id === winnerId ? winTurn : ""}
+                koTurn={getKoTurnValue(player)}
                 onSetWinner={() => { setWinnerId(player.id ?? ""); setWinTurn("") }}
                 onWinTurnChange={setWinTurn}
+                onKoTurnChange={(turn) => handleKoTurnChange(originalIndex, turn)}
                 onChange={(updated) => updatePlayer(originalIndex, updated)}
                 recentCommanders={player.isMe ? recentMyCommanders : undefined}
                 fieldErrors={{
@@ -409,7 +465,7 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       {hasAnyError && (
         <div className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>Please fill in all highlighted fields.</span>
+          <span>{formErrorMessage}</span>
         </div>
       )}
 

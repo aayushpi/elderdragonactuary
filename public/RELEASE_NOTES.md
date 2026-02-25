@@ -4,6 +4,8 @@
 
 - Old games are now editable
 - Added game bracket info
+- After editing a game on mobile, history now scrolls back to that game.
+- Added optional per-player KO turns, including history display and export support.
 
 ## v0.0.2 - February 24, 2026
 

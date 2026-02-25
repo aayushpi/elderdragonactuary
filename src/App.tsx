@@ -29,6 +29,7 @@ import type { AppView, Game } from "@/types"
 function App() {
   const [view, setView] = useState<AppView>("dashboard")
   const [editingGameId, setEditingGameId] = useState<string | null>(null)
+  const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
@@ -121,6 +122,7 @@ function App() {
     void commitGames(next, { successToast: "Game updated!" }).then((saved) => {
       if (!saved) return
       setEditingGameId(null)
+      setRecentlyEditedGameId(game.id)
       setView("history")
     })
   }
@@ -331,7 +333,13 @@ function App() {
               />
             )}
             {view === "history" && (
-              <HistoryPage games={games} onDeleteGame={handleDeleteGame} onEditGame={handleEditGame} />
+              <HistoryPage
+                games={games}
+                onDeleteGame={handleDeleteGame}
+                onEditGame={handleEditGame}
+                scrollToGameId={recentlyEditedGameId}
+                onScrollHandled={() => setRecentlyEditedGameId(null)}
+              />
             )}
             {view === "settings" && (
               <SettingsPage onImport={handleImportGames} onClearAll={handleClearGames} />

@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { GameHistoryRow } from "@/components/GameHistoryRow"
 import { GameDetailPanel } from "@/components/GameDetailPanel"
 
@@ -8,9 +8,11 @@ interface HistoryPageProps {
   games: Game[]
   onDeleteGame: (id: string) => void
   onEditGame: (id: string) => void
+  scrollToGameId?: string | null
+  onScrollHandled?: () => void
 }
 
-export function HistoryPage({ games, onDeleteGame, onEditGame }: HistoryPageProps) {
+export function HistoryPage({ games, onDeleteGame, onEditGame, scrollToGameId, onScrollHandled }: HistoryPageProps) {
   const displayedGames = useMemo(
     () =>
       [...games].sort(
@@ -19,6 +21,19 @@ export function HistoryPage({ games, onDeleteGame, onEditGame }: HistoryPageProp
     [games]
   )
 
+  useEffect(() => {
+    if (!scrollToGameId || displayedGames.length === 0) return
+
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(`game-${scrollToGameId}`)
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" })
+      }
+      onScrollHandled?.()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [scrollToGameId, displayedGames, onScrollHandled])
   return (
     <div className="space-y-4">
       {displayedGames.length === 0 ? (
@@ -28,7 +43,7 @@ export function HistoryPage({ games, onDeleteGame, onEditGame }: HistoryPageProp
       ) : (
         <div className="space-y-2">
           {displayedGames.map((game) => (
-            <div key={game.id} className="rounded-lg border border-border bg-card">
+            <div id={`game-${game.id}`} key={game.id} className="rounded-lg border border-border bg-card">
               <GameHistoryRow game={game} />
 
               <div className="px-3 pb-3 border-t border-border">

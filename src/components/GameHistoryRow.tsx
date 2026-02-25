@@ -12,6 +12,9 @@ interface GameHistoryRowProps {
 export function GameHistoryRow({ game }: GameHistoryRowProps) {
   // ── Data preparation ──────────────────────────────────────────────────────
   const me = game.players.find((p) => p.isMe)
+  const mobileCommanderName = me?.commanderName.includes(" // ")
+    ? me.commanderName.split(" // ")[0]
+    : me?.commanderName
   const iWon = me && game.winnerId === me.id
   const date = new Date(game.playedAt).toLocaleDateString(undefined, {
     month: "short",
@@ -108,7 +111,10 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
                     ?
                   </div>
                 )}
-                <span className="text-sm font-medium cursor-pointer truncate">
+                <span className="sm:hidden text-sm font-medium cursor-pointer truncate">
+                  {mobileCommanderName}
+                </span>
+                <span className="hidden sm:inline text-sm font-medium cursor-pointer truncate">
                   {me.commanderName}
                 </span>
                 {hoveredCard?.name === me.commanderName && window.matchMedia('(hover: hover)').matches && (
