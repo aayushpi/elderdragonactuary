@@ -16,6 +16,12 @@ interface GameDetailPanelProps {
 }
 
 export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps) {
+  // Fast mana card hover state
+  const [hoveredCard, setHoveredCard] = useState<{ name: string; imageUri?: string } | null>(null)
+  const [cardPosition, setCardPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const activeHoverRef = useRef<string | null>(null)
+  const hoverCardRef = useRef<HTMLDivElement>(null)
+
   if (!game) return null
 
   // ── Sort players by seat position ────────────────────────────────────────────────────────────────────────
@@ -24,12 +30,6 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
     .sort((a, b) => (a.seatPosition ?? 99) - (b.seatPosition ?? 99))
   
   const winner = game.players.find((p) => p.id === game.winnerId)
-
-  // Fast mana card hover state
-  const [hoveredCard, setHoveredCard] = useState<{ name: string; imageUri?: string } | null>(null)
-  const [cardPosition, setCardPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
-  const activeHoverRef = useRef<string | null>(null)
-  const hoverCardRef = useRef<HTMLDivElement>(null)
 
   async function handleCardHover(cardName: string, event: React.MouseEvent) {
     if (hoveredCard?.name === cardName) return
