@@ -46,7 +46,7 @@ export function HistoryPage({ games, onDeleteGame, onEditGame }: HistoryPageProp
         /* Game list with accordion items */
         <div className="space-y-2">
           {displayedGames.map((game) => (
-            <div key={game.id} className="rounded-lg border border-border bg-card">
+            <div key={game.id} className="rounded-lg border border-border bg-card relative z-50">
               {/* Accordion header */}
               <GameHistoryRow
                 game={game}
