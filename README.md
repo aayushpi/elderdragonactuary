@@ -1,5 +1,9 @@
 # React + TypeScript + Vite
 
+## Cloud backend + login
+
+See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) to configure secure cloud sync with email magic-link auth.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

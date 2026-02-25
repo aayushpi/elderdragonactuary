@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react"
 import type { Game } from "@/types"
-import { loadGames, saveGames, importData } from "@/lib/storage"
+import { loadGames, saveGames, importData, parseImportData } from "@/lib/storage"
 
 export function useGames() {
   const [games, setGames] = useState<Game[]>(() => loadGames())
@@ -45,5 +45,22 @@ export function useGames() {
     saveGames([])
   }, [])
 
-  return { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames }
+  const setGamesState = useCallback((next: Game[]) => {
+    setGames(next)
+    saveGames(next)
+  }, [])
+
+  const parseImport = useCallback((json: string) => parseImportData(json), [])
+
+  return {
+    games,
+    addGame,
+    updateGame,
+    deleteGame,
+    getGame,
+    replaceGames,
+    clearGames,
+    setGamesState,
+    parseImport,
+  }
 }

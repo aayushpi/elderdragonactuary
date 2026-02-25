@@ -82,11 +82,12 @@ function getMirroredSeatOrder(totalPlayers: number): number[] {
 const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false }
 
 interface LogGamePageProps {
-  onSave: (game: Game) => void
+  onSave: (game: Game) => Promise<void>
   onCancel: () => void
+  isSyncing?: boolean
 }
 
-export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
+export function LogGamePage({ onSave, onCancel, isSyncing = false }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -208,7 +209,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
       winConditions: winConditions.length > 0 ? winConditions : undefined,
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
     }
-    onSave(game)
+    void onSave(game)
   }
 
   const totalPlayers = playerCount ?? 0
@@ -442,8 +443,8 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
         <Button variant="outline" className="flex-1" onClick={onCancel}>
           Cancel
         </Button>
-        <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0}>
-          Save Game
+        <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0 || isSyncing}>
+          {isSyncing ? "Syncing…" : "Save Game"}
         </Button>
       </div>
     </div>

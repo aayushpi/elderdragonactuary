@@ -7,10 +7,11 @@ import type { Game } from "@/types"
 
 interface HistoryPageProps {
   games: Game[]
-  onDeleteGame: (id: string) => void
+  onDeleteGame: (id: string) => Promise<void>
+  isSyncing?: boolean
 }
 
-export function HistoryPage({ games, onDeleteGame }: HistoryPageProps) {
+export function HistoryPage({ games, onDeleteGame, isSyncing = false }: HistoryPageProps) {
   // ── Sort games by date (newest first) ──────────────────────────────────────────────
   const displayedGames = useMemo(
     () =>
@@ -60,9 +61,10 @@ export function HistoryPage({ games, onDeleteGame }: HistoryPageProps) {
                   className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDeleteGame(game.id)
+                    void onDeleteGame(game.id)
                   }}
-                  title="Delete game"
+                  title={isSyncing ? "Syncing in progress" : "Delete game"}
+                  disabled={isSyncing}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

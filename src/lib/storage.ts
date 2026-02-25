@@ -50,6 +50,13 @@ interface ExportFile {
   games: ExportGame[]
 }
 
+export interface ImportResult {
+  success: boolean
+  count: number
+  games?: Game[]
+  error?: string
+}
+
 export function exportData(): string {
   const games = loadGames()
 
@@ -144,9 +151,14 @@ export function exportCSV(): string {
 
 // ── Import ────────────────────────────────────────────────────────────────────
 
-export function importData(json: string): { success: boolean; count: number; error?: string } {
+export function parseImportData(json: string): ImportResult {
   try {
-    const parsed = JSON.parse(json)
+    const normalized = json.replace(/^\uFEFF/, "").trim()
+    if (!normalized) {
+      return { success: false, count: 0, error: "Invalid JSON: file is empty." }
+    }
+
+    const parsed = JSON.parse(normalized)
 
     // Accept the clean export format { exportedAt, games: ExportGame[] }
     // or a raw Game[] array (backwards compat with old exports)
@@ -201,9 +213,19 @@ export function importData(json: string): { success: boolean; count: number; err
       } as Game
     })
 
-    saveGames(games)
-    return { success: true, count: games.length }
-  } catch {
-    return { success: false, count: 0, error: "Invalid JSON." }
+    return { success: true, count: games.length, games }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown parse error"
+    return { success: false, count: 0, error: `Invalid JSON: ${message}` }
   }
+}
+
+export function importData(json: string): { success: boolean; count: number; error?: string } {
+  const parsed = parseImportData(json)
+  if (!parsed.success || !parsed.games) {
+    return { success: false, count: 0, error: parsed.error }
+  }
+
+  saveGames(parsed.games)
+  return { success: true, count: parsed.count }
 }
