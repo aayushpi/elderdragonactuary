@@ -1,6 +1,5 @@
 import { useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { ChevronDown } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { Game } from "@/types"
 
@@ -8,11 +7,9 @@ const commanderImageCache = new Map<string, string | null>()
 
 interface GameHistoryRowProps {
   game: Game
-  onClick: () => void
-  isOpen: boolean
 }
 
-export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
+export function GameHistoryRow({ game }: GameHistoryRowProps) {
   // ── Data preparation ──────────────────────────────────────────────────────
   const me = game.players.find((p) => p.isMe)
   const iWon = me && game.winnerId === me.id
@@ -76,8 +73,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
 
   return (
     <div
-      className="w-full text-left p-3 sm:pr-12 sm:hover:bg-muted/50 sm:transition-colors sm:cursor-pointer space-y-2"
-      onClick={onClick}
+      className="w-full text-left p-3 space-y-2"
       onMouseLeave={handleCardLeave}
     >
       {/* ── Header row (always visible) ────────────────────────────────────── */}
@@ -211,9 +207,6 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           </Badge>
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{date}</span>
-          <ChevronDown
-            className={`hidden sm:block h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
-          />
         </div>
       </div>
 
