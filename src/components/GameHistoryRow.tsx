@@ -119,7 +119,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                     ref={hoverCardRef}
                     className="fixed pointer-events-none"
                     style={{ 
-                      zIndex: 999999,
+                      zIndex: 40,
                       top: `${cardPosition.top}px`,
                       left: `${cardPosition.left}px`,
                       transform: 'translateX(-50%)'
@@ -176,7 +176,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                       <div
                         className="fixed pointer-events-none"
                         style={{ 
-                          zIndex: 999999,
+                          zIndex: 40,
                           top: `${cardPosition.top}px`,
                           left: `${cardPosition.left}px`,
                           transform: 'translateX(-50%)'
