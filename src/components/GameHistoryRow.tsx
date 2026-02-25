@@ -80,7 +80,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
       onClick={onClick}
     >
       {/* ── Header row (always visible) ────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Badge variant={iWon ? "default" : "secondary"} className="text-xs shrink-0">
             {iWon ? "Win" : "Loss"}
@@ -88,7 +88,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           {me && (
             <>
               <div
-                className="relative flex items-center gap-2"
+                className="relative flex items-center gap-2 min-w-0"
                 onMouseEnter={(e) => handleCardHover(me.commanderName, e)}
                 onMouseLeave={handleCardLeave}
               >
@@ -103,7 +103,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                     ?
                   </div>
                 )}
-                <span className="text-sm font-medium cursor-pointer">
+                <span className="text-sm font-medium cursor-pointer truncate">
                   {me.commanderName}
                 </span>
                 {hoveredCard?.name === me.commanderName && (
@@ -136,9 +136,9 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
               </div>
               {me.partnerName && (
                 <>
-                  <span className="text-sm font-medium"> // </span>
+                  <span className="text-sm font-medium shrink-0"> // </span>
                   <div
-                    className="relative flex items-center"
+                    className="relative flex items-center min-w-0"
                     onMouseEnter={(e) => me.partnerName && handleCardHover(me.partnerName, e)}
                     onMouseLeave={handleCardLeave}
                   >
@@ -153,7 +153,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                         ?
                       </div>
                     )}
-                    <span className="text-sm font-medium cursor-pointer">
+                    <span className="text-sm font-medium cursor-pointer truncate">
                       {me.partnerName}
                     </span>
                     {hoveredCard?.name === me.partnerName && (
@@ -188,11 +188,11 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
             </>
           )}
         </div>
-        <div className="flex items-center gap-2 pr-8 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Badge variant="outline" className="text-xs">
             Turn {game.winTurn}
           </Badge>
-          <span className="text-xs text-muted-foreground">{game.players.length} players</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground">{game.players.length} players</span>
           <span className="text-xs text-muted-foreground">{date}</span>
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
