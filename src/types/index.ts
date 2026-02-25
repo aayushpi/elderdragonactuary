@@ -125,11 +125,12 @@ export interface ComputedStats {
   archnemesisCommanderColorIdentity: CommanderColorIdentityStat | null
   averageWinTurn: number | null
   gamesPlayed: number
+  topWinConditions: Array<{ condition: string; count: number }>
 }
 
 // ─── Routing ────────────────────────────────────────────────────────────────
 
-export type AppView = "dashboard" | "log-game" | "history" | "settings" | "game-detail"
+export type AppView = "dashboard" | "log-game" | "edit-game" | "history" | "settings" | "game-detail"
 
 export interface AppState {
   view: AppView
