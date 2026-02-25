@@ -6,6 +6,7 @@ import { ManaCost } from "@/components/ManaCost"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
 import { WinStreakCard } from "@/components/WinStreakCard"
+import { TopWinConditionsCard } from "@/components/TopWinConditionsCard"
 import { CommanderStatCard } from "@/components/CommanderStatCard"
 import { useStats } from "@/hooks/useStats"
 import type { AppView, CommanderStat, Game } from "@/types"
@@ -118,8 +119,11 @@ export function StatsPage({ games, onNavigate }: StatsPageProps) {
         <StatCard label="vs Fast Mana" stat={stats.againstFastMana} />
       </div>
 
-      {/* Win streak card */}
-      <WinStreakCard games={games} />
+      {/* Win streak and top win conditions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <WinStreakCard games={games} />
+        <TopWinConditionsCard topWinConditions={stats.topWinConditions} />
+      </div>
 
       {/* Win rate by starting turn */}
       <div className="space-y-3">

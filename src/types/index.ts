@@ -125,6 +125,7 @@ export interface ComputedStats {
   archnemesisCommanderColorIdentity: CommanderColorIdentityStat | null
   averageWinTurn: number | null
   gamesPlayed: number
+  topWinConditions: Array<{ condition: string; count: number }>
 }
 
 // ─── Routing ────────────────────────────────────────────────────────────────
