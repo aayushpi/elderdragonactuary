@@ -42,6 +42,7 @@ interface ExportGame {
   notes?: string
   winConditions?: string[]
   keyWinconCards?: string[]
+  bracket?: number        // 1-5, optional power level bracket
   players: ExportPlayer[]
 }
 
@@ -62,6 +63,7 @@ export function exportData(): string {
       notes: g.notes,
       winConditions: g.winConditions,
       keyWinconCards: g.keyWinconCards,
+      bracket: g.bracket,
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
   })
@@ -91,6 +93,7 @@ export function exportCSV(): string {
 
   const headers: string[] = []
   headers.push("Date")
+  headers.push("Bracket")
   for (let i = 1; i <= maxPlayers; i++) {
     headers.push(`Player ${i} Commander`)
     headers.push(`Player ${i} Fast Mana`)
@@ -107,6 +110,7 @@ export function exportCSV(): string {
   file.games.forEach((g) => {
     const row: string[] = []
     row.push(g.playedAt)
+    row.push(g.bracket ? String(g.bracket) : "")
 
     for (let i = 0; i < maxPlayers; i++) {
       const p = g.players[i]
@@ -180,6 +184,7 @@ export function importData(json: string): { success: boolean; count: number; err
           notes: typeof g.notes === "string" ? g.notes : undefined,
           winConditions: Array.isArray(g.winConditions) ? g.winConditions as string[] : undefined,
           keyWinconCards: Array.isArray(g.keyWinconCards) ? g.keyWinconCards as string[] : undefined,
+          bracket: typeof g.bracket === "number" ? g.bracket : undefined,
           players,
         } as Game
       }

@@ -113,6 +113,8 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
   const [notes, setNotes] = useState(game.notes || "")
   const [winConditions, setWinConditions] = useState<string[]>(game.winConditions || [])
   const [keyWinconCards, setKeyWinconCards] = useState<string[]>(game.keyWinconCards || [])
+  const [bracket, setBracket] = useState<number | null>(game.bracket ?? null)
+  const [showBracketSelector, setShowBracketSelector] = useState(!!game.bracket)
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
 
   function updatePlayer(index: number, updated: Partial<Player>) {
@@ -161,6 +163,7 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       notes: notes.trim() || undefined,
       winConditions: winConditions.length > 0 ? winConditions : undefined,
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
+      bracket: bracket ?? undefined,
     }
     onSave(updatedGame)
   }
@@ -292,6 +295,54 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
             )
           })}
         </div>
+      </div>
+
+      {/* Bracket Selector */}
+      <Separator />
+      <div className="space-y-2">
+        {!showBracketSelector ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowBracketSelector(true)}
+            className="w-full"
+          >
+            Add game bracket (Optional)
+          </Button>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Select Bracket
+              </h2>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowBracketSelector(false)
+                  setBracket(null)
+                }}
+                className="text-xs"
+              >
+                Remove
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  variant={bracket === n ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setBracket(n)}
+                >
+                  {n}
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Key Wincon Cards */}
