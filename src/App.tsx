@@ -225,9 +225,16 @@ function App() {
       ) : !currentUserEmail ? (
         <main className="container mx-auto max-w-md px-4 py-16">
           <div className="rounded-lg border bg-card p-6 space-y-4">
-            <div className="space-y-1">
-              <h1 className="text-xl font-semibold">Sign in</h1>
-              <p className="text-sm text-muted-foreground">Use a magic link to access your game data.</p>
+            <div className="space-y-2">
+              <h1 className="text-xl font-semibold">Welcome to Elder Dragon Actuary</h1>
+              <p className="text-sm text-muted-foreground">
+                Track Commander games, keep your stats sharp, and sync seamlessly across devices.
+              </p>
+              <ul className="space-y-1 text-xs text-muted-foreground list-disc pl-4">
+                <li>Fast game logging built for pods and repeat play</li>
+                <li>Cloud-first sync so your data follows your account</li>
+                <li>Private by default with magic-link sign in</li>
+              </ul>
             </div>
 
             <div className="space-y-2">
@@ -243,7 +250,7 @@ function App() {
               </Button>
             </div>
 
-            <p className="text-xs text-muted-foreground">Open the link from your email on this device.</p>
+            <p className="text-xs text-muted-foreground">Open the link from your email on this device to continue.</p>
           </div>
         </main>
       ) : (
