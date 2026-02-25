@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
@@ -342,20 +342,17 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
           <>
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Select Bracket
+                Select game bracket
               </h2>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowBracketSelector(false)
-                  setBracket(null)
-                }}
-                className="text-xs"
+              <a
+                href="https://magic.wizards.com/en/formats/commander#brackets"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
               >
-                Remove
-              </Button>
+                About game brackets
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
