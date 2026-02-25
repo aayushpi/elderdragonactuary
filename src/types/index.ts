@@ -129,7 +129,7 @@ export interface ComputedStats {
 
 // ─── Routing ────────────────────────────────────────────────────────────────
 
-export type AppView = "dashboard" | "log-game" | "history" | "settings" | "game-detail"
+export type AppView = "dashboard" | "log-game" | "edit-game" | "history" | "settings" | "game-detail"
 
 export interface AppState {
   view: AppView

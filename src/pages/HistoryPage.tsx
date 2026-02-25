@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react"
 import { GameHistoryRow } from "@/components/GameHistoryRow"
 import { GameDetailPanel } from "@/components/GameDetailPanel"
-import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
+
 import type { Game } from "@/types"
 
 interface HistoryPageProps {
   games: Game[]
   onDeleteGame: (id: string) => void
+  onEditGame: (id: string) => void
 }
 
-export function HistoryPage({ games, onDeleteGame }: HistoryPageProps) {
+export function HistoryPage({ games, onDeleteGame, onEditGame }: HistoryPageProps) {
   // ── Sort games by date (newest first) ──────────────────────────────────────────────
   const displayedGames = useMemo(
     () =>
@@ -47,26 +47,12 @@ export function HistoryPage({ games, onDeleteGame }: HistoryPageProps) {
         <div className="space-y-2">
           {displayedGames.map((game) => (
             <div key={game.id} className="rounded-lg border border-border bg-card">
-              {/* Accordion header with delete button */}
-              <div className="relative group rounded-t-lg">
-                <GameHistoryRow
-                  game={game}
-                  isOpen={expandedId === game.id}
-                  onClick={() => setExpandedId(game.id)}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDeleteGame(game.id)
-                  }}
-                  title="Delete game"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              {/* Accordion header */}
+              <GameHistoryRow
+                game={game}
+                isOpen={expandedId === game.id}
+                onClick={() => setExpandedId(game.id)}
+              />
 
               {/* Animated expanded content - always open on mobile, accordion on desktop */}
               <div
@@ -75,7 +61,11 @@ export function HistoryPage({ games, onDeleteGame }: HistoryPageProps) {
                 <div className="min-h-0">
                   <div className="px-3 pb-3 border-t border-border">
                     <div className="pt-3">
-                      <GameDetailPanel game={game} />
+                      <GameDetailPanel 
+                        game={game}
+                        onEdit={() => onEditGame(game.id)}
+                        onDelete={() => onDeleteGame(game.id)}
+                      />
                     </div>
                   </div>
                 </div>
