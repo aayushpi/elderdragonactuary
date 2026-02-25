@@ -114,7 +114,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                 <span className="text-sm font-medium cursor-pointer truncate">
                   {me.commanderName}
                 </span>
-                {hoveredCard?.name === me.commanderName && (
+                {hoveredCard?.name === me.commanderName && window.matchMedia('(hover: hover)').matches && (
                   <div
                     ref={hoverCardRef}
                     className="fixed pointer-events-none"
@@ -172,7 +172,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                     <span className="text-sm font-medium cursor-pointer truncate">
                       {me.partnerName}
                     </span>
-                    {hoveredCard?.name === me.partnerName && (
+                    {hoveredCard?.name === me.partnerName && window.matchMedia('(hover: hover)').matches && (
                       <div
                         className="fixed pointer-events-none"
                         style={{ 
