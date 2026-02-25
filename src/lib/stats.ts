@@ -216,6 +216,20 @@ export function computeStats(games: Game[]): ComputedStats {
       ? null
       : myWins.reduce((sum, g) => sum + g.winTurn, 0) / myWins.length
 
+  // Top win conditions
+  const winConditionCounts = new Map<string, number>()
+  for (const game of myWins) {
+    if (game.winConditions && game.winConditions.length > 0) {
+      for (const condition of game.winConditions) {
+        winConditionCounts.set(condition, (winConditionCounts.get(condition) ?? 0) + 1)
+      }
+    }
+  }
+  const topWinConditions = Array.from(winConditionCounts.entries())
+    .map(([condition, count]) => ({ condition, count }))
+    .sort((a, b) => b.count - a.count || a.condition.localeCompare(b.condition))
+    .slice(0, 5)
+
   return {
     overall,
     withFastMana,
@@ -228,5 +242,6 @@ export function computeStats(games: Game[]): ComputedStats {
     archnemesisCommanderColorIdentity,
     averageWinTurn,
     gamesPlayed: myGames.length,
+    topWinConditions,
   }
 }

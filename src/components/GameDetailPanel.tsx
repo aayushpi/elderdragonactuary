@@ -1,17 +1,21 @@
 import { useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { CommanderCard } from "@/components/CommanderCard"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { Pencil, Trash2 } from "lucide-react"
 import type { Game } from "@/types"
 
 const fastManaImageCache = new Map<string, string | null>()
 
 interface GameDetailPanelProps {
   game: Game | undefined
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
-export function GameDetailPanel({ game }: GameDetailPanelProps) {
+export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps) {
   if (!game) return null
 
   // ── Sort players by seat position ────────────────────────────────────────────────────────────────────────
@@ -190,6 +194,37 @@ export function GameDetailPanel({ game }: GameDetailPanelProps) {
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Actions ──────────────────────────────────────────────────────────────────────────────────────── */}
+      {(onEdit || onDelete) && (
+        <>
+          <Separator />
+          <div className="flex gap-2">
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={onEdit}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Game
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-destructive hover:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Game
+              </Button>
             )}
           </div>
         </>

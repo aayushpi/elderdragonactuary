@@ -4,6 +4,7 @@ import { Nav } from "@/components/Nav"
 import { Footer } from "@/components/Footer"
 import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
+import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
@@ -12,13 +13,31 @@ import type { AppView, Game } from "@/types"
 
 function App() {
   const [view, setView] = useState<AppView>("dashboard")
+  const [editingGameId, setEditingGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
-  const { games, addGame, deleteGame, replaceGames, clearGames } = useGames()
+  const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
 
   function handleSaveGame(game: Game) {
     addGame(game)
     setView("dashboard")
     toast.success("Game logged!")
+  }
+
+  function handleEditGame(id: string) {
+    setEditingGameId(id)
+    setView("edit-game")
+  }
+
+  function handleUpdateGame(game: Game) {
+    updateGame(game.id, game)
+    setEditingGameId(null)
+    setView("history")
+    toast.success("Game updated!")
+  }
+
+  function handleCancelEdit() {
+    setEditingGameId(null)
+    setView("history")
   }
 
   // Keyboard shortcut: n → log new game (when not focused in a text field)
@@ -47,8 +66,15 @@ function App() {
             onCancel={() => setView("dashboard")}
           />
         )}
+        {view === "edit-game" && editingGameId && getGame(editingGameId) && (
+          <EditGamePage
+            game={getGame(editingGameId)!}
+            onSave={handleUpdateGame}
+            onCancel={handleCancelEdit}
+          />
+        )}
         {view === "history" && (
-          <HistoryPage games={games} onDeleteGame={deleteGame} />
+          <HistoryPage games={games} onDeleteGame={deleteGame} onEditGame={handleEditGame} />
         )}
         {view === "settings" && (
           <SettingsPage onImport={replaceGames} onClearAll={clearGames} />
