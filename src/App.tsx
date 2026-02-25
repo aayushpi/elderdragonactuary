@@ -14,6 +14,7 @@ import type { AppView, Game } from "@/types"
 function App() {
   const [view, setView] = useState<AppView>("dashboard")
   const [editingGameId, setEditingGameId] = useState<string | null>(null)
+  const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
 
@@ -31,6 +32,7 @@ function App() {
   function handleUpdateGame(game: Game) {
     updateGame(game.id, game)
     setEditingGameId(null)
+    setRecentlyEditedGameId(game.id)
     setView("history")
     toast.success("Game updated!")
   }
@@ -74,7 +76,13 @@ function App() {
           />
         )}
         {view === "history" && (
-          <HistoryPage games={games} onDeleteGame={deleteGame} onEditGame={handleEditGame} />
+          <HistoryPage
+            games={games}
+            onDeleteGame={deleteGame}
+            onEditGame={handleEditGame}
+            scrollToGameId={recentlyEditedGameId}
+            onScrollHandled={() => setRecentlyEditedGameId(null)}
+          />
         )}
         {view === "settings" && (
           <SettingsPage onImport={replaceGames} onClearAll={clearGames} />
