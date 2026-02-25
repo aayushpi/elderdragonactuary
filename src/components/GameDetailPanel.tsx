@@ -31,6 +31,10 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
   
   const winner = game.players.find((p) => p.id === game.winnerId)
 
+  function getMobileMdfcFrontName(name: string) {
+    return name.includes(" // ") ? name.split(" // ")[0] : name
+  }
+
   async function handleCardHover(cardName: string, event: React.MouseEvent) {
     if (hoveredCard?.name === cardName) return
     activeHoverRef.current = cardName
@@ -92,12 +96,14 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                 <div className="space-y-1">
                   <CommanderCard
                     commanderName={player.commanderName}
+                    mobileDisplayName={getMobileMdfcFrontName(player.commanderName)}
                     imageUri={player.commanderImageUri}
                     compact
                   />
                   {player.partnerName && (
                     <CommanderCard
                       commanderName={player.partnerName}
+                      mobileDisplayName={getMobileMdfcFrontName(player.partnerName)}
                       imageUri={player.partnerImageUri}
                       compact
                     />
