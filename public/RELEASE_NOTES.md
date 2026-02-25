@@ -1,5 +1,9 @@
 # Elder Dragon Actuary
 
+## v0.0.3 - February 24, 2026
+
+- Old games are now editable
+
 ## v0.0.2 - February 24, 2026
 
 - Added support for wincon cards
