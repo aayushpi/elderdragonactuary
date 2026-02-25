@@ -4,18 +4,31 @@ import { Nav } from "@/components/Nav"
 import { Footer } from "@/components/Footer"
 import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
+import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useGames } from "@/hooks/useGames"
-import { getCurrentUser, pullGamesFromCloud, pushGamesToCloud, sendMagicLink, signOutCloud, validateInviteCode, markInviteCodeAsUsed, storePendingInviteCode, getPendingInviteCode, clearPendingInviteCode } from "@/lib/cloudSync"
+import {
+  getCurrentUser,
+  pullGamesFromCloud,
+  pushGamesToCloud,
+  sendMagicLink,
+  signOutCloud,
+  validateInviteCode,
+  markInviteCodeAsUsed,
+  storePendingInviteCode,
+  getPendingInviteCode,
+  clearPendingInviteCode,
+} from "@/lib/cloudSync"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
 import type { AppView, Game } from "@/types"
 
 function App() {
   const [view, setView] = useState<AppView>("dashboard")
+  const [editingGameId, setEditingGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
@@ -23,7 +36,7 @@ function App() {
   const [authEmail, setAuthEmail] = useState("")
   const [authInviteCode, setAuthInviteCode] = useState("")
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
-  const { games, setGamesState, parseImport } = useGames()
+  const { games, getGame, setGamesState, parseImport } = useGames()
   const mutationInFlightRef = useRef(false)
   const cloudHydratingRef = useRef(false)
   const cloudConfigured = isSupabaseConfigured()
@@ -98,6 +111,25 @@ function App() {
     await commitGames(next)
   }
 
+  function handleEditGame(id: string) {
+    setEditingGameId(id)
+    setView("edit-game")
+  }
+
+  function handleUpdateGame(game: Game) {
+    const next = games.map((g) => (g.id === game.id ? game : g))
+    void commitGames(next, { successToast: "Game updated!" }).then((saved) => {
+      if (!saved) return
+      setEditingGameId(null)
+      setView("history")
+    })
+  }
+
+  function handleCancelEdit() {
+    setEditingGameId(null)
+    setView("history")
+  }
+
   async function handleImportGames(json: string) {
     const parsed = parseImport(json)
     if (!parsed.success || !parsed.games) {
@@ -119,7 +151,7 @@ function App() {
   async function handleSendMagicLink() {
     const email = authEmail.trim()
     const code = authInviteCode.trim()
-    
+
     if (!email || !code) {
       toast.error("Enter both email and invite code.")
       return
@@ -127,17 +159,14 @@ function App() {
 
     try {
       setAuthBusy(true)
-      
-      // Validate the invite code first
+
       const isValid = await validateInviteCode(code)
       if (!isValid) {
         toast.error("Invalid or already-used invite code.")
         return
       }
-      
-      // Store the code for later (after auth completes)
+
       storePendingInviteCode(code)
-      
       await sendMagicLink(email)
       toast.success("Magic link sent. Check your email.")
     } catch (error) {
@@ -191,7 +220,6 @@ function App() {
       setCurrentUserEmail(session?.user?.email ?? null)
 
       if (event === "SIGNED_IN") {
-        // Mark the pending invite code as used
         if (session?.user?.id) {
           const pendingCode = getPendingInviteCode()
           if (pendingCode) {
@@ -205,7 +233,7 @@ function App() {
             }
           }
         }
-        
+
         void hydrateFromCloudIfSignedIn(false)
       }
       if (event === "SIGNED_OUT") {
@@ -219,20 +247,6 @@ function App() {
       listener?.data.subscription.unsubscribe()
     }
   }, [cloudConfigured])
-
-  // Keyboard shortcut: n → log new game (when not focused in a text field)
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "n") return
-      if (e.metaKey || e.ctrlKey || e.altKey) return
-      const tag = (e.target as HTMLElement).tagName.toLowerCase()
-      if (tag === "input" || tag === "textarea" || tag === "select") return
-      if ((e.target as HTMLElement).isContentEditable) return
-      setView("log-game")
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -309,8 +323,15 @@ function App() {
                 isSyncing={isSyncing}
               />
             )}
+            {view === "edit-game" && editingGameId && getGame(editingGameId) && (
+              <EditGamePage
+                game={getGame(editingGameId)!}
+                onSave={handleUpdateGame}
+                onCancel={handleCancelEdit}
+              />
+            )}
             {view === "history" && (
-              <HistoryPage games={games} onDeleteGame={handleDeleteGame} isSyncing={isSyncing} />
+              <HistoryPage games={games} onDeleteGame={handleDeleteGame} onEditGame={handleEditGame} />
             )}
             {view === "settings" && (
               <SettingsPage onImport={handleImportGames} onClearAll={handleClearGames} />
