@@ -31,15 +31,6 @@ describe("resolveArtCrop", () => {
   })
 
   it("falls through large → normal → small → art_crop", () => {
-    // Only small available on the face
-    const card = baseCard({
-      card_faces: [
-        { image_uris: { small: "face-small", normal: "", large: "", art_crop: "", border_crop: "" } },
-      ],
-    })
-    // "" is falsy, so it should fall through to the face normal, which is also "", then face small... wait
-    // Actually the chain uses ?? which only skips undefined/null, not empty string.
-    // Let's test with undefined values instead.
     const card2 = baseCard({
       image_uris: undefined,
       card_faces: [
