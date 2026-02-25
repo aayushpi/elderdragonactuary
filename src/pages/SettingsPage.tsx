@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Download, Upload, Trash2, FileText } from "lucide-react"
-import { Input } from "@/components/ui/input"
 import { exportData, exportCSV, loadGames } from "@/lib/storage"
 import {
   CLOUD_SYNC_UPDATED_EVENT,
@@ -10,9 +9,7 @@ import {
   getLastCloudSyncAt,
   pullGamesFromCloud,
   pushGamesToCloud,
-  sendMagicLink,
   setLastCloudSyncAt,
-  signOutCloud,
 } from "@/lib/cloudSync"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -24,10 +21,8 @@ interface SettingsPageProps {
 export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [authEmail, setAuthEmail] = useState("")
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [authBusy, setAuthBusy] = useState(false)
   const [syncBusy, setSyncBusy] = useState(false)
   const [lastCloudSyncAt, setLastCloudSyncAtState] = useState<string | null>(() => getLastCloudSyncAt())
   const isDevOrLocalhost = import.meta.env.DEV || window.location.hostname === "localhost"
@@ -152,36 +147,6 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
     }
   }
 
-  async function handleSendMagicLink() {
-    const email = authEmail.trim()
-    if (!email) {
-      toast.error("Enter an email first.")
-      return
-    }
-
-    try {
-      setAuthBusy(true)
-      await sendMagicLink(email)
-      toast.success("Magic link sent. Check your email.")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not send magic link.")
-    } finally {
-      setAuthBusy(false)
-    }
-  }
-
-  async function handleSignOut() {
-    try {
-      setAuthBusy(true)
-      await signOutCloud()
-      toast.success("Signed out from cloud sync.")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not sign out.")
-    } finally {
-      setAuthBusy(false)
-    }
-  }
-
   async function handleCloudPush() {
     try {
       setSyncBusy(true)
@@ -236,74 +201,42 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
             <p className="text-xs text-destructive font-medium">
               Cloud sync is not configured. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to enable it.
             </p>
+          ) : authLoading ? (
+            <p className="text-xs text-muted-foreground">Checking session…</p>
+          ) : !currentUserEmail ? (
+            <p className="text-xs text-muted-foreground">You must be signed in to use cloud sync.</p>
           ) : (
-            <>
-              {!currentUserEmail ? (
-                <div className="space-y-2">
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      disabled={authBusy || authLoading}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={handleSendMagicLink}
-                      disabled={authBusy || authLoading}
-                    >
-                      Send magic link
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Open the link from your email on this device to complete sign in.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Signed in as <span className="font-medium text-foreground">{currentUserEmail}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Last cloud sync: {lastCloudSyncAt ? new Date(lastCloudSyncAt).toLocaleString() : "Never"}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={handleCloudPush}
-                      disabled={syncBusy || authBusy}
-                    >
-                      Push local → cloud
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={handleCloudPull}
-                      disabled={syncBusy || authBusy}
-                    >
-                      Pull cloud → local
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSignOut}
-                      disabled={authBusy || syncBusy}
-                    >
-                      Sign out
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Conflict rule: last push wins.
-                  </p>
-                </div>
-              )}
-            </>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Signed in as <span className="font-medium text-foreground">{currentUserEmail}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Last cloud sync: {lastCloudSyncAt ? new Date(lastCloudSyncAt).toLocaleString() : "Never"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleCloudPush}
+                  disabled={syncBusy}
+                >
+                  Push local → cloud
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={handleCloudPull}
+                  disabled={syncBusy}
+                >
+                  Pull cloud → local
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Conflict rule: last push wins.
+              </p>
+            </div>
           )}
         </div>
       </div>

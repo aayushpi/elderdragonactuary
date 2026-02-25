@@ -7,8 +7,10 @@ import { LogGamePage } from "@/pages/LogGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { useGames } from "@/hooks/useGames"
-import { getCurrentUser, pullGamesFromCloud, pushGamesToCloud } from "@/lib/cloudSync"
+import { getCurrentUser, pullGamesFromCloud, pushGamesToCloud, sendMagicLink, signOutCloud } from "@/lib/cloudSync"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
 import type { AppView, Game } from "@/types"
 
@@ -16,6 +18,10 @@ function App() {
   const [view, setView] = useState<AppView>("dashboard")
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authEmail, setAuthEmail] = useState("")
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const { games, setGamesState, parseImport } = useGames()
   const mutationInFlightRef = useRef(false)
   const cloudHydratingRef = useRef(false)
@@ -109,23 +115,79 @@ function App() {
     return await commitGames([])
   }
 
+  async function handleSendMagicLink() {
+    const email = authEmail.trim()
+    if (!email) {
+      toast.error("Enter an email first.")
+      return
+    }
+
+    try {
+      setAuthBusy(true)
+      await sendMagicLink(email)
+      toast.success("Magic link sent. Check your email.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send magic link.")
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      setAuthBusy(true)
+      await signOutCloud()
+      toast.success("Logged out.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not log out.")
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
   useEffect(() => {
-    void hydrateFromCloudIfSignedIn()
+    if (!cloudConfigured) {
+      setAuthLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    const hydrateAuth = async () => {
+      try {
+        const user = await getCurrentUser()
+        if (cancelled) return
+        setCurrentUserEmail(user?.email ?? null)
+        if (user) {
+          await hydrateFromCloudIfSignedIn()
+        }
+      } finally {
+        if (!cancelled) {
+          setAuthLoading(false)
+        }
+      }
+    }
+
+    void hydrateAuth()
 
     const supabase = getSupabase()
-    const listener = supabase?.auth.onAuthStateChange((event) => {
+    const listener = supabase?.auth.onAuthStateChange((event, session) => {
+      setCurrentUserEmail(session?.user?.email ?? null)
+
       if (event === "SIGNED_IN") {
         void hydrateFromCloudIfSignedIn(false)
       }
       if (event === "SIGNED_OUT") {
         setGamesState([])
+        setView("dashboard")
       }
     })
 
     return () => {
+      cancelled = true
       listener?.data.subscription.unsubscribe()
     }
-  }, [])
+  }, [cloudConfigured])
 
   // Keyboard shortcut: n → log new game (when not focused in a text field)
   useEffect(() => {
@@ -144,25 +206,75 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="bottom-center" richColors />
-      <Nav currentView={view} onNavigate={setView} onShowReleaseNotes={() => setShowReleaseNotes(true)} />
-      <main className="container mx-auto max-w-5xl px-4 py-6">
-        {view === "dashboard" && <StatsPage games={games} onNavigate={setView} />}
-        {view === "log-game" && (
-          <LogGamePage
-            onSave={handleSaveGame}
-            onCancel={() => setView("dashboard")}
-            isSyncing={isSyncing}
+
+      {!cloudConfigured ? (
+        <main className="container mx-auto max-w-md px-4 py-16">
+          <div className="rounded-lg border bg-card p-6 space-y-2">
+            <h1 className="text-xl font-semibold">Cloud sync not configured</h1>
+            <p className="text-sm text-muted-foreground">
+              Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to run the app.
+            </p>
+          </div>
+        </main>
+      ) : authLoading ? (
+        <main className="container mx-auto max-w-md px-4 py-16">
+          <div className="rounded-lg border bg-card p-6">
+            <p className="text-sm text-muted-foreground">Checking session…</p>
+          </div>
+        </main>
+      ) : !currentUserEmail ? (
+        <main className="container mx-auto max-w-md px-4 py-16">
+          <div className="rounded-lg border bg-card p-6 space-y-4">
+            <div className="space-y-1">
+              <h1 className="text-xl font-semibold">Sign in</h1>
+              <p className="text-sm text-muted-foreground">Use a magic link to access your game data.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                disabled={authBusy}
+              />
+              <Button className="w-full" onClick={handleSendMagicLink} disabled={authBusy}>
+                {authBusy ? "Sending…" : "Send magic link"}
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">Open the link from your email on this device.</p>
+          </div>
+        </main>
+      ) : (
+        <>
+          <Nav
+            currentView={view}
+            onNavigate={setView}
+            onShowReleaseNotes={() => setShowReleaseNotes(true)}
+            onLogout={handleLogout}
+            disableLogout={authBusy || isSyncing}
           />
-        )}
-        {view === "history" && (
-          <HistoryPage games={games} onDeleteGame={handleDeleteGame} isSyncing={isSyncing} />
-        )}
-        {view === "settings" && (
-          <SettingsPage onImport={handleImportGames} onClearAll={handleClearGames} />
-        )}
-      </main>
-      <Footer onShowReleaseNotes={() => setShowReleaseNotes(true)} />
-      <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
+          <main className="container mx-auto max-w-5xl px-4 py-6">
+            {view === "dashboard" && <StatsPage games={games} onNavigate={setView} />}
+            {view === "log-game" && (
+              <LogGamePage
+                onSave={handleSaveGame}
+                onCancel={() => setView("dashboard")}
+                isSyncing={isSyncing}
+              />
+            )}
+            {view === "history" && (
+              <HistoryPage games={games} onDeleteGame={handleDeleteGame} isSyncing={isSyncing} />
+            )}
+            {view === "settings" && (
+              <SettingsPage onImport={handleImportGames} onClearAll={handleClearGames} />
+            )}
+          </main>
+          <Footer onShowReleaseNotes={() => setShowReleaseNotes(true)} />
+          <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
+        </>
+      )}
     </div>
   )
 }

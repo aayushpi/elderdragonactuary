@@ -1,4 +1,4 @@
-import { ChartSpline ,History, Download, Plus, FileText, Bug } from "lucide-react"
+import { ChartSpline ,History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { AppView } from "@/types"
@@ -7,6 +7,8 @@ interface NavProps {
   currentView: AppView
   onNavigate: (view: AppView) => void
   onShowReleaseNotes: () => void
+  onLogout: () => void
+  disableLogout?: boolean
 }
 
 const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -16,7 +18,7 @@ const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ cla
   { view: "settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
+export function Nav({ currentView, onNavigate, onShowReleaseNotes, onLogout, disableLogout = false }: NavProps) {
   return (
     <nav className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto max-w-5xl px-4">
@@ -47,6 +49,17 @@ export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
             >
               <Bug className="h-3 w-3" />
               <span className="hidden sm:inline">Report Bug</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLogout}
+              disabled={disableLogout}
+              className="gap-1 sm:gap-1.5 text-xs h-7 px-1.5 sm:px-2"
+              title="Log out"
+            >
+              <LogOut className="h-3 w-3" />
+              <span className="hidden sm:inline">Log out</span>
             </Button>
           </div>
         </div>
