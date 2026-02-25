@@ -1,73 +1,123 @@
-# React + TypeScript + Vite
+# Elder Dragon Actuary (Commando)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web app for tracking and analyzing Commander (EDH) game statistics. Record games, track win rates by commander/player position, and export your data locally. All data is stored in your browser—nothing is sent to a server.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Game Logging**: Record 2–6 player games with commander names, seat positions, win conditions, and optional bracket info
+- **Commander Search**: Auto-fetch legal commanders from [Scryfall](https://scryfall.com) with mana cost and type line data
+- **Partner Support**: Log games with partner commanders (e.g., Tymna + Thrasios)
+- **KO Tracking**: Optionally record when each player is knocked out (useful for analyzing game flow)
+- **Fast Mana Notes**: Track which cards opponents played for meta analysis
+- **Win Rate Stats**: View overall win rate, by commander, by seat position, with/against fast mana
+- **Edit & Delete**: Modify or remove past games from your history
+- **Mobile Optimized**: Responsive design for logging games on your phone at the table
+- **Export & Backup**: Download your games as JSON or CSV for external analysis or backup
+- **Local-Only Storage**: All data stays in your browser—no sign-up, no cloud sync
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React 19 + TypeScript
+- **Build**: Vite
+- **UI Components**: Shadcn/ui (Radix primitives + Tailwind CSS)
+- **Testing**: Vitest
+- **Linting**: ESLint 9 + TypeScript ESLint
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- Node.js 18+
+- npm
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Start the dev server with HMR:
+```bash
+npm run dev
 ```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Testing
+
+Run all tests:
+```bash
+npm run test
+```
+
+Run tests in CI mode (exits after):
+```bash
+npm run test:ci
+```
+
+### Linting
+
+Check code quality:
+```bash
+npm run lint
+```
+
+### Build
+
+Build for production:
+```bash
+npm run build
+```
+
+Preview the production build locally:
+```bash
+npm run preview
+```
+
+## Project Structure
+
+```
+src/
+  components/       UI components (player rows, cards, search)
+  pages/           Page-level components (LogGame, EditGame, History, Stats)
+  hooks/           Custom React hooks (useGames, useStats, useScryffall)
+  lib/             Utilities (stats, storage, Scryfall API, validation)
+  lib/__tests__/   Unit tests for data layer
+  components/__tests__/  Component tests
+  types/           TypeScript type definitions
+  assets/          Static assets
+public/            Static files (logo, release notes)
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/your-feature`
+3. Make your changes and run tests: `npm run test`
+4. Run lint: `npm run lint`
+5. Commit with a clear message: `git commit -m "feat: description"`
+6. Push and open a pull request
+
+## Browser Storage
+
+All game data is stored in your browser's `localStorage` under the key `commando_games`. You can:
+- Export as JSON for backup
+- Export as CSV for analysis in Excel
+- Import previously exported JSON files
+
+**Note**: Clearing your browser data will delete your game history.
+
+## Data Privacy
+
+This app collects **no personal information** and sends **no data to any server**. All analytics and storage happen locally in your browser.
+
+## Credits & Attribution
+
+- Card data & images: [Scryfall](https://scryfall.com)
+- UI Framework: [Shadcn/ui](https://ui.shadcn.com)
+- Theming: [Tailwind CSS](https://tailwindcss.com)
+- Statistics inspiration: [EDHRec](https://edhrec.com)
+
+## License
+
+This project is provided as-is. Feel free to fork, modify, and use for personal projects.
