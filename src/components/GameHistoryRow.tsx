@@ -96,10 +96,10 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                   <img
                     src={me.commanderImageUri}
                     alt={me.commanderName}
-                    className="w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer"
+                    className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer">
+                  <div className="hidden sm:flex w-8 h-8 rounded bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer">
                     ?
                   </div>
                 )}
@@ -146,10 +146,10 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                       <img
                         src={me.partnerImageUri}
                         alt={me.partnerName}
-                        className="w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
+                        className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer mr-2">
+                      <div className="hidden sm:flex w-8 h-8 rounded bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer mr-2">
                         ?
                       </div>
                     )}
@@ -192,8 +192,8 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           <Badge variant="outline" className="text-xs">
             Turn {game.winTurn}
           </Badge>
-          <span className="hidden sm:inline text-xs text-muted-foreground">{game.players.length} players</span>
-          <span className="text-xs text-muted-foreground">{date}</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{date}</span>
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
           />
