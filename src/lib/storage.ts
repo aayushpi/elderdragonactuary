@@ -31,6 +31,7 @@ interface ExportPlayer {
   partnerManaCost?: string
   partnerTypeLine?: string
   partnerImageUri?: string
+  knockoutTurn?: number
   seatPosition: number
   fastMana: { hasFastMana: boolean; cards: string[] }
 }
@@ -98,6 +99,7 @@ export function exportCSV(): string {
   for (let i = 1; i <= maxPlayers; i++) {
     headers.push(`Player ${i} Commander`)
     headers.push(`Player ${i} Fast Mana`)
+    headers.push(`Player ${i} KO Turn`)
   }
   headers.push("Winner")
   headers.push("Win Turn")
@@ -124,7 +126,9 @@ export function exportCSV(): string {
         const hasFast = p.fastMana?.hasFastMana
         const fastVal = hasFast ? (Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join(', ') : '') : "No"
         row.push(fastVal)
+        row.push(typeof p.knockoutTurn === "number" ? String(p.knockoutTurn) : "")
       } else {
+        row.push("")
         row.push("")
         row.push("")
       }
@@ -174,6 +178,7 @@ export function importData(json: string): { success: boolean; count: number; err
           ...p,
           id: generateId(),
           isMe: i === 0,
+          knockoutTurn: typeof p.knockoutTurn === "number" ? p.knockoutTurn : undefined,
           seatPosition: p.seatPosition as Player["seatPosition"],
           commanderColorIdentity: p.commanderColorIdentity as Player["commanderColorIdentity"],
         }))
