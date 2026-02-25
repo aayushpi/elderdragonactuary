@@ -75,12 +75,12 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
   }
 
   return (
-    <button
-      className="w-full text-left p-3 hover:bg-muted/50 transition-colors space-y-2"
+    <div
+      className="w-full text-left p-3 sm:pr-12 sm:hover:bg-muted/50 sm:transition-colors sm:cursor-pointer space-y-2"
       onClick={onClick}
     >
       {/* ── Header row (always visible) ────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Badge variant={iWon ? "default" : "secondary"} className="text-xs shrink-0">
             {iWon ? "Win" : "Loss"}
@@ -88,25 +88,33 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           {me && (
             <>
               <div
-                className="relative flex items-center gap-2"
-                onMouseEnter={(e) => handleCardHover(me.commanderName, e)}
-                onMouseLeave={handleCardLeave}
+                className="relative flex items-center gap-2 min-w-0 pointer-events-none sm:pointer-events-auto"
+                onMouseEnter={(e) => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    handleCardHover(me.commanderName, e)
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    handleCardLeave()
+                  }
+                }}
               >
                 {me.commanderImageUri ? (
                   <img
                     src={me.commanderImageUri}
                     alt={me.commanderName}
-                    className="w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer"
+                    className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer">
+                  <div className="hidden sm:flex w-8 h-8 rounded bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer">
                     ?
                   </div>
                 )}
-                <span className="text-sm font-medium cursor-pointer">
+                <span className="text-sm font-medium cursor-pointer truncate">
                   {me.commanderName}
                 </span>
-                {hoveredCard?.name === me.commanderName && (
+                {hoveredCard?.name === me.commanderName && window.matchMedia('(hover: hover)').matches && (
                   <div
                     ref={hoverCardRef}
                     className="fixed pointer-events-none"
@@ -136,27 +144,35 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
               </div>
               {me.partnerName && (
                 <>
-                  <span className="text-sm font-medium"> // </span>
+                  <span className="text-sm font-medium shrink-0"> // </span>
                   <div
-                    className="relative flex items-center"
-                    onMouseEnter={(e) => me.partnerName && handleCardHover(me.partnerName, e)}
-                    onMouseLeave={handleCardLeave}
+                    className="relative flex items-center min-w-0 pointer-events-none sm:pointer-events-auto"
+                    onMouseEnter={(e) => {
+                      if (window.matchMedia('(hover: hover)').matches && me.partnerName) {
+                        handleCardHover(me.partnerName, e)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (window.matchMedia('(hover: hover)').matches) {
+                        handleCardLeave()
+                      }
+                    }}
                   >
                     {me.partnerImageUri ? (
                       <img
                         src={me.partnerImageUri}
                         alt={me.partnerName}
-                        className="w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
+                        className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer mr-2">
+                      <div className="hidden sm:flex w-8 h-8 rounded bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer mr-2">
                         ?
                       </div>
                     )}
-                    <span className="text-sm font-medium cursor-pointer">
+                    <span className="text-sm font-medium cursor-pointer truncate">
                       {me.partnerName}
                     </span>
-                    {hoveredCard?.name === me.partnerName && (
+                    {hoveredCard?.name === me.partnerName && window.matchMedia('(hover: hover)').matches && (
                       <div
                         className="fixed pointer-events-none"
                         style={{ 
@@ -188,14 +204,14 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
             </>
           )}
         </div>
-        <div className="flex items-center gap-2 pr-8 shrink-0">
-          <Badge variant="outline" className="text-xs">
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="hidden sm:inline text-xs">
             Turn {game.winTurn}
           </Badge>
-          <span className="text-xs text-muted-foreground">{game.players.length} players</span>
-          <span className="text-xs text-muted-foreground">{date}</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{date}</span>
           <ChevronDown
-            className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
+            className={`hidden sm:block h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
           />
         </div>
       </div>
@@ -205,6 +221,6 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
 
       {/* ── Collapsed preview: Fast mana info ─────────────────────────────────── */}
       
-    </button>
+    </div>
   )
 }
