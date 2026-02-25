@@ -62,6 +62,7 @@ export interface Game {
   notes?: string
   winConditions?: string[]
   keyWinconCards?: string[]
+  bracket?: number // 1-5, optional power level bracket
 }
 
 // ─── Stats ──────────────────────────────────────────────────────────────────
