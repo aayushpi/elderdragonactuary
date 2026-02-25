@@ -109,8 +109,16 @@ function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
             <div
               key={card.name}
               className="relative"
-              onMouseEnter={() => handleCardHover(card.name)}
-              onMouseLeave={handleCardLeave}
+              onMouseEnter={() => {
+                if (window.matchMedia('(hover: hover)').matches) {
+                  handleCardHover(card.name)
+                }
+              }}
+              onMouseLeave={() => {
+                if (window.matchMedia('(hover: hover)').matches) {
+                  handleCardLeave()
+                }
+              }}
             >
               <span
                 className="inline-flex items-center rounded-md border bg-background px-1.5 py-0.5 text-xs cursor-pointer"
@@ -119,7 +127,7 @@ function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
                 <span className="ml-1 text-muted-foreground">×{card.count}</span>
               </span>
 
-              {hoveredCard?.name === card.name && (
+              {hoveredCard?.name === card.name && window.matchMedia('(hover: hover)').matches && (
                 <div
                   ref={hoverCardRef}
                   className={`absolute z-[9999] ${hoverPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} left-1/2 transform -translate-x-1/2`}
