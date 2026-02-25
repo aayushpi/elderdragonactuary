@@ -199,6 +199,19 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
         </>
       )}
 
+      {/* ── Game Info (Turn & Bracket) ─────────────────────────────────────────────────────────────────── */}
+      <Separator />
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary" className="text-xs">
+          Turn {game.winTurn}
+        </Badge>
+        {game.bracket && (
+          <Badge variant="secondary" className="text-xs">
+            Bracket {game.bracket}
+          </Badge>
+        )}
+      </div>
+
       {/* ── Actions ──────────────────────────────────────────────────────────────────────────────────────── */}
       {(onEdit || onDelete) && (
         <>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
@@ -125,6 +125,8 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
   const [notes, setNotes] = useState("")
   const [winConditions, setWinConditions] = useState<string[]>([])
   const [keyWinconCards, setKeyWinconCards] = useState<string[]>([])
+  const [bracket, setBracket] = useState<number | null>(null)
+  const [showBracketSelector, setShowBracketSelector] = useState(false)
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
 
   function initPlayers(total: number) {
@@ -208,6 +210,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
       notes: notes.trim() || undefined,
       winConditions: winConditions.length > 0 ? winConditions : undefined,
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
+      bracket: bracket ?? undefined,
     }
     onSave(game)
   }
@@ -322,6 +325,50 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
             </Button>
           ))}
         </div>
+      </div>
+
+      {/* Bracket Selector */}
+      <div className="space-y-2">
+        {!showBracketSelector ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowBracketSelector(true)}
+            className="w-full"
+          >
+            Add game bracket (Optional)
+          </Button>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Select game bracket
+              </h2>
+              <a
+                href="https://magic.wizards.com/en/formats/commander#brackets"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+              >
+                About game brackets
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  variant={bracket === n ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setBracket(n)}
+                >
+                  {n}
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Player rows */}
