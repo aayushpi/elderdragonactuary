@@ -175,6 +175,8 @@ function App() {
         if (user) {
           await hydrateFromCloudIfSignedIn()
         }
+      } catch (error) {
+        console.error("Auth hydration error:", error)
       } finally {
         if (!cancelled) {
           setAuthLoading(false)
@@ -196,8 +198,10 @@ function App() {
             try {
               await markInviteCodeAsUsed(pendingCode, session.user.id)
               clearPendingInviteCode()
+              console.log("Invite code marked as used:", pendingCode)
             } catch (error) {
               console.error("Failed to mark invite code as used:", error)
+              toast.error("Signed in, but failed to mark invite code as used.")
             }
           }
         }
