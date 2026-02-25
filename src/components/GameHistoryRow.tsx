@@ -75,8 +75,8 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
   }
 
   return (
-    <button
-      className="w-full text-left p-3 hover:bg-muted/50 transition-colors space-y-2"
+    <div
+      className="w-full text-left p-3 sm:hover:bg-muted/50 sm:transition-colors sm:cursor-pointer space-y-2"
       onClick={onClick}
     >
       {/* ── Header row (always visible) ────────────────────────────────────── */}
@@ -211,7 +211,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{date}</span>
           <ChevronDown
-            className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
+            className={`hidden sm:block h-4 w-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : "rotate-0"}`}
           />
         </div>
       </div>
@@ -221,6 +221,6 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
 
       {/* ── Collapsed preview: Fast mana info ─────────────────────────────────── */}
       
-    </button>
+    </div>
   )
 }

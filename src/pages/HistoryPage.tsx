@@ -68,9 +68,9 @@ export function HistoryPage({ games, onDeleteGame }: HistoryPageProps) {
                 </Button>
               </div>
 
-              {/* Animated expanded content */}
+              {/* Animated expanded content - always open on mobile, accordion on desktop */}
               <div
-                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${expandedId === game.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out grid-rows-[1fr] opacity-100 sm:grid-rows-[0fr] sm:opacity-0 ${expandedId === game.id ? "sm:grid-rows-[1fr] sm:opacity-100" : ""}`}
               >
                 <div className="min-h-0">
                   <div className="px-3 pb-3 border-t border-border">
