@@ -4,6 +4,7 @@ import { getSupabase } from "@/lib/supabase"
 
 export const LAST_CLOUD_SYNC_KEY = "commando_last_cloud_sync_at"
 export const CLOUD_SYNC_UPDATED_EVENT = "commando:cloud-sync-updated"
+export const PENDING_INVITE_CODE_KEY = "commando_pending_invite_code"
 
 export function getLastCloudSyncAt() {
   try {
@@ -60,6 +61,65 @@ export async function signOutCloud() {
 
   const { error } = await supabase.auth.signOut()
   if (error) throw new Error(error.message)
+}
+
+export async function validateInviteCode(code: string): Promise<boolean> {
+  const supabase = getSupabase()
+  if (!supabase) {
+    throw new Error("Cloud sync is not configured.")
+  }
+
+  const { data, error } = await supabase
+    .from("invite_codes")
+    .select("code")
+    .eq("code", code.trim().toUpperCase())
+    .is("used_by_user_id", null)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return !!data
+}
+
+export async function markInviteCodeAsUsed(code: string, userId: string) {
+  const supabase = getSupabase()
+  if (!supabase) {
+    throw new Error("Cloud sync is not configured.")
+  }
+
+  const { error } = await supabase
+    .from("invite_codes")
+    .update({
+      used_by_user_id: userId,
+      used_at: new Date().toISOString(),
+    })
+    .eq("code", code.trim().toUpperCase())
+    .is("used_by_user_id", null)
+
+  if (error) throw new Error(error.message)
+}
+
+export function storePendingInviteCode(code: string) {
+  try {
+    localStorage.setItem(PENDING_INVITE_CODE_KEY, code.trim().toUpperCase())
+  } catch {
+    // ignore storage failures
+  }
+}
+
+export function getPendingInviteCode(): string | null {
+  try {
+    return localStorage.getItem(PENDING_INVITE_CODE_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingInviteCode() {
+  try {
+    localStorage.removeItem(PENDING_INVITE_CODE_KEY)
+  } catch {
+    // ignore storage failures
+  }
 }
 
 export async function pushGamesToCloud(games: Game[]) {

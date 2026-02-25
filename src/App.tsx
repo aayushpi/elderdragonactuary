@@ -10,7 +10,7 @@ import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useGames } from "@/hooks/useGames"
-import { getCurrentUser, pullGamesFromCloud, pushGamesToCloud, sendMagicLink, signOutCloud } from "@/lib/cloudSync"
+import { getCurrentUser, pullGamesFromCloud, pushGamesToCloud, sendMagicLink, signOutCloud, validateInviteCode, markInviteCodeAsUsed, storePendingInviteCode, getPendingInviteCode, clearPendingInviteCode } from "@/lib/cloudSync"
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase"
 import type { AppView, Game } from "@/types"
 
@@ -21,6 +21,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [authBusy, setAuthBusy] = useState(false)
   const [authEmail, setAuthEmail] = useState("")
+  const [authInviteCode, setAuthInviteCode] = useState("")
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const { games, setGamesState, parseImport } = useGames()
   const mutationInFlightRef = useRef(false)
@@ -117,13 +118,26 @@ function App() {
 
   async function handleSendMagicLink() {
     const email = authEmail.trim()
-    if (!email) {
-      toast.error("Enter an email first.")
+    const code = authInviteCode.trim()
+    
+    if (!email || !code) {
+      toast.error("Enter both email and invite code.")
       return
     }
 
     try {
       setAuthBusy(true)
+      
+      // Validate the invite code first
+      const isValid = await validateInviteCode(code)
+      if (!isValid) {
+        toast.error("Invalid or already-used invite code.")
+        return
+      }
+      
+      // Store the code for later (after auth completes)
+      storePendingInviteCode(code)
+      
       await sendMagicLink(email)
       toast.success("Magic link sent. Check your email.")
     } catch (error) {
@@ -171,10 +185,23 @@ function App() {
     void hydrateAuth()
 
     const supabase = getSupabase()
-    const listener = supabase?.auth.onAuthStateChange((event, session) => {
+    const listener = supabase?.auth.onAuthStateChange(async (event, session) => {
       setCurrentUserEmail(session?.user?.email ?? null)
 
       if (event === "SIGNED_IN") {
+        // Mark the pending invite code as used
+        if (session?.user?.id) {
+          const pendingCode = getPendingInviteCode()
+          if (pendingCode) {
+            try {
+              await markInviteCodeAsUsed(pendingCode, session.user.id)
+              clearPendingInviteCode()
+            } catch (error) {
+              console.error("Failed to mark invite code as used:", error)
+            }
+          }
+        }
+        
         void hydrateFromCloudIfSignedIn(false)
       }
       if (event === "SIGNED_OUT") {
@@ -238,6 +265,13 @@ function App() {
             </div>
 
             <div className="space-y-2">
+              <Input
+                type="text"
+                placeholder="INVITE-CODE-HERE"
+                value={authInviteCode}
+                onChange={(e) => setAuthInviteCode(e.target.value.toUpperCase())}
+                disabled={authBusy}
+              />
               <Input
                 type="email"
                 placeholder="you@example.com"
