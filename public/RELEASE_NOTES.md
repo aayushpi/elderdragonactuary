@@ -3,6 +3,7 @@
 ## v0.0.3 - February 24, 2026
 
 - Old games are now editable
+- Added game bracket info
 
 ## v0.0.2 - February 24, 2026
 
