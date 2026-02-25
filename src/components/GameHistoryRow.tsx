@@ -76,7 +76,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
 
   return (
     <div
-      className="w-full text-left p-3 sm:hover:bg-muted/50 sm:transition-colors sm:cursor-pointer space-y-2"
+      className="w-full text-left p-3 sm:pr-12 sm:hover:bg-muted/50 sm:transition-colors sm:cursor-pointer space-y-2"
       onClick={onClick}
     >
       {/* ── Header row (always visible) ────────────────────────────────────── */}
