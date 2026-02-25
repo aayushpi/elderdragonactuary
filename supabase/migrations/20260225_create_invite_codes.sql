@@ -22,7 +22,9 @@ CREATE POLICY "Anyone can check unused codes" ON public.invite_codes
 -- Policy: Authenticated users can mark unused codes as used
 DROP POLICY IF EXISTS "Users can mark their code as used" ON public.invite_codes;
 CREATE POLICY "Users can mark their code as used" ON public.invite_codes
-  FOR UPDATE USING (used_by_user_id IS NULL);
+  FOR UPDATE 
+  USING (used_by_user_id IS NULL)
+  WITH CHECK (used_by_user_id = auth.uid());
 
 -- Insert some initial invite codes (you can generate more as needed)
 INSERT INTO public.invite_codes (code) VALUES
