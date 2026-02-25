@@ -89,8 +89,16 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
             <>
               <div
                 className="relative flex items-center gap-2 min-w-0"
-                onMouseEnter={(e) => handleCardHover(me.commanderName, e)}
-                onMouseLeave={handleCardLeave}
+                onMouseEnter={(e) => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    handleCardHover(me.commanderName, e)
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    handleCardLeave()
+                  }
+                }}
               >
                 {me.commanderImageUri ? (
                   <img
@@ -139,8 +147,16 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                   <span className="text-sm font-medium shrink-0"> // </span>
                   <div
                     className="relative flex items-center min-w-0"
-                    onMouseEnter={(e) => me.partnerName && handleCardHover(me.partnerName, e)}
-                    onMouseLeave={handleCardLeave}
+                    onMouseEnter={(e) => {
+                      if (window.matchMedia('(hover: hover)').matches && me.partnerName) {
+                        handleCardHover(me.partnerName, e)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (window.matchMedia('(hover: hover)').matches) {
+                        handleCardLeave()
+                      }
+                    }}
                   >
                     {me.partnerImageUri ? (
                       <img
@@ -189,7 +205,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="hidden sm:inline text-xs">
             Turn {game.winTurn}
           </Badge>
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
