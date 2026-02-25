@@ -136,7 +136,8 @@ export function computeStats(games: Game[]): ComputedStats {
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
         .slice(0, 5)
 
-      const { commanderGames, ...rest } = entry
+      const { commanderGames: _, ...rest } = entry
+      void _
       return {
         ...rest,
         recentResults,

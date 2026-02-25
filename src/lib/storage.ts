@@ -64,6 +64,7 @@ export function exportData(): string {
       winConditions: g.winConditions,
       keyWinconCards: g.keyWinconCards,
       bracket: g.bracket,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
   })
