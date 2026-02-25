@@ -45,7 +45,8 @@ const WIN_CONDITION_CATEGORIES = [
   "Infinite Loop",
   "Infinite Life-Gain",
   "Infinite Mana",
-  "Asymmetric Board Wipe"
+  "Asymmetric Board Wipe",
+  "Poison or Infect"
 ] as const
 
 function getMirroredSeatOrder(totalPlayers: number): number[] {
