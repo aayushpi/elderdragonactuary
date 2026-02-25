@@ -9,6 +9,7 @@ const hoverImageCache = new Map<string, string | null>()
 
 interface CommanderCardProps {
   commanderName: string
+  mobileDisplayName?: string
   imageUri?: string
   colorIdentity?: MtgColor[]
   manaCost?: string
@@ -19,6 +20,7 @@ interface CommanderCardProps {
 
 export function CommanderCard({
   commanderName,
+  mobileDisplayName,
   imageUri,
   manaCost,
   typeLine,
@@ -127,7 +129,8 @@ export function CommanderCard({
             ?
           </div>
         )}
-        <span className="text-sm font-medium leading-tight truncate">{commanderName}</span>
+        <span className="sm:hidden text-sm font-medium leading-tight truncate">{mobileDisplayName ?? commanderName}</span>
+        <span className="hidden sm:inline text-sm font-medium leading-tight truncate">{commanderName}</span>
         {hoveredCard?.name === commanderName && (
           <div
             ref={hoverCardRef}
