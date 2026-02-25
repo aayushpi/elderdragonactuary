@@ -202,9 +202,6 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Badge variant="outline" className="hidden sm:inline text-xs">
-            Turn {game.winTurn}
-          </Badge>
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{date}</span>
         </div>
