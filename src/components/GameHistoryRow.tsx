@@ -88,7 +88,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
           {me && (
             <>
               <div
-                className="relative flex items-center gap-2 min-w-0"
+                className="relative flex items-center gap-2 min-w-0 pointer-events-none sm:pointer-events-auto"
                 onMouseEnter={(e) => {
                   if (window.matchMedia('(hover: hover)').matches) {
                     handleCardHover(me.commanderName, e)
@@ -146,7 +146,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                 <>
                   <span className="text-sm font-medium shrink-0"> // </span>
                   <div
-                    className="relative flex items-center min-w-0"
+                    className="relative flex items-center min-w-0 pointer-events-none sm:pointer-events-auto"
                     onMouseEnter={(e) => {
                       if (window.matchMedia('(hover: hover)').matches && me.partnerName) {
                         handleCardHover(me.partnerName, e)
