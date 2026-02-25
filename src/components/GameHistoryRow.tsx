@@ -78,6 +78,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
     <div
       className="w-full text-left p-3 sm:pr-12 sm:hover:bg-muted/50 sm:transition-colors sm:cursor-pointer space-y-2"
       onClick={onClick}
+      onMouseLeave={handleCardLeave}
     >
       {/* ── Header row (always visible) ────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -119,7 +120,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                     ref={hoverCardRef}
                     className="fixed pointer-events-none"
                     style={{ 
-                      zIndex: 50,
+                      zIndex: 9999,
                       top: `${cardPosition.top}px`,
                       left: `${cardPosition.left}px`,
                       transform: 'translateX(-50%)'
@@ -176,7 +177,7 @@ export function GameHistoryRow({ game, onClick, isOpen }: GameHistoryRowProps) {
                       <div
                         className="fixed pointer-events-none"
                         style={{ 
-                          zIndex: 50,
+                          zIndex: 9999,
                           top: `${cardPosition.top}px`,
                           left: `${cardPosition.left}px`,
                           transform: 'translateX(-50%)'

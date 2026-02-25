@@ -168,7 +168,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                           ref={hoverCardRef}
                           className="fixed pointer-events-none"
                           style={{ 
-                            zIndex: 40,
+                            zIndex: 9999,
                             top: `${cardPosition.top}px`,
                             left: `${cardPosition.left}px`,
                             transform: 'translateX(-50%)'
