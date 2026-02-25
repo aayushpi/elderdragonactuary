@@ -23,24 +23,15 @@ export function TopWinConditionsCard({ topWinConditions }: TopWinConditionsCardP
             Top Ways to Win
           </p>
           
-          <div className="space-y-2">
-            {topWinConditions.map((wc, index) => (
-              <div 
+          <div className="flex flex-wrap gap-2">
+            {topWinConditions.map((wc) => (
+              <Badge 
                 key={wc.condition}
-                className="flex items-center gap-3"
+                variant="outline" 
+                className="text-xs"
               >
-                <div className="text-xl font-bold text-muted-foreground w-6 text-center">
-                  {index + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Badge variant="outline" className="text-xs">
-                    {wc.condition}
-                  </Badge>
-                </div>
-                <div className="text-sm font-semibold text-muted-foreground">
-                  {wc.count}
-                </div>
-              </div>
+                {wc.condition} × {wc.count}
+              </Badge>
             ))}
           </div>
         </div>
