@@ -49,6 +49,7 @@ export interface Player {
   partnerImageUri?: string
   partnerManaCost?: string
   partnerTypeLine?: string
+  knockoutTurn?: number
   seatPosition: SeatPosition
   fastMana: FastManaInfo
 }

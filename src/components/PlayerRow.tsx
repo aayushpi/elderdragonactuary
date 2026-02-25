@@ -23,9 +23,12 @@ interface PlayerRowProps {
   takenSeats: SeatPosition[]
   totalPlayers: number
   isWinner: boolean
+  showKoTurnControls: boolean
   winTurn: string
+  koTurn: string
   onSetWinner: () => void
   onWinTurnChange: (turn: string) => void
+  onKoTurnChange: (turn: string) => void
   onChange: (updated: Partial<Player>) => void
   recentCommanders?: RecentCommander[]
   fieldErrors?: FieldErrors
@@ -39,9 +42,12 @@ export function PlayerRow({
   takenSeats,
   totalPlayers,
   isWinner,
+  showKoTurnControls,
   winTurn,
+  koTurn,
   onSetWinner,
   onWinTurnChange,
+  onKoTurnChange,
   onChange,
   recentCommanders,
   fieldErrors,
@@ -96,6 +102,18 @@ export function PlayerRow({
     const currentTurn = parseInt(winTurn) || 1
     if (currentTurn > 1) {
       onWinTurnChange((currentTurn - 1).toString())
+    }
+  }
+
+  function incrementKoTurn() {
+    const currentTurn = parseInt(koTurn) || 0
+    onKoTurnChange((currentTurn + 1).toString())
+  }
+
+  function decrementKoTurn() {
+    const currentTurn = parseInt(koTurn) || 1
+    if (currentTurn > 1) {
+      onKoTurnChange((currentTurn - 1).toString())
     }
   }
 
@@ -161,6 +179,38 @@ export function PlayerRow({
               </Button>
             </div>
           )}
+          {!isWinner && showKoTurnControls && (
+            <div className="flex items-center gap-1 justify-end">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide px-1">KO</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                onClick={decrementKoTurn}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                placeholder="turn"
+                value={koTurn}
+                onChange={(e) => onKoTurnChange(e.target.value)}
+                className="w-14 h-7 text-sm text-center"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                onClick={incrementKoTurn}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -206,6 +256,39 @@ export function PlayerRow({
             variant="outline"
             className="h-7 w-7 p-0"
             onClick={incrementTurn}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
+      {!isWinner && showKoTurnControls && (
+        <div className="flex items-center justify-center gap-1 sm:hidden">
+          <span className="text-xs text-muted-foreground uppercase tracking-wide px-1">KO</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            onClick={decrementKoTurn}
+          >
+            <Minus className="h-3 w-3" />
+          </Button>
+          <Input
+            type="number"
+            min={1}
+            max={50}
+            placeholder="turn"
+            value={koTurn}
+            onChange={(e) => onKoTurnChange(e.target.value)}
+            className="w-14 h-7 text-sm text-center"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            onClick={incrementKoTurn}
           >
             <Plus className="h-3 w-3" />
           </Button>

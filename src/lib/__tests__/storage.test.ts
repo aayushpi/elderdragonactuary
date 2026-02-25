@@ -48,7 +48,7 @@ describe("loadGames / saveGames", () => {
 describe("exportData / importData roundtrip", () => {
   it("export then import preserves game data (modulo IDs)", () => {
     const me = makePlayer({ isMe: true, commanderName: "Atraxa", seatPosition: 2, hasFastMana: true, fastManaCards: ["Sol Ring"] })
-    const opp = makePlayer({ commanderName: "Korvold", seatPosition: 1 })
+    const opp = makePlayer({ commanderName: "Korvold", seatPosition: 1, knockoutTurn: 6 })
     const game = makeGame({
       players: [me, opp],
       winnerId: me.id,
@@ -78,6 +78,7 @@ describe("exportData / importData roundtrip", () => {
     expect(imported[0].players[0].commanderName).toBe("Atraxa")
     expect(imported[0].players[0].isMe).toBe(true)
     expect(imported[0].players[1].commanderName).toBe("Korvold")
+    expect(imported[0].players[1].knockoutTurn).toBe(6)
     // WinnerId maps to correct player
     expect(imported[0].winnerId).toBe(imported[0].players[0].id)
   })
@@ -157,6 +158,16 @@ describe("exportCSV", () => {
     const header = csv.split("\n")[0]
     expect(header).toContain("Player 1 Commander")
     expect(header).toContain("Player 3 Commander")
+    expect(header).toContain("Player 2 KO Turn")
+  })
+
+  it("includes per-player knockout turns", () => {
+    const me = makePlayer({ isMe: true, commanderName: "Atraxa", seatPosition: 1 })
+    const opp = makePlayer({ commanderName: "Korvold", seatPosition: 2, knockoutTurn: 6 })
+    saveGames([makeGame({ players: [me, opp], winnerId: me.id, winTurn: 7 })])
+
+    const csv = exportCSV()
+    expect(csv).toContain(",6,")
   })
 
   it("renders partner commanders as Name // Partner", () => {
