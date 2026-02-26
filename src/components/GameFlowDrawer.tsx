@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { Minus, Maximize2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -12,12 +13,23 @@ interface GameFlowDrawerProps {
 }
 
 export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, children }: GameFlowDrawerProps) {
+  const [isReady, setIsReady] = useState(false)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsReady(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 pb-0 sm:px-4 sm:pb-0 pointer-events-none">
       <div
         className={cn(
-          "pointer-events-auto mx-auto w-full rounded-t-xl rounded-b-none border border-t-2 bg-card shadow-lg transition-transform duration-300 sm:max-w-[min(96vw,1400px)]",
-          minimized ? "translate-y-[calc(100%-3.25rem)]" : "translate-y-0"
+          "pointer-events-auto mx-auto w-full rounded-t-xl rounded-b-none border border-t-2 bg-card shadow-lg transition-[transform,opacity] duration-300 ease-out sm:max-w-[min(96vw,1400px)]",
+          !isReady
+            ? "translate-y-full opacity-0"
+            : minimized
+              ? "translate-y-[calc(100%-3.25rem)] opacity-100"
+              : "translate-y-0 opacity-100"
         )}
       >
         <div
