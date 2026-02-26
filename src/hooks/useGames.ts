@@ -1,32 +1,118 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
+import { toast } from "sonner"
 import type { Game } from "@/types"
-import { loadGames, saveGames, importData } from "@/lib/storage"
+import { useAuth } from "@/hooks/useAuth"
+import {
+  fetchGames,
+  insertGame,
+  patchGame,
+  removeGame,
+  replaceAllGames,
+} from "@/lib/supabaseStorage"
+import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { parseImportJson } from "@/lib/storage"
 
 export function useGames() {
-  const [games, setGames] = useState<Game[]>(() => loadGames())
+  const { user, loading: authLoading } = useAuth()
+  const userId = user?.id ?? null
+  const [games, setGames] = useState<Game[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const addGame = useCallback((game: Game) => {
-    setGames((prev) => {
-      const next = [game, ...prev]
-      saveGames(next)
-      return next
-    })
+  // Fetch games after auth state is known and whenever the signed-in user changes.
+  useEffect(() => {
+    let cancelled = false
+
+    if (authLoading) {
+      setLoading(true)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    if (!userId) {
+      setGames([])
+      setLoading(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    setLoading(true)
+    fetchGames()
+      .then((data) => {
+        if (cancelled) return
+        setGames(data)
+
+        // repair any games where my commander is missing an image URI
+        data.forEach((game) => {
+          const me = game.players.find((p) => p.isMe)
+          if (me && me.commanderName && !me.commanderImageUri) {
+            // fire-and-forget: fetch art and patch the game
+            fetchCardByName(me.commanderName)
+              .then((card) => {
+                const uri = resolveArtCrop(card)
+                if (uri) {
+                  const updatedPlayers = game.players.map((p) =>
+                    p.isMe ? { ...p, commanderImageUri: uri } : p
+                  )
+                  return patchGame(game.id, { players: updatedPlayers })
+                }
+                return Promise.resolve(null)
+              })
+              .then((updated) => {
+                if (updated && !cancelled) {
+                  setGames((prev) =>
+                    prev.map((g) => (g.id === updated.id ? updated : g))
+                  )
+                }
+              })
+              .catch(() => {})
+          }
+        })
+      })
+      .catch((err) => {
+        console.error("Failed to fetch games:", err)
+        toast.error("Failed to load games from the server.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, userId])
+
+  const addGame = useCallback(async (game: Game) => {
+    try {
+      const saved = await insertGame(game)
+      setGames((prev) => [saved, ...prev])
+    } catch (err) {
+      console.error("Failed to save game:", err)
+      toast.error("Failed to save game.")
+      throw err
+    }
   }, [])
 
-  const updateGame = useCallback((id: string, patch: Partial<Game>) => {
-    setGames((prev) => {
-      const next = prev.map((g) => (g.id === id ? { ...g, ...patch } : g))
-      saveGames(next)
-      return next
-    })
+  const updateGame = useCallback(async (id: string, patch: Partial<Game>) => {
+    try {
+      const updated = await patchGame(id, patch)
+      setGames((prev) => prev.map((g) => (g.id === id ? updated : g)))
+    } catch (err) {
+      console.error("Failed to update game:", err)
+      toast.error("Failed to update game.")
+      throw err
+    }
   }, [])
 
-  const deleteGame = useCallback((id: string) => {
-    setGames((prev) => {
-      const next = prev.filter((g) => g.id !== id)
-      saveGames(next)
-      return next
-    })
+  const deleteGame = useCallback(async (id: string) => {
+    try {
+      await removeGame(id)
+      setGames((prev) => prev.filter((g) => g.id !== id))
+    } catch (err) {
+      console.error("Failed to delete game:", err)
+      toast.error("Failed to delete game.")
+      throw err
+    }
   }, [])
 
   const getGame = useCallback(
@@ -34,16 +120,31 @@ export function useGames() {
     [games]
   )
 
-  const replaceGames = useCallback((json: string) => {
-    const result = importData(json)
-    if (result.success) setGames(loadGames())
-    return result
+  const replaceGames = useCallback(async (json: string) => {
+    // Parse JSON into Game[] without touching localStorage
+    const result = parseImportJson(json)
+    if (!result.success) return { success: false, count: 0, error: result.error }
+
+    try {
+      const cloudGames = await replaceAllGames(result.games)
+      setGames(cloudGames)
+      return { success: true, count: cloudGames.length }
+    } catch (err) {
+      console.error("Failed to import games:", err)
+      toast.error("Failed to import games to the server.")
+      return { success: false, count: 0, error: "Server error during import." }
+    }
   }, [])
 
-  const clearGames = useCallback(() => {
-    setGames([])
-    saveGames([])
+  const clearGames = useCallback(async () => {
+    try {
+      await replaceAllGames([])
+      setGames([])
+    } catch (err) {
+      console.error("Failed to clear games:", err)
+      toast.error("Failed to clear games from the server.")
+    }
   }, [])
 
-  return { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames }
+  return { games, loading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames }
 }

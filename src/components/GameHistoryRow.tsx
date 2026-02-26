@@ -1,6 +1,6 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
-import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import type { Game } from "@/types"
 
 const commanderImageCache = new Map<string, string | null>()
@@ -25,8 +25,48 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
   // Hover state for commander cards
   const [hoveredCard, setHoveredCard] = useState<{ name: string; imageUri?: string } | null>(null)
   const [cardPosition, setCardPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  // Thumbnail URIs (prefer Scryfall art_crop)
+  const [commanderThumb, setCommanderThumb] = useState<string | undefined>(me?.commanderImageUri)
+  const [partnerThumb, setPartnerThumb] = useState<string | undefined>(me?.partnerImageUri)
   const activeHoverRef = useRef<string | null>(null)
   const hoverCardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function resolveThumb(name?: string, existingUri?: string, setFn?: (v: string | undefined) => void) {
+      if (!name || !setFn) return
+
+      // If the stored URI already looks like an art_crop, use it immediately
+      if (existingUri && existingUri.includes("art_crop")) {
+        setFn(existingUri)
+        return
+      }
+
+      const cached = commanderImageCache.get(name)
+      if (cached !== undefined) {
+        setFn(cached ?? undefined)
+        return
+      }
+
+      try {
+        const card = await fetchCardByName(name)
+        const uri = resolveArtCrop(card) ?? existingUri
+        commanderImageCache.set(name, uri ?? null)
+        if (!cancelled) setFn(uri ?? undefined)
+      } catch {
+        commanderImageCache.set(name, null)
+        if (!cancelled) setFn(existingUri)
+      }
+    }
+
+    resolveThumb(me?.commanderName, me?.commanderImageUri, setCommanderThumb)
+    resolveThumb(me?.partnerName, me?.partnerImageUri, setPartnerThumb)
+
+    return () => {
+      cancelled = true
+    }
+  }, [me?.commanderName, me?.commanderImageUri, me?.partnerName, me?.partnerImageUri])
 
   async function handleCardHover(cardName: string, event: React.MouseEvent) {
     if (hoveredCard?.name === cardName) return
@@ -58,7 +98,8 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
 
     try {
       const card = await fetchCardByName(cardName)
-      const imageUri = resolveArtCrop(card)
+      // Use full-card PNG for hover previews to allow studying card text
+      const imageUri = resolvePng(card)
       commanderImageCache.set(cardName, imageUri ?? null)
       if (activeHoverRef.current !== cardName) return
       setHoveredCard({ name: cardName, imageUri: imageUri ?? undefined })
@@ -100,9 +141,9 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
                   }
                 }}
               >
-                {me.commanderImageUri ? (
+                {commanderThumb ? (
                   <img
-                    src={me.commanderImageUri}
+                    src={commanderThumb}
                     alt={me.commanderName}
                     className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer"
                   />
@@ -161,9 +202,9 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
                       }
                     }}
                   >
-                    {me.partnerImageUri ? (
+                    {partnerThumb ? (
                       <img
-                        src={me.partnerImageUri}
+                        src={partnerThumb}
                         alt={me.partnerName}
                         className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
                       />

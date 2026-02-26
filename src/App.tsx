@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Toaster, toast } from "sonner"
+import { Loader2 } from "lucide-react"
 import { Nav } from "@/components/Nav"
 import { Footer } from "@/components/Footer"
 import { GameFlowDrawer } from "@/components/GameFlowDrawer"
@@ -14,13 +15,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DashboardPage } from "@/pages/DashboardPage"
 import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
+import { AuthPage } from "@/pages/AuthPage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
+import { useAuth } from "@/hooks/useAuth"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -29,12 +33,14 @@ interface GameFlowState {
   mode: GameFlowMode
   minimized: boolean
   editGameId?: string
+  prefillCommander?: string
 }
 
 type ThemeMode = "light" | "dark" | "system"
 type Theme = "light" | "dark"
 
 function App() {
+  const { user, loading: authLoading, signOut } = useAuth()
   const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
@@ -44,7 +50,7 @@ function App() {
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
-  const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
+  const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
 
   const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
@@ -52,9 +58,9 @@ function App() {
     ? getGame(gameFlow.editGameId)
     : undefined
 
-  function openLogGameFlow() {
+  function openLogGameFlow(prefillCommander?: string) {
     setIsLogGameDirty(false)
-    setGameFlow({ mode: "log", minimized: false })
+    setGameFlow({ mode: "log", minimized: false, prefillCommander })
   }
 
   function openEditGameFlow(id: string) {
@@ -99,24 +105,35 @@ function App() {
   }
 
   function handleSaveGame(game: Game) {
-    addGame(game)
-    closeGameFlow(true)
-    toast.success("Game logged!")
+    void (async () => {
+      try {
+        await addGame(game)
+        closeGameFlow(true)
+        toast.success("Game logged!")
+      } catch {
+        // Errors are surfaced in useGames
+      }
+    })()
   }
 
   function handleUpdateGame(game: Game) {
-    updateGame(game.id, game)
-    setRecentlyEditedGameId(game.id)
-    closeGameFlow(true)
-    navigate("/history")
-    toast.success("Game updated!")
+    void (async () => {
+      try {
+        await updateGame(game.id, game)
+        setRecentlyEditedGameId(game.id)
+        closeGameFlow(true)
+        navigate("/history")
+        toast.success("Game updated!")
+      } catch {
+        // Errors are surfaced in useGames
+      }
+    })()
   }
 
   function handleCancelGameFlow() {
     closeGameFlow()
   }
 
-  // Keyboard shortcut: n → log new game (when not focused in a text field)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "n") return
@@ -124,6 +141,7 @@ function App() {
       const tag = (e.target as HTMLElement).tagName.toLowerCase()
       if (tag === "input" || tag === "textarea" || tag === "select") return
       if ((e.target as HTMLElement).isContentEditable) return
+      setIsLogGameDirty(false)
       setGameFlow({ mode: "log", minimized: false })
     }
     window.addEventListener("keydown", onKeyDown)
@@ -159,6 +177,18 @@ function App() {
     localStorage.setItem("theme-mode", themeMode)
   }, [resolvedTheme, themeMode])
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthPage />
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="bottom-center" richColors />
@@ -167,25 +197,60 @@ function App() {
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
+        userEmail={user.email}
+        onSignOut={() => {
+          void signOut()
+        }}
       />
       <main className="container mx-auto max-w-5xl px-4 py-6">
-        <Routes>
-          <Route path="/" element={<StatsPage games={games} onNavigate={navigateWithFlowMinimize} onOpenLogGame={openLogGameFlow} />} />
-          <Route
-            path="/history"
-            element={(
-              <HistoryPage
-                games={games}
-                onDeleteGame={deleteGame}
-                onEditGame={openEditGameFlow}
-                scrollToGameId={recentlyEditedGameId}
-                onScrollHandled={() => setRecentlyEditedGameId(null)}
-              />
-            )}
-          />
-          <Route path="/settings" element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        {gamesLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading games…</span>
+          </div>
+        ) : (
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <DashboardPage
+                  games={games}
+                  onNavigate={navigateWithFlowMinimize}
+                  onOpenLogGame={openLogGameFlow}
+                />
+              }
+            />
+            <Route
+              path="/stats"
+              element={
+                <StatsPage
+                  games={games}
+                  onNavigate={navigateWithFlowMinimize}
+                  onOpenLogGame={openLogGameFlow}
+                />
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <HistoryPage
+                  games={games}
+                  onDeleteGame={(id) => {
+                    void deleteGame(id)
+                  }}
+                  onEditGame={openEditGameFlow}
+                  scrollToGameId={recentlyEditedGameId}
+                  onScrollHandled={() => setRecentlyEditedGameId(null)}
+                />
+              }
+            />
+            <Route
+              path="/settings"
+              element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )}
       </main>
       <Footer
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
@@ -220,6 +285,7 @@ function App() {
         >
           {gameFlow.mode === "log" ? (
             <LogGamePage
+              prefillCommander={gameFlow.prefillCommander}
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}
