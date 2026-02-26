@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase"
 
 beforeEach(() => {
   // ensure a valid session is returned
-  supabase.auth.getSession = async () => ({ data: { session: { user: { id: "test-user" } } } })
+  ;(supabase as any).auth.getSession = async () => ({ data: { session: { user: { id: "test-user" } } } })
 })
 
 describe("replaceAllGames ordering for date-only playedAt", () => {
@@ -17,11 +17,11 @@ describe("replaceAllGames ordering for date-only playedAt", () => {
       { id: "c", playedAt: baseDate, winTurn: 3, winnerId: "p3", players: [{ id: "p3" }] },
     ]
 
-    // Mock delete to succeed
-    supabase.from = (table) => {
+    // Mock delete/insert to succeed (cast to any to avoid strict Supabase types)
+    ;(supabase as any).from = (_table: any) => {
       return {
         delete: () => ({ eq: async () => ({ error: null }) }),
-        insert: (rows) => ({ select: async () => ({ data: rows, error: null }) }),
+        insert: (rows: any) => ({ select: async () => ({ data: rows, error: null }) }),
       }
     }
 
