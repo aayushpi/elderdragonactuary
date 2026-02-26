@@ -35,11 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch(() => setLoading(false))
 
     // Listen for auth changes
-    const authResp: any = supabase.auth.onAuthStateChange(( _event: any, s: Session | null ) => {
+    const authResp = supabase.auth.onAuthStateChange(( _event: string, s: Session | null ) => {
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
-    })
+    }) as { data?: { subscription?: { unsubscribe: () => void } } } | undefined
 
     const subscription = authResp?.data?.subscription
 
