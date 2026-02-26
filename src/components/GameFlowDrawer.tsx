@@ -16,7 +16,7 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
     <div className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2 sm:px-4 sm:pb-4 pointer-events-none">
       <div
         className={cn(
-          "pointer-events-auto mx-auto w-full rounded-t-xl sm:rounded-xl border bg-card shadow-lg transition-transform duration-300 sm:ml-auto sm:mr-0 sm:max-w-3xl",
+          "pointer-events-auto mx-auto w-full rounded-t-xl sm:rounded-xl border bg-card shadow-lg transition-transform duration-300 sm:max-w-[min(96vw,1400px)]",
           minimized ? "translate-y-[calc(100%-3.25rem)]" : "translate-y-0"
         )}
       >
