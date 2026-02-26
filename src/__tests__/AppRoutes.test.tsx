@@ -28,6 +28,17 @@ vi.mock("@/hooks/useGames", () => ({
   useGames: () => mockUseGamesState,
 }))
 
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: { email: "test@example.com" },
+    session: null,
+    loading: false,
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+  }),
+}))
+
 function renderPath(path: string): string {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
@@ -54,6 +65,6 @@ describe("App routing smoke tests", () => {
 
   it("renders settings page on /settings", () => {
     const html = renderPath("/settings")
-    expect(html).toContain("Export games")
+    expect(html).toContain("Backup games")
   })
 })

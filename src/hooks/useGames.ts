@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { toast } from "sonner"
 import type { Game } from "@/types"
+import { useAuth } from "@/hooks/useAuth"
 import {
   fetchGames,
   insertGame,
@@ -11,12 +12,30 @@ import {
 import { parseImportJson } from "@/lib/storage"
 
 export function useGames() {
+  const { user, loading: authLoading } = useAuth()
+  const userId = user?.id ?? null
   const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch games from Supabase on mount
+  // Fetch games after auth state is known and whenever the signed-in user changes.
   useEffect(() => {
     let cancelled = false
+
+    if (authLoading) {
+      setLoading(true)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    if (!userId) {
+      setGames([])
+      setLoading(false)
+      return () => {
+        cancelled = true
+      }
+    }
+
     setLoading(true)
     fetchGames()
       .then((data) => {
@@ -29,8 +48,10 @@ export function useGames() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, userId])
 
   const addGame = useCallback(async (game: Game) => {
     try {
