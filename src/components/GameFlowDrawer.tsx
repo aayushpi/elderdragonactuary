@@ -13,10 +13,10 @@ interface GameFlowDrawerProps {
 
 export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, children }: GameFlowDrawerProps) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 pb-0 sm:px-4 sm:pb-4 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-0 z-50 pb-0 sm:px-4 sm:pb-0 pointer-events-none">
       <div
         className={cn(
-          "pointer-events-auto mx-auto w-full rounded-t-xl sm:rounded-xl border bg-card shadow-lg transition-transform duration-300 sm:max-w-[min(96vw,1400px)]",
+          "pointer-events-auto mx-auto w-full rounded-t-xl rounded-b-none border bg-card shadow-lg transition-transform duration-300 sm:max-w-[min(96vw,1400px)]",
           minimized ? "translate-y-[calc(100%-3.25rem)]" : "translate-y-0"
         )}
       >
