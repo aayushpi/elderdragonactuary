@@ -14,33 +14,30 @@ function baseCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
 }
 
 describe("resolveArtCrop", () => {
-  it("returns image_uris.large when available", () => {
+  it("returns art_crop when available even if larger images exist", () => {
     const card = baseCard({
       image_uris: { small: "s", normal: "n", large: "L", art_crop: "a", border_crop: "b" },
     })
-    expect(resolveArtCrop(card)).toBe("L")
+    expect(resolveArtCrop(card)).toBe("a")
   })
 
-  it("falls back to card_faces[0].image_uris.large", () => {
+  it("falls back to art_crop on face when main art_crop missing", () => {
     const card = baseCard({
       card_faces: [
-        { image_uris: { small: "s", normal: "n", large: "FL", art_crop: "a", border_crop: "b" } },
+        { image_uris: { small: "s", normal: "n", large: "FL", art_crop: "fa", border_crop: "b" } },
       ],
     })
-    expect(resolveArtCrop(card)).toBe("FL")
+    expect(resolveArtCrop(card)).toBe("fa")
   })
 
-  it("falls through large → normal → small → art_crop", () => {
+  it("falls through large → normal → small when no art_crop available", () => {
     const card2 = baseCard({
       image_uris: undefined,
       card_faces: [
-        { image_uris: { small: "S", normal: "N", large: undefined as unknown as string, art_crop: "A", border_crop: "B" } },
+        { image_uris: { small: "S", normal: "N", large: undefined as unknown as string, art_crop: undefined as unknown as string, border_crop: "B" } },
       ],
     })
-    // large is undefined → falls to normal of main (undefined) → face normal "N" via the chain
-    // Actually looking at the code: it checks image_uris?.large, then card_faces?.[0]?.image_uris?.large,
-    // then image_uris?.normal, then card_faces?.[0]?.image_uris?.normal...
-    // With no image_uris on main card and face large=undefined: skips both larges, tries main normal (undef), face normal = "N"
+    // art_crop absent everywhere; should pick face normal
     expect(resolveArtCrop(card2)).toBe("N")
   })
 

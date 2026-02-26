@@ -9,6 +9,7 @@ import {
   removeGame,
   replaceAllGames,
 } from "@/lib/supabaseStorage"
+import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import { parseImportJson } from "@/lib/storage"
 
 export function useGames() {
@@ -39,7 +40,35 @@ export function useGames() {
     setLoading(true)
     fetchGames()
       .then((data) => {
-        if (!cancelled) setGames(data)
+        if (cancelled) return
+        setGames(data)
+
+        // repair any games where my commander is missing an image URI
+        data.forEach((game) => {
+          const me = game.players.find((p) => p.isMe)
+          if (me && me.commanderName && !me.commanderImageUri) {
+            // fire-and-forget: fetch art and patch the game
+            fetchCardByName(me.commanderName)
+              .then((card) => {
+                const uri = resolveArtCrop(card)
+                if (uri) {
+                  const updatedPlayers = game.players.map((p) =>
+                    p.isMe ? { ...p, commanderImageUri: uri } : p
+                  )
+                  return patchGame(game.id, { players: updatedPlayers })
+                }
+                return Promise.resolve(null)
+              })
+              .then((updated) => {
+                if (updated && !cancelled) {
+                  setGames((prev) =>
+                    prev.map((g) => (g.id === updated.id ? updated : g))
+                  )
+                }
+              })
+              .catch(() => {})
+          }
+        })
       })
       .catch((err) => {
         console.error("Failed to fetch games:", err)

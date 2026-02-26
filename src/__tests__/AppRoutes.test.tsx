@@ -53,8 +53,14 @@ describe("App routing smoke tests", () => {
     mockUseGamesState.getGame = vi.fn(() => undefined)
   })
 
-  it("renders stats page on /", () => {
+  it("renders dashboard page on /", () => {
     const html = renderPath("/")
+    // with no games the dashboard shows the empty state message
+    expect(html).toContain("No games logged yet.")
+  })
+
+  it("renders stats page on /stats", () => {
+    const html = renderPath("/stats")
     expect(html).toContain("No games logged yet.")
   })
 

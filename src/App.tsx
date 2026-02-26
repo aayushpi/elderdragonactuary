@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DashboardPage } from "@/pages/DashboardPage"
 import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
@@ -32,6 +33,7 @@ interface GameFlowState {
   mode: GameFlowMode
   minimized: boolean
   editGameId?: string
+  prefillCommander?: string
 }
 
 type ThemeMode = "light" | "dark" | "system"
@@ -56,9 +58,9 @@ function App() {
     ? getGame(gameFlow.editGameId)
     : undefined
 
-  function openLogGameFlow() {
+  function openLogGameFlow(prefillCommander?: string) {
     setIsLogGameDirty(false)
-    setGameFlow({ mode: "log", minimized: false })
+    setGameFlow({ mode: "log", minimized: false, prefillCommander })
   }
 
   function openEditGameFlow(id: string) {
@@ -211,6 +213,16 @@ function App() {
             <Route
               path="/"
               element={
+                <DashboardPage
+                  games={games}
+                  onNavigate={navigateWithFlowMinimize}
+                  onOpenLogGame={openLogGameFlow}
+                />
+              }
+            />
+            <Route
+              path="/stats"
+              element={
                 <StatsPage
                   games={games}
                   onNavigate={navigateWithFlowMinimize}
@@ -273,6 +285,7 @@ function App() {
         >
           {gameFlow.mode === "log" ? (
             <LogGamePage
+              prefillCommander={gameFlow.prefillCommander}
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}
