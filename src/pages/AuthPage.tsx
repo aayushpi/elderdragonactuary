@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogIn, UserPlus, Loader2 } from "lucide-react"
+import { validateInviteCode } from "@/lib/inviteCodes"
 
 export function AuthPage() {
   const { signIn, signUp } = useAuth()
@@ -10,6 +11,7 @@ export function AuthPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [inviteCode, setInviteCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -26,6 +28,11 @@ export function AuthPage() {
 
     if (mode === "signup" && password !== confirmPassword) {
       setError("Passwords do not match.")
+      return
+    }
+
+    if (mode === "signup" && !validateInviteCode(inviteCode)) {
+      setError("Invalid invite code.")
       return
     }
 
@@ -100,20 +107,36 @@ export function AuthPage() {
           </div>
 
           {mode === "signup" && (
-            <div className="space-y-2">
-              <label htmlFor="confirm-password" className="text-sm font-medium">
-                Confirm Password
-              </label>
-              <Input
-                id="confirm-password"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-                disabled={submitting}
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <label htmlFor="confirm-password" className="text-sm font-medium">
+                  Confirm Password
+                </label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={submitting}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="invite-code" className="text-sm font-medium">
+                  Invite Code
+                </label>
+                <Input
+                  id="invite-code"
+                  type="text"
+                  placeholder="Magic meme phrase"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  autoComplete="off"
+                  disabled={submitting}
+                />
+              </div>
+            </>
           )}
 
           {error && (
@@ -143,7 +166,7 @@ export function AuthPage() {
               Don&apos;t have an account?{" "}
               <button
                 type="button"
-                onClick={() => { setMode("signup"); setError(null); setInfo(null) }}
+                onClick={() => { setMode("signup"); setError(null); setInfo(null); setInviteCode("") }}
                 className="text-primary underline underline-offset-4 hover:text-primary/80"
               >
                 Sign up
@@ -154,7 +177,7 @@ export function AuthPage() {
               Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => { setMode("login"); setError(null); setInfo(null) }}
+                onClick={() => { setMode("login"); setError(null); setInfo(null); setInviteCode("") }}
                 className="text-primary underline underline-offset-4 hover:text-primary/80"
               >
                 Sign in
