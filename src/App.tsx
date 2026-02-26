@@ -31,12 +31,15 @@ interface GameFlowState {
   editGameId?: string
 }
 
+type Theme = "light" | "dark"
+
 function App() {
   const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
+  const [theme, setTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
   const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
@@ -76,6 +79,10 @@ function App() {
 
   function confirmDiscardLogGame() {
     closeGameFlow(true)
+  }
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"))
   }
 
   function handleSaveGame(game: Game) {
@@ -118,6 +125,22 @@ function App() {
     toast.error("Could not find that game to edit.")
   }, [gameFlow, editingGame])
 
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme")
+    if (storedTheme === "light" || storedTheme === "dark") {
+      setTheme(storedTheme)
+      return
+    }
+
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    setTheme(prefersDark ? "dark" : "light")
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark")
+    localStorage.setItem("theme", theme)
+  }, [theme])
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="bottom-center" richColors />
@@ -125,6 +148,8 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigate}
         onOpenLogGame={openLogGameFlow}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
       />
       <main className="container mx-auto max-w-5xl px-4 py-6">
