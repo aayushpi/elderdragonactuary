@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogIn, UserPlus, Loader2 } from "lucide-react"
+import { ReleaseNotesSheet } from "@/pages/ReleaseNotesSheet"
 
 export function AuthPage() {
   const { signIn, signUp } = useAuth()
@@ -14,6 +15,7 @@ export function AuthPage() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [showReleaseNotes, setShowReleaseNotes] = useState(true)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -185,6 +187,7 @@ export function AuthPage() {
           )}
         </div>
       </div>
+      <ReleaseNotesSheet open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
     </div>
   )
 }
