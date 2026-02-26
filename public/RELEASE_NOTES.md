@@ -1,5 +1,11 @@
 # Elder Dragon Actuary
 
+
+## v0.1.0 - February 26, 2026
+
+- Games are now saved on the cloud. It's still early days so please backup often!
+- Added a new dashboard page for quick actions and viewing recent games
+
 ## v0.0.4 - February 25, 2026
 
 - Reworked game creation and editing UX

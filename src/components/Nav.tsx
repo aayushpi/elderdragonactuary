@@ -1,4 +1,4 @@
-import { ChartSpline, History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
+import { LayoutDashboard, ChartSpline, History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,9 +12,9 @@ interface NavProps {
 }
 
 const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { path: "/", label: "Dashboard", Icon: ChartSpline },
+  { path: "/", label: "Dashboard", Icon: LayoutDashboard },
   { path: "/stats", label: "Stats", Icon: ChartSpline },
-  { path: "/history", label: "Game History", Icon: History },
+  { path: "/history", label: "History", Icon: History },
   { path: "/settings", label: "Data", Icon: Download },
 ]
 
@@ -90,7 +90,14 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {label}
+                {/* hide current route label on mobile */}
+                <span
+                  className={cn(
+                    path === currentPath ? "hidden sm:inline" : ""
+                  )}
+                >
+                  {label}
+                </span>
               </button>
             ))}
           </div>
