@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { CommanderCard } from "@/components/CommanderCard"
-import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import { Pencil, Trash2 } from "lucide-react"
 import type { Game } from "@/types"
 
@@ -63,7 +63,8 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
 
     try {
       const card = await fetchCardByName(cardName)
-      const imageUri = resolveArtCrop(card)
+      // Use full-card PNG for fast-mana hover previews so users can read card text
+      const imageUri = resolvePng(card) ?? resolveArtCrop(card)
       fastManaImageCache.set(cardName, imageUri ?? null)
       if (activeHoverRef.current !== cardName) return
       setHoveredCard({ name: cardName, imageUri: imageUri ?? undefined })

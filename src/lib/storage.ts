@@ -153,7 +153,12 @@ export function exportCSV(): string {
 
 // ── Import ────────────────────────────────────────────────────────────────────
 
-export function importData(json: string): { success: boolean; count: number; error?: string } {
+/**
+ * Parse a JSON string (clean export or legacy format) into Game[] without
+ * persisting anywhere. Used by both the localStorage import and the
+ * Supabase-backed import.
+ */
+export function parseImportJson(json: string): { success: boolean; games: Game[]; error?: string } {
   try {
     const parsed = JSON.parse(json)
 
@@ -165,7 +170,7 @@ export function importData(json: string): { success: boolean; count: number; err
     } else if (parsed.games && Array.isArray(parsed.games)) {
       rawGames = parsed.games
     } else {
-      return { success: false, count: 0, error: "Invalid format — expected a games array." }
+      return { success: false, games: [], error: "Invalid format — expected a games array." }
     }
 
     const games: Game[] = rawGames.map((raw: unknown) => {
@@ -212,9 +217,16 @@ export function importData(json: string): { success: boolean; count: number; err
       } as Game
     })
 
-    saveGames(games)
-    return { success: true, count: games.length }
+    return { success: true, games }
   } catch {
-    return { success: false, count: 0, error: "Invalid JSON." }
+    return { success: false, games: [], error: "Invalid JSON." }
   }
+}
+
+/** Parse + save to localStorage (kept for backwards compat / tests). */
+export function importData(json: string): { success: boolean; count: number; error?: string } {
+  const result = parseImportJson(json)
+  if (!result.success) return { success: false, count: 0, error: result.error }
+  saveGames(result.games)
+  return { success: true, count: result.games.length }
 }

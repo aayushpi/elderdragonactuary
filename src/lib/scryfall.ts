@@ -48,14 +48,32 @@ export async function fetchCardByName(name: string): Promise<ScryfallCard> {
 }
 
 export function resolveArtCrop(card: ScryfallCard): string | undefined {
+  // prefer art_crop (wide, minimal framing) if present, otherwise
+  // fall back to the larger canonical images that were previously used.
   return (
-    card.image_uris?.large
+    card.image_uris?.art_crop
+    ?? card.card_faces?.[0]?.image_uris?.art_crop
+    ?? card.image_uris?.large
     ?? card.card_faces?.[0]?.image_uris?.large
     ?? card.image_uris?.normal
     ?? card.card_faces?.[0]?.image_uris?.normal
     ?? card.image_uris?.small
     ?? card.card_faces?.[0]?.image_uris?.small
+  )
+}
+
+export function resolvePng(card: ScryfallCard): string | undefined {
+  // prefer PNG if available (full card image), otherwise fall back to art_crop or other sizes
+  return (
+    card.image_uris?.png
+    ?? card.card_faces?.[0]?.image_uris?.png
+    ?? card.image_uris?.large
+    ?? card.card_faces?.[0]?.image_uris?.large
+    ?? card.image_uris?.normal
+    ?? card.card_faces?.[0]?.image_uris?.normal
     ?? card.image_uris?.art_crop
     ?? card.card_faces?.[0]?.image_uris?.art_crop
+    ?? card.image_uris?.small
+    ?? card.card_faces?.[0]?.image_uris?.small
   )
 }

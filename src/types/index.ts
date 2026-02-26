@@ -5,6 +5,7 @@ export interface ScryfallCardImageUris {
   normal: string
   large: string
   art_crop: string
+  png?: string
   border_crop: string
 }
 

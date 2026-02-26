@@ -1,21 +1,24 @@
-import { ChartSpline ,History, Download, Plus, FileText, Bug } from "lucide-react"
+import { LayoutDashboard, ChartSpline, History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface NavProps {
   currentPath: string
   onNavigate: (path: string) => void
-  onOpenLogGame: () => void
+  onOpenLogGame: (commanderName?: string) => void
   onShowReleaseNotes: () => void
+  userEmail?: string
+  onSignOut?: () => void
 }
 
 const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { path: "/", label: "Stats", Icon: ChartSpline },
-  { path: "/history", label: "Game History", Icon: History },
+  { path: "/", label: "Dashboard", Icon: LayoutDashboard },
+  { path: "/stats", label: "Stats", Icon: ChartSpline },
+  { path: "/history", label: "History", Icon: History },
   { path: "/settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
   function isActivePath(path: string) {
     if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(`${path}/`)
@@ -32,6 +35,11 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
             <span className="min-[400px]:hidden">EDA</span>
           </span>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {userEmail && (
+              <span className="text-xs text-muted-foreground hidden sm:inline truncate max-w-[140px]" title={userEmail}>
+                {userEmail}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -52,6 +60,18 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
               <Bug className="h-3 w-3" />
               <span className="hidden sm:inline">Report Bug</span>
             </Button>
+            {onSignOut && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSignOut}
+                className="gap-1 sm:gap-1.5 text-xs h-7 px-1.5 sm:px-2"
+                title="Sign Out"
+              >
+                <LogOut className="h-3 w-3" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -70,11 +90,18 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {label}
+                {/* hide current route label on mobile */}
+                <span
+                  className={cn(
+                    path === currentPath ? "hidden sm:inline" : ""
+                  )}
+                >
+                  {label}
+                </span>
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={onOpenLogGame} className="gap-1.5 w-full sm:w-auto">
+          <Button size="sm" onClick={() => onOpenLogGame()} className="gap-1.5 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Track a game</span>
             <span className="sm:hidden">Track Game</span>
