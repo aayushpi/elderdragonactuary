@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { AlertCircle, ExternalLink } from "lucide-react"
+import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import type { MtgColor } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
@@ -88,9 +90,10 @@ interface LogGamePageProps {
   onSave: (game: Game) => void
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
+  prefillCommander?: string
 }
 
-export function LogGamePage({ onSave, onCancel, onDirtyChange }: LogGamePageProps) {
+export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -134,12 +137,43 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange }: LogGamePageProp
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
 
   function initPlayers(total: number) {
+    // if we were given a commander to prefill and this is the first
+    // time players are being initialized, set the first player's
+    // commander name accordingly
+    const prefill = prefillCommander
     let newPlayers: Partial<Player>[]
 
     if (players.length === 0) {
       newPlayers = []
       for (let i = 0; i < total; i++) {
-        newPlayers.push(makePlayer(i === 0))
+        const p = makePlayer(i === 0)
+        if (i === 0 && prefill) {
+          p.commanderName = prefill
+        }
+        newPlayers.push(p)
+      }
+
+      // if we prefilling a commander, fetch card data for its image/stats
+      if (prefill) {
+        fetchCardByName(prefill)
+          .then((card) => {
+            const uri = resolveArtCrop(card)
+            setPlayers((prev) => {
+              const next = [...prev]
+              if (next[0]) {
+                next[0] = {
+                  ...next[0],
+                  commanderName: prefill,
+                  commanderImageUri: uri ?? undefined,
+                  commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
+                  commanderTypeLine: card.type_line,
+                  commanderColorIdentity: card.color_identity as MtgColor[],
+                }
+              }
+              return next
+            })
+          })
+          .catch(() => {})
       }
     } else if (total > players.length) {
       newPlayers = [...players]

@@ -45,7 +45,7 @@ function sortCommanders(commanders: CommanderStat[], sort: CommanderSort, direct
 interface StatsPageProps {
   games: Game[]
   onNavigate: (path: string) => void
-  onOpenLogGame: () => void
+  onOpenLogGame: (commanderName?: string) => void
 }
 
 export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) {
@@ -64,7 +64,7 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
             <p className="text-muted-foreground text-sm">No games logged yet.</p>
             <p className="text-muted-foreground text-xs mt-1">Log a game to see your stats here.</p>
           </div>
-          <Button onClick={onOpenLogGame} className="gap-1.5">
+          <Button onClick={() => onOpenLogGame()} className="gap-1.5">
             <Plus className="h-4 w-4" />
             Track a game
             <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">

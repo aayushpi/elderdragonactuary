@@ -5,14 +5,15 @@ import { cn } from "@/lib/utils"
 interface NavProps {
   currentPath: string
   onNavigate: (path: string) => void
-  onOpenLogGame: () => void
+  onOpenLogGame: (commanderName?: string) => void
   onShowReleaseNotes: () => void
   userEmail?: string
   onSignOut?: () => void
 }
 
 const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { path: "/", label: "Stats", Icon: ChartSpline },
+  { path: "/", label: "Dashboard", Icon: ChartSpline },
+  { path: "/stats", label: "Stats", Icon: ChartSpline },
   { path: "/history", label: "Game History", Icon: History },
   { path: "/settings", label: "Data", Icon: Download },
 ]
@@ -93,7 +94,7 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={onOpenLogGame} className="gap-1.5 w-full sm:w-auto">
+          <Button size="sm" onClick={() => onOpenLogGame()} className="gap-1.5 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Track a game</span>
             <span className="sm:hidden">Track Game</span>
