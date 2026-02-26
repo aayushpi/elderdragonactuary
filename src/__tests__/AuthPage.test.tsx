@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, act } from "@testing-library/react"
 import { AuthPage } from "@/pages/AuthPage"
+import { AuthProvider } from "@/hooks/useAuth"
 
 // ensure global fetch stub
 beforeEach(() => {
@@ -17,13 +18,17 @@ describe("AuthPage", () => {
     })
 
     await act(async () => {
-      render(<AuthPage />)
+      render(
+        <AuthProvider>
+          <AuthPage />
+        </AuthProvider>
+      )
     })
 
     // sheet title should appear
-    expect(screen.getByText("Release Notes")).toBeInTheDocument()
+    expect(screen.getByText("What's New")).toBeDefined()
     // after fetch completes, content should render markdown
-    expect(screen.getByText("Release")).toBeInTheDocument()
-    expect(screen.getByText("note")).toBeInTheDocument()
+    expect(screen.getByText("Release")).toBeDefined()
+    expect(screen.getByText("note")).toBeDefined()
   })
 })
