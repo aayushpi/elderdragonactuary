@@ -197,6 +197,12 @@ function App() {
     }
 
     let cancelled = false
+    const authLoadingTimeout = window.setTimeout(() => {
+      if (cancelled) return
+      setAuthLoading(false)
+      setCurrentUserEmail(null)
+      console.warn("Auth hydration timed out; showing sign-in UI.")
+    }, 8000)
 
     const hydrateAuth = async () => {
       try {
@@ -212,6 +218,7 @@ function App() {
         if (!cancelled) {
           setAuthLoading(false)
         }
+        window.clearTimeout(authLoadingTimeout)
       }
     }
 
@@ -252,6 +259,7 @@ function App() {
 
     return () => {
       cancelled = true
+      window.clearTimeout(authLoadingTimeout)
       listener?.data.subscription.unsubscribe()
     }
   }, [cloudConfigured])
