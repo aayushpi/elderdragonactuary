@@ -135,7 +135,7 @@ export function PlayerRow({
           )}
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 self-end sm:self-auto max-w-full">
+        <div className="hidden sm:flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto max-w-full">
           <Button
             type="button"
             size="sm"

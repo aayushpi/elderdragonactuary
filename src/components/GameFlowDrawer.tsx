@@ -1,0 +1,76 @@
+import { useEffect, useState } from "react"
+import { Minus, Maximize2, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+interface GameFlowDrawerProps {
+  title: string
+  minimized: boolean
+  onMinimize: () => void
+  onRestore: () => void
+  onClose: () => void
+  children: React.ReactNode
+}
+
+export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, children }: GameFlowDrawerProps) {
+  const [isReady, setIsReady] = useState(false)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsReady(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-50 pb-0 sm:px-4 sm:pb-0 pointer-events-none">
+      <div
+        className={cn(
+          "pointer-events-auto mx-auto w-full rounded-t-xl rounded-b-none border border-t-2 bg-card shadow-lg transition-[transform,opacity] duration-300 ease-out sm:max-w-[min(96vw,1400px)]",
+          !isReady
+            ? "translate-y-full opacity-0"
+            : minimized
+              ? "translate-y-[calc(100%-3.25rem)] opacity-100"
+              : "translate-y-0 opacity-100"
+        )}
+      >
+        <div
+          className="flex items-center justify-between border-b px-3 py-2.5 sm:px-4 cursor-pointer"
+          onClick={minimized ? onRestore : onMinimize}
+        >
+          <p className="text-sm font-semibold">{title}</p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation()
+                if (minimized) {
+                  onRestore()
+                  return
+                }
+                onMinimize()
+              }}
+              aria-label={minimized ? "Restore panel" : "Minimize panel"}
+              className="h-8 w-8 p-0"
+            >
+              {minimized ? <Maximize2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation()
+                onClose()
+              }}
+              aria-label="Close panel"
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="max-h-[85vh] overflow-y-auto p-4">{children}</div>
+      </div>
+    </div>
+  )
+}
