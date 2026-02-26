@@ -87,11 +87,10 @@ const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: fa
 interface LogGamePageProps {
   onSave: (game: Game) => void
   onCancel: () => void
-  onMinimize?: () => void
   onDirtyChange?: (dirty: boolean) => void
 }
 
-export function LogGamePage({ onSave, onCancel, onMinimize, onDirtyChange }: LogGamePageProps) {
+export function LogGamePage({ onSave, onCancel, onDirtyChange }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -590,11 +589,6 @@ export function LogGamePage({ onSave, onCancel, onMinimize, onDirtyChange }: Log
         <Button variant="outline" className="flex-1" onClick={onCancel}>
           Cancel
         </Button>
-        {onMinimize && (
-          <Button variant="outline" className="flex-1" onClick={onMinimize}>
-            Minimize
-          </Button>
-        )}
         <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0}>
           Save Game
         </Button>
