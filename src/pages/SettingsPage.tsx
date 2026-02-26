@@ -1,41 +1,112 @@
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Download, Upload, Trash2, FileText } from "lucide-react"
-import { exportData, exportCSV } from "@/lib/storage"
+import { Download, Upload, Trash2, FileText, Loader2 } from "lucide-react"
 
-interface SettingsPageProps {
-  onImport: (json: string) => { success: boolean; count: number; error?: string }
-  onClearAll: () => void
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return ""
+  const s = String(value)
+  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"'
+  }
+  return s
 }
 
-export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
+interface SettingsPageProps {
+  onImport: (json: string) => Promise<{ success: boolean; count: number; error?: string }>
+  onClearAll: () => Promise<void> | void
+  games: import("@/types").Game[]
+}
+
+export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
   const isDevOrLocalhost = import.meta.env.DEV || window.location.hostname === "localhost"
 
+  /** Build a backup JSON from the games already loaded in memory (from Supabase). */
+  function buildBackupJson(): string {
+    const exportGames = games.map((g) => {
+      const winnerIndex = g.players.findIndex((p) => p.id === g.winnerId)
+      return {
+        playedAt: g.playedAt.slice(0, 10),
+        winTurn: g.winTurn,
+        winnerIndex: winnerIndex >= 0 ? winnerIndex : 0,
+        notes: g.notes,
+        winConditions: g.winConditions,
+        keyWinconCards: g.keyWinconCards,
+        bracket: g.bracket,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest),
+      }
+    })
+    return JSON.stringify({ exportedAt: new Date().toISOString().slice(0, 10), games: exportGames }, null, 2)
+  }
+
+  function buildCsv(): string {
+    const exportGames = JSON.parse(buildBackupJson()).games as Array<Record<string, unknown>>
+    const maxPlayers = exportGames.reduce((m: number, g: Record<string, unknown>) => Math.max(m, (g.players as unknown[]).length), 0)
+    const headers: string[] = ["Date", "Bracket"]
+    for (let i = 1; i <= maxPlayers; i++) {
+      headers.push(`Player ${i} Commander`, `Player ${i} Fast Mana`, `Player ${i} KO Turn`)
+    }
+    headers.push("Winner", "Win Turn", "Notes", "Win Conditions", "Key Wincon Cards")
+    const rows: string[] = [headers.join(",")]
+    exportGames.forEach((g) => {
+      const row: string[] = []
+      row.push(String(g.playedAt ?? ""))
+      row.push(g.bracket ? String(g.bracket) : "")
+      const players = g.players as Array<Record<string, unknown>>
+      for (let i = 0; i < maxPlayers; i++) {
+        const p = players[i]
+        if (p) {
+          const cmd = p.partnerName ? `${p.commanderName ?? ""} // ${p.partnerName}` : String(p.commanderName ?? "")
+          row.push(csvEscape(cmd))
+          const fm = p.fastMana as { hasFastMana?: boolean; cards?: string[] } | undefined
+          row.push(csvEscape(fm?.hasFastMana ? (fm.cards?.join(", ") ?? "") : "No"))
+          row.push(csvEscape(typeof p.knockoutTurn === "number" ? p.knockoutTurn : ""))
+        } else { row.push("", "", "") }
+      }
+      const wi = g.winnerIndex as number
+      const wp = players[wi]
+      const wn = wp ? (wp.partnerName ? `${wp.commanderName ?? ""} // ${wp.partnerName}` : String(wp.commanderName ?? "")) : ""
+      row.push(csvEscape(wn))
+      row.push(csvEscape(g.winTurn ?? ""))
+      row.push(csvEscape(g.notes ?? ""))
+      row.push(csvEscape((g.winConditions as string[] | undefined)?.join(", ") ?? ""))
+      row.push(csvEscape((g.keyWinconCards as string[] | undefined)?.join(", ") ?? ""))
+      rows.push(row.join(","))
+    })
+    return rows.join("\n")
+  }
+
   function handleExport() {
-    const json = exportData()
+    const json = buildBackupJson()
     const blob = new Blob([json], { type: "application/json" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `commando-games-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `commando-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
 
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setImportLoading(true)
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const json = ev.target?.result as string
-      const result = onImport(json)
-      if (result.success) {
-        toast.success(`Imported ${result.count} game${result.count !== 1 ? "s" : ""}.`)
-      } else {
-        toast.error(`Import failed: ${result.error}`)
+      try {
+        const result = await onImport(json)
+        if (result.success) {
+          toast.success(`Imported ${result.count} game${result.count !== 1 ? "s" : ""}.`)
+        } else {
+          toast.error(`Import failed: ${result.error}`)
+        }
+      } finally {
+        setImportLoading(false)
       }
     }
     reader.readAsText(file)
@@ -44,20 +115,16 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
 
   async function handleLoadTestJson() {
     try {
+      setImportLoading(true)
       const response = await fetch("/load-test-games.json")
-      if (!response.ok) {
-        toast.error("Could not load test JSON.")
-        return
-      }
-
+      if (!response.ok) { toast.error("Could not load test JSON."); return }
       const json = await response.text()
       const trimmed = json.trim()
       if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
         toast.error("Load test JSON file was not found or is not valid JSON.")
         return
       }
-
-      const result = onImport(json)
+      const result = await onImport(json)
       if (result.success) {
         toast.success(`Loaded test JSON with ${result.count} game${result.count !== 1 ? "s" : ""}.`)
       } else {
@@ -65,6 +132,8 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
       }
     } catch {
       toast.error("Could not load test JSON.")
+    } finally {
+      setImportLoading(false)
     }
   }
 
@@ -76,25 +145,25 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
         <div className="rounded-lg border bg-card divide-y divide-border">
           <div className="flex items-center justify-between px-4 py-3">
             <div>
-              <p className="text-sm font-medium">Export games</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Download all game data as a JSON (can be imported later) or CSV</p>
+              <p className="text-sm font-medium">Backup games</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Download a backup of your cloud data as JSON or CSV</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={handleExport}>
                 <Download className="h-3.5 w-3.5" />
-                Export JSON
+                Backup JSON
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1.5 shrink-0"
                 onClick={() => {
-                  const csv = exportCSV()
+                  const csv = buildCsv()
                   const blob = new Blob([csv], { type: "text/csv" })
                   const url = URL.createObjectURL(blob)
                   const a = document.createElement("a")
                   a.href = url
-                  a.download = `commando-games-${new Date().toISOString().slice(0, 10)}.csv`
+                  a.download = `commando-backup-${new Date().toISOString().slice(0, 10)}.csv`
                   a.click()
                   URL.revokeObjectURL(url)
                 }}
@@ -106,9 +175,9 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
           </div>
           <div className="flex items-center justify-between px-4 py-3">
             <div>
-              <p className="text-sm font-medium">Import games</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Import game logs from a previously exported JSON</p>
-              <p className="text-xs text-destructive mt-1 font-medium">Warning: this will erase your current data.</p>
+              <p className="text-sm font-medium">Restore from backup</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Import game logs from a previously exported JSON backup</p>
+              <p className="text-xs text-destructive mt-1 font-medium">Warning: this will replace all your cloud data.</p>
             </div>
             <div className="flex gap-2">
               {isDevOrLocalhost && (
@@ -117,7 +186,9 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
                   size="sm"
                   className="gap-1.5 shrink-0"
                   onClick={handleLoadTestJson}
+                  disabled={importLoading}
                 >
+                  {importLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   Load Test JSON
                 </Button>
               )}
@@ -126,9 +197,10 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
                 size="sm"
                 className="gap-1.5 shrink-0"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={importLoading}
               >
-                <Upload className="h-3.5 w-3.5" />
-                Import
+                {importLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                Restore
               </Button>
             </div>
           </div>
@@ -167,8 +239,8 @@ export function SettingsPage({ onImport, onClearAll }: SettingsPageProps) {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => {
-                  onClearAll()
+                onClick={async () => {
+                  await onClearAll()
                   setConfirmDelete(false)
                   toast.success("All data deleted.")
                 }}
