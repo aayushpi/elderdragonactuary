@@ -1,22 +1,25 @@
 import { ChartSpline ,History, Download, Plus, FileText, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import type { AppView } from "@/types"
 
 interface NavProps {
-  currentView: AppView
-  onNavigate: (view: AppView) => void
+  currentPath: string
+  onNavigate: (path: string) => void
   onShowReleaseNotes: () => void
 }
 
-const NAV_ITEMS: { view: AppView; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  // { view: "dashboard", label: "Overview", Icon: LayoutDashboard },
-  { view: "dashboard", label: "Stats", Icon: ChartSpline },
-  { view: "history", label: "Game History", Icon: History },
-  { view: "settings", label: "Data", Icon: Download },
+const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { path: "/", label: "Stats", Icon: ChartSpline },
+  { path: "/history", label: "Game History", Icon: History },
+  { path: "/settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
+export function Nav({ currentPath, onNavigate, onShowReleaseNotes }: NavProps) {
+  function isActivePath(path: string) {
+    if (path === "/") return currentPath === "/"
+    return currentPath === path || currentPath.startsWith(`${path}/`)
+  }
+
   return (
     <nav className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto max-w-5xl px-4">
@@ -54,13 +57,13 @@ export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
         {/* Navigation row with buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 gap-3 sm:gap-0">
           <div className="flex flex-wrap gap-2">
-            {NAV_ITEMS.map(({ view, label, Icon }) => (
+            {NAV_ITEMS.map(({ path, label, Icon }) => (
               <button
-                key={view}
-                onClick={() => onNavigate(view)}
+                key={path}
+                onClick={() => onNavigate(path)}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                  currentView === view
+                  isActivePath(path)
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
@@ -70,7 +73,7 @@ export function Nav({ currentView, onNavigate, onShowReleaseNotes }: NavProps) {
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={() => onNavigate("log-game")} className="gap-1.5 w-full sm:w-auto">
+          <Button size="sm" onClick={() => onNavigate("/log-game")} className="gap-1.5 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Track a game</span>
             <span className="sm:hidden">Track Game</span>
