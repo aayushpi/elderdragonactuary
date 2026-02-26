@@ -15,7 +15,7 @@ const localStorageMock = (() => {
 
 Object.defineProperty(globalThis, "localStorage", { value: localStorageMock })
 
-import { loadGames, saveGames, exportData, exportCSV, importData } from "@/lib/storage"
+import { loadGames, saveGames, exportData, exportCSV, importData, parseImportJson } from "@/lib/storage"
 
 beforeEach(() => {
   localStorageMock.clear()
@@ -81,6 +81,54 @@ describe("exportData / importData roundtrip", () => {
     expect(imported[0].players[1].knockoutTurn).toBe(6)
     // WinnerId maps to correct player
     expect(imported[0].winnerId).toBe(imported[0].players[0].id)
+  })
+
+  it("backup JSON from exportData is restorable via parseImportJson", () => {
+    const me = makePlayer({ isMe: true, commanderName: "Najeela", seatPosition: 1, hasFastMana: true, fastManaCards: ["Mana Crypt"] })
+    const opp = makePlayer({ commanderName: "Kinnan", seatPosition: 2, knockoutTurn: 5 })
+    const game = makeGame({
+      playedAt: "2026-02-25T12:34:56.000Z",
+      players: [me, opp],
+      winnerId: me.id,
+      winTurn: 6,
+      notes: "Backup restore regression",
+      winConditions: ["Combo"],
+      keyWinconCards: ["Thassa's Oracle"],
+      bracket: 4,
+    })
+    saveGames([game])
+
+    const backupJson = exportData()
+    const parsed = parseImportJson(backupJson)
+
+    expect(parsed.success).toBe(true)
+    expect(parsed.games).toHaveLength(1)
+    expect(parsed.games[0].winTurn).toBe(6)
+    expect(parsed.games[0].notes).toBe("Backup restore regression")
+    expect(parsed.games[0].winConditions).toEqual(["Combo"])
+    expect(parsed.games[0].keyWinconCards).toEqual(["Thassa's Oracle"])
+    expect(parsed.games[0].bracket).toBe(4)
+    expect(parsed.games[0].players[0].isMe).toBe(true)
+    expect(parsed.games[0].winnerId).toBe(parsed.games[0].players[0].id)
+  })
+
+  it("backup JSON from exportData can be fully restored with importData", () => {
+    const me = makePlayer({ isMe: true, commanderName: "Atraxa", seatPosition: 1 })
+    const opp = makePlayer({ commanderName: "Korvold", seatPosition: 2 })
+    saveGames([makeGame({ players: [me, opp], winnerId: opp.id, winTurn: 9, notes: "restore all" })])
+
+    const backupJson = exportData()
+    localStorageMock.clear()
+
+    const result = importData(backupJson)
+    expect(result.success).toBe(true)
+    expect(result.count).toBe(1)
+
+    const restored = loadGames()
+    expect(restored).toHaveLength(1)
+    expect(restored[0].notes).toBe("restore all")
+    expect(restored[0].players[1].commanderName).toBe("Korvold")
+    expect(restored[0].winnerId).toBe(restored[0].players[1].id)
   })
 })
 

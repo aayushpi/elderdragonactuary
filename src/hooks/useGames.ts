@@ -8,7 +8,7 @@ import {
   removeGame,
   replaceAllGames,
 } from "@/lib/supabaseStorage"
-import { importData } from "@/lib/storage"
+import { parseImportJson } from "@/lib/storage"
 
 export function useGames() {
   const [games, setGames] = useState<Game[]>([])
@@ -71,16 +71,12 @@ export function useGames() {
   )
 
   const replaceGames = useCallback(async (json: string) => {
-    // Parse with the existing import logic to handle both formats
-    const result = importData(json)
-    if (!result.success) return result
+    // Parse JSON into Game[] without touching localStorage
+    const result = parseImportJson(json)
+    if (!result.success) return { success: false, count: 0, error: result.error }
 
     try {
-      // importData already parsed and saved to localStorage — read parsed games back
-      const { loadGames: loadLocal } = await import("@/lib/storage")
-      const parsedGames = loadLocal()
-
-      const cloudGames = await replaceAllGames(parsedGames)
+      const cloudGames = await replaceAllGames(result.games)
       setGames(cloudGames)
       return { success: true, count: cloudGames.length }
     } catch (err) {
