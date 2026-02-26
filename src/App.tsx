@@ -62,6 +62,11 @@ function App() {
     setGameFlow({ mode: "edit", minimized: false, editGameId: id })
   }
 
+  function navigateWithFlowMinimize(path: string) {
+    setGameFlow((prev) => (prev && !prev.minimized ? { ...prev, minimized: true } : prev))
+    navigate(path)
+  }
+
   function minimizeGameFlow() {
     setGameFlow((prev) => (prev ? { ...prev, minimized: true } : prev))
   }
@@ -159,13 +164,13 @@ function App() {
       <Toaster position="bottom-center" richColors />
       <Nav
         currentPath={location.pathname}
-        onNavigate={navigate}
+        onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
       />
       <main className="container mx-auto max-w-5xl px-4 py-6">
         <Routes>
-          <Route path="/" element={<StatsPage games={games} onNavigate={navigate} onOpenLogGame={openLogGameFlow} />} />
+          <Route path="/" element={<StatsPage games={games} onNavigate={navigateWithFlowMinimize} onOpenLogGame={openLogGameFlow} />} />
           <Route
             path="/history"
             element={(
@@ -217,7 +222,6 @@ function App() {
             <LogGamePage
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
-              onMinimize={minimizeGameFlow}
               onDirtyChange={setIsLogGameDirty}
             />
           ) : (
@@ -226,7 +230,6 @@ function App() {
                 game={editingGame}
                 onSave={handleUpdateGame}
                 onCancel={handleCancelGameFlow}
-                onMinimize={minimizeGameFlow}
               />
             )
           )}
