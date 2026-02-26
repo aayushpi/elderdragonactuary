@@ -21,7 +21,11 @@ export function getSupabase(): SupabaseClient | null {
 
   client = createClient(url, anonKey, {
     auth: {
-      multiTab: false,
+      lock: async <R>(
+        _name: string,
+        _acquireTimeout: number,
+        fn: () => Promise<R>
+      ): Promise<R> => await fn(),
     },
   })
   return client
