@@ -4,6 +4,16 @@ import { Toaster, toast } from "sonner"
 import { Nav } from "@/components/Nav"
 import { Footer } from "@/components/Footer"
 import { GameFlowDrawer } from "@/components/GameFlowDrawer"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
@@ -26,6 +36,7 @@ function App() {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
+  const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
@@ -54,12 +65,17 @@ function App() {
 
   function closeGameFlow(force = false) {
     if (!force && gameFlow?.mode === "log" && isLogGameDirty) {
-      const shouldDiscard = window.confirm("Discard this in-progress game log?")
-      if (!shouldDiscard) return
+      setShowDiscardLogDialog(true)
+      return
     }
 
+    setShowDiscardLogDialog(false)
     setIsLogGameDirty(false)
     setGameFlow(null)
+  }
+
+  function confirmDiscardLogGame() {
+    closeGameFlow(true)
   }
 
   function handleSaveGame(game: Game) {
@@ -132,6 +148,21 @@ function App() {
       </main>
       <Footer onShowReleaseNotes={() => setShowReleaseNotes(true)} />
       <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
+
+      <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard in-progress game log?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes in Track Game. Closing now will lose your progress.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscardLogGame}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {gameFlow && (
         <GameFlowDrawer
