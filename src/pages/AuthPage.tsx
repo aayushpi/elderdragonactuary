@@ -128,7 +128,7 @@ export function AuthPage() {
                 <Input
                   id="invite-code"
                   type="text"
-                  placeholder="Magic meme phrase"
+                  placeholder="Invite code"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   autoComplete="off"
