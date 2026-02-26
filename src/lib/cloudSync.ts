@@ -80,22 +80,20 @@ export async function validateInviteCode(code: string): Promise<boolean> {
   return !!data
 }
 
-export async function markInviteCodeAsUsed(code: string, userId: string) {
+export async function markInviteCodeAsUsed(code: string) {
   const supabase = getSupabase()
   if (!supabase) {
     throw new Error("Cloud sync is not configured.")
   }
 
-  const { error } = await supabase
-    .from("invite_codes")
-    .update({
-      used_by_user_id: userId,
-      used_at: new Date().toISOString(),
-    })
-    .eq("code", code.trim().toUpperCase())
-    .is("used_by_user_id", null)
+  const { data, error } = await supabase.rpc("claim_invite_code", {
+    input_code: code.trim().toUpperCase(),
+  })
 
   if (error) throw new Error(error.message)
+  if (!data) {
+    throw new Error("Invite code is invalid or already used.")
+  }
 }
 
 export function storePendingInviteCode(code: string) {

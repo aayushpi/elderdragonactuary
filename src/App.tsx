@@ -226,12 +226,18 @@ function App() {
           const pendingCode = getPendingInviteCode()
           if (pendingCode) {
             try {
-              await markInviteCodeAsUsed(pendingCode, session.user.id)
+              await markInviteCodeAsUsed(pendingCode)
               clearPendingInviteCode()
               console.log("Invite code marked as used:", pendingCode)
             } catch (error) {
+              const message = error instanceof Error ? error.message : ""
               console.error("Failed to mark invite code as used:", error)
-              toast.error("Signed in, but failed to mark invite code as used.")
+              if (message === "Invite code is invalid or already used.") {
+                clearPendingInviteCode()
+                toast.error(message)
+              } else {
+                toast.error("Signed in, but failed to mark invite code as used.")
+              }
             }
           }
         }
