@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LogIn, UserPlus, Loader2 } from "lucide-react"
-import { validateInviteCode } from "@/lib/inviteCodes"
 
 export function AuthPage() {
   const { signIn, signUp } = useAuth()
@@ -31,8 +30,8 @@ export function AuthPage() {
       return
     }
 
-    if (mode === "signup" && !validateInviteCode(inviteCode)) {
-      setError("Invalid invite code.")
+    if (mode === "signup" && !inviteCode.trim()) {
+      setError("Invite code is required.")
       return
     }
 
@@ -47,7 +46,7 @@ export function AuthPage() {
         const { error: err } = await signIn(email, password)
         if (err) setError(err)
       } else {
-        const { error: err } = await signUp(email, password)
+        const { error: err } = await signUp(email, password, inviteCode)
         if (err) {
           setError(err)
         } else {
