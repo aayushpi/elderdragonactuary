@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
 import { GameFlowDrawer } from "@/components/GameFlowDrawer"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface ReleaseNotesSheetProps {
   open: boolean
