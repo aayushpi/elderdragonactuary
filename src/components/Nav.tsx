@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 interface NavProps {
   currentPath: string
   onNavigate: (path: string) => void
+  onOpenLogGame: () => void
   onShowReleaseNotes: () => void
 }
 
@@ -14,7 +15,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentPath, onNavigate, onShowReleaseNotes }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes }: NavProps) {
   function isActivePath(path: string) {
     if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(`${path}/`)
@@ -73,7 +74,7 @@ export function Nav({ currentPath, onNavigate, onShowReleaseNotes }: NavProps) {
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={() => onNavigate("/log-game")} className="gap-1.5 w-full sm:w-auto">
+          <Button size="sm" onClick={onOpenLogGame} className="gap-1.5 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Track a game</span>
             <span className="sm:hidden">Track Game</span>
