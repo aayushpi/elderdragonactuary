@@ -89,9 +89,6 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
         {sortedPlayers.map((player) => (
           <div key={player.id} className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-8">
-                {player.seatPosition ? `#${player.seatPosition}` : "—"}
-              </span>
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <div className="space-y-1">
                   <CommanderCard
@@ -112,10 +109,13 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                 {game.winnerId === player.id && (
                   <Badge className="text-xs shrink-0">Win</Badge>
                 )}
+                {game.winnerId !== player.id && typeof player.knockoutTurn === "number" && (
+                  <Badge variant="outline" className="text-xs shrink-0">KO ON TURN {player.knockoutTurn}</Badge>
+                )}
               </div>
             </div>
             {player.fastMana.hasFastMana && (
-              <p className="text-xs text-muted-foreground ml-10">
+              <p className="text-xs text-muted-foreground ml-2">
                 Fast mana{player.fastMana.cards.length > 0 ? `: ${player.fastMana.cards.join(", ")}` : ""}
               </p>
             )}

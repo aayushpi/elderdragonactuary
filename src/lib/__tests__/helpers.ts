@@ -20,6 +20,7 @@ interface MakePlayerOpts {
   hasFastMana?: boolean
   fastManaCards?: string[]
   partnerName?: string
+  knockoutTurn?: number
 }
 
 export function makePlayer(opts: MakePlayerOpts = {}): Player {
@@ -35,6 +36,7 @@ export function makePlayer(opts: MakePlayerOpts = {}): Player {
       cards: opts.fastManaCards ?? [],
     },
     partnerName: opts.partnerName,
+    knockoutTurn: opts.knockoutTurn,
   }
 }
 
