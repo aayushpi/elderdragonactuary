@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ExternalLink } from "lucide-react"
 import { ManaCost } from "@/components/ManaCost"
-import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
 
 const imageCache = new Map<string, string | null>()
@@ -35,16 +35,16 @@ export function CommanderCard({
 
   useEffect(() => {
     let isCancelled = false
-
     async function resolveMissingImage() {
-      if (imageUri) {
+      // If caller provided an imageUri that already appears to be an art_crop, use it directly
+      if (imageUri && imageUri.includes("art_crop")) {
         setResolvedImageUri(imageUri)
         return
       }
 
       const cached = imageCache.get(commanderName)
       if (cached !== undefined) {
-        setResolvedImageUri(cached ?? undefined)
+        setResolvedImageUri(cached ?? imageUri ?? undefined)
         return
       }
 
@@ -53,16 +53,18 @@ export function CommanderCard({
         const fetchedImage = resolveArtCrop(card) ?? null
         imageCache.set(commanderName, fetchedImage)
         if (!isCancelled) {
-          setResolvedImageUri(fetchedImage ?? undefined)
+          // prefer the fetched art_crop, but fall back to provided imageUri if absent
+          setResolvedImageUri(fetchedImage ?? imageUri ?? undefined)
         }
       } catch {
         imageCache.set(commanderName, null)
         if (!isCancelled) {
-          setResolvedImageUri(undefined)
+          setResolvedImageUri(imageUri ?? undefined)
         }
       }
     }
 
+    // If there's an explicit non-art_crop imageUri, we still attempt to fetch the art_crop
     resolveMissingImage()
     return () => {
       isCancelled = true
@@ -95,7 +97,8 @@ export function CommanderCard({
 
     try {
       const card = await fetchCardByName(cardName)
-      const imageUri = resolveArtCrop(card)
+      // Use full-card PNG for hover previews so users can read card text
+      const imageUri = resolvePng(card) ?? resolveArtCrop(card)
       hoverImageCache.set(cardName, imageUri ?? null)
       if (activeHoverRef.current !== cardName) return
       setHoveredCard({ name: cardName, imageUri: imageUri ?? undefined })
