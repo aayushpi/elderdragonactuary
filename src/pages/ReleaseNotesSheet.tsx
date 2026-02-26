@@ -39,7 +39,6 @@ export function ReleaseNotesSheet({ open, onOpenChange }: ReleaseNotesSheetProps
         mql.addEventListener("change", handleChange as EventListener)
       } catch {
         // Safari fallback
-        // @ts-expect-error legacy
         mql.addListener(handleChange as unknown as EventListener)
       }
     }
@@ -49,7 +48,6 @@ export function ReleaseNotesSheet({ open, onOpenChange }: ReleaseNotesSheetProps
         try {
           mql.removeEventListener("change", handleChange as EventListener)
         } catch {
-          // @ts-expect-error legacy
           mql.removeListener(handleChange as unknown as EventListener)
         }
       }
