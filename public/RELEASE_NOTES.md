@@ -1,5 +1,10 @@
 # Elder Dragon Actuary
 
+## v0.0.4 - February 25, 2026
+
+- Reworked game creation and editing UX
+- Added theme support with Light, Dark, and System modes (default is System).
+
 ## v0.0.3 - February 24, 2026
 
 - Old games are now editable
