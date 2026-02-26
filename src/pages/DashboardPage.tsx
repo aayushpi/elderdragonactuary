@@ -16,6 +16,18 @@ interface DashboardPageProps {
 export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPageProps) {
   const stats = useStats(games)
 
+  const recentGames = useMemo(() => {
+    return [...games]
+      .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+      .slice(0, 3)
+  }, [games])
+
+  const topCommanders = useMemo(() => {
+    return [...stats.byCommander]
+      .sort((a, b) => b.games - a.games)
+      .slice(0, 4)
+  }, [stats.byCommander])
+
   // early empty state mirrors StatsPage so users still see a call to action
   if (stats.gamesPlayed === 0) {
     return (
@@ -39,17 +51,6 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPag
     )
   }
 
-  const recentGames = useMemo(() => {
-    return [...games]
-      .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
-      .slice(0, 3)
-  }, [games])
-
-  const topCommanders = useMemo(() => {
-    return [...stats.byCommander]
-      .sort((a, b) => b.games - a.games)
-      .slice(0, 4)
-  }, [stats.byCommander])
 
   // render helper for favorite commander cards
   function FavoriteCommanderCard({ name }: { name: string }) {
