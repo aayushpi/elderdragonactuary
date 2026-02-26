@@ -10,9 +10,10 @@ import type { Game, Player } from "@/types"
 import type { GameRow, DbPlayer } from "@/types/database"
 
 async function getCurrentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error) throw error
-  const userId = data.user?.id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sessionResp = await (supabase as any).auth.getSession()
+  const s = sessionResp?.data?.session ?? null
+  const userId = s?.user?.id
   if (!userId) throw new Error("No authenticated user found.")
   return userId
 }
@@ -75,7 +76,8 @@ function rowToGame(row: GameRow): Game {
 // ─── CRUD operations ─────────────────────────────────────────────────────────
 
 export async function fetchGames(): Promise<Game[]> {
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from("games")
     .select("*")
     .order("played_at", { ascending: false })
@@ -138,7 +140,8 @@ export async function patchGame(id: string, patch: Partial<Game>): Promise<Game>
 }
 
 export async function removeGame(id: string): Promise<void> {
-  const { error } = await supabase.from("games").delete().eq("id", id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from("games").delete().eq("id", id)
   if (error) throw error
 }
 
@@ -147,7 +150,8 @@ export async function replaceAllGames(games: Game[]): Promise<Game[]> {
   const userId = await getCurrentUserId()
 
   // Delete all existing games for this user
-  const { error: delErr } = await supabase.from("games").delete().eq("user_id", userId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: delErr } = await (supabase as any).from("games").delete().eq("user_id", userId)
   if (delErr) throw delErr
 
   if (games.length === 0) return []
@@ -164,7 +168,8 @@ export async function replaceAllGames(games: Game[]): Promise<Game[]> {
     players: game.players.map(playerToDb) as unknown as GameRow["players"],
   }))
 
-  const gamesTable = supabase.from("games") as unknown as {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const gamesTable = (supabase as any).from("games") as unknown as {
     insert: (values: unknown) => { select: () => Promise<{ data: unknown; error: unknown }> }
   }
 
