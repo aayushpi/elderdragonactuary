@@ -13,9 +13,47 @@ export function ReleaseNotesSheet({ open, onOpenChange }: ReleaseNotesSheetProps
   const [error, setError] = useState<string | null>(null)
   const [minimized, setMinimized] = useState(false)
 
-  // when opened reset minimized state
+  // When opened on small screens, start minimized. Also watch viewport
+  // size changes so the sheet updates if the user rotates the device.
   useEffect(() => {
-    if (open) setMinimized(false)
+    if (!open) return
+
+    const isMobile =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 640px)").matches
+    setMinimized(Boolean(isMobile))
+
+    const mql =
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia("(max-width: 640px)")
+        : null
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      // only adjust minimized when open — respect user interactions otherwise
+      if (!open) return
+      setMinimized(Boolean((e as MediaQueryListEvent).matches ?? (e as MediaQueryList).matches))
+    }
+
+    if (mql) {
+      try {
+        mql.addEventListener("change", handleChange as EventListener)
+      } catch {
+        // Safari fallback
+        // @ts-expect-error legacy
+        mql.addListener(handleChange as unknown as EventListener)
+      }
+    }
+
+    return () => {
+      if (mql) {
+        try {
+          mql.removeEventListener("change", handleChange as EventListener)
+        } catch {
+          // @ts-expect-error legacy
+          mql.removeListener(handleChange as unknown as EventListener)
+        }
+      }
+    }
   }, [open])
 
   useEffect(() => {
