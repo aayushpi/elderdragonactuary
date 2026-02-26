@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { CommanderCard } from "@/components/CommanderCard"
-import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import { Pencil, Trash2 } from "lucide-react"
 import type { Game } from "@/types"
 
