@@ -27,22 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then((res: { data: { session: Session | null } }) => {
+      const s = res.data?.session ?? null
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    const authResp: any = supabase.auth.onAuthStateChange(( _event: any, s: Session | null ) => {
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    const subscription = authResp?.data?.subscription
+
+    return () => subscription?.unsubscribe?.()
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
