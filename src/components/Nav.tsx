@@ -1,15 +1,11 @@
-import { ChartSpline ,History, Download, Plus, FileText, Bug, Moon, Sun } from "lucide-react"
+import { ChartSpline ,History, Download, Plus, FileText, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-
-type Theme = "light" | "dark"
 
 interface NavProps {
   currentPath: string
   onNavigate: (path: string) => void
   onOpenLogGame: () => void
-  theme: Theme
-  onToggleTheme: () => void
   onShowReleaseNotes: () => void
 }
 
@@ -19,7 +15,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentPath, onNavigate, onOpenLogGame, theme, onToggleTheme, onShowReleaseNotes }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes }: NavProps) {
   function isActivePath(path: string) {
     if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(`${path}/`)
@@ -36,16 +32,6 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, theme, onToggleThe
             <span className="min-[400px]:hidden">EDA</span>
           </span>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggleTheme}
-              className="gap-1 sm:gap-1.5 text-xs h-7 px-1.5 sm:px-2"
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {theme === "dark" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
-              <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
-            </Button>
             <Button
               variant="ghost"
               size="sm"

@@ -31,6 +31,7 @@ interface GameFlowState {
   editGameId?: string
 }
 
+type ThemeMode = "light" | "dark" | "system"
 type Theme = "light" | "dark"
 
 function App() {
@@ -39,10 +40,13 @@ function App() {
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
-  const [theme, setTheme] = useState<Theme>("light")
+  const [themeMode, setThemeMode] = useState<ThemeMode>("system")
+  const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
   const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
+
+  const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
   const editingGame = gameFlow?.mode === "edit" && gameFlow.editGameId
     ? getGame(gameFlow.editGameId)
@@ -82,7 +86,11 @@ function App() {
   }
 
   function toggleTheme() {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"))
+    setThemeMode((prev) => {
+      if (prev === "light") return "dark"
+      if (prev === "dark") return "system"
+      return "light"
+    })
   }
 
   function handleSaveGame(game: Game) {
@@ -126,20 +134,25 @@ function App() {
   }, [gameFlow, editingGame])
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem("theme")
-    if (storedTheme === "light" || storedTheme === "dark") {
-      setTheme(storedTheme)
-      return
-    }
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    const applySystemTheme = () => setSystemTheme(mediaQuery.matches ? "dark" : "light")
 
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    setTheme(prefersDark ? "dark" : "light")
+    applySystemTheme()
+    mediaQuery.addEventListener("change", applySystemTheme)
+    return () => mediaQuery.removeEventListener("change", applySystemTheme)
   }, [])
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
-    localStorage.setItem("theme", theme)
-  }, [theme])
+    const storedMode = localStorage.getItem("theme-mode")
+    if (storedMode === "light" || storedMode === "dark" || storedMode === "system") {
+      setThemeMode(storedMode)
+    }
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", resolvedTheme === "dark")
+    localStorage.setItem("theme-mode", themeMode)
+  }, [resolvedTheme, themeMode])
 
   return (
     <div className="min-h-screen bg-background">
@@ -148,8 +161,6 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigate}
         onOpenLogGame={openLogGameFlow}
-        theme={theme}
-        onToggleTheme={toggleTheme}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
       />
       <main className="container mx-auto max-w-5xl px-4 py-6">
@@ -171,7 +182,12 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <Footer onShowReleaseNotes={() => setShowReleaseNotes(true)} />
+      <Footer
+        onShowReleaseNotes={() => setShowReleaseNotes(true)}
+        themeMode={themeMode}
+        resolvedTheme={resolvedTheme}
+        onToggleTheme={toggleTheme}
+      />
       <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
 
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
