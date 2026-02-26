@@ -19,6 +19,10 @@ export function getSupabase(): SupabaseClient | null {
     return client
   }
 
-  client = createClient(url, anonKey)
+  client = createClient(url, anonKey, {
+    auth: {
+      multiTab: false,
+    },
+  })
   return client
 }
