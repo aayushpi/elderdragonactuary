@@ -9,6 +9,14 @@ import { supabase } from "@/lib/supabase"
 import type { Game, Player } from "@/types"
 import type { GameRow, DbPlayer } from "@/types/database"
 
+async function getCurrentUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) throw error
+  const userId = data.user?.id
+  if (!userId) throw new Error("No authenticated user found.")
+  return userId
+}
+
 // ─── Helpers: domain ↔ DB conversion ─────────────────────────────────────────
 
 function playerToDb(p: Player): DbPlayer {
@@ -77,9 +85,12 @@ export async function fetchGames(): Promise<Game[]> {
 }
 
 export async function insertGame(game: Game): Promise<Game> {
+  const userId = await getCurrentUserId()
+
   const { data, error } = await supabase
     .from("games")
     .insert({
+      user_id: userId,
       played_at: game.playedAt,
       win_turn: game.winTurn,
       winner_player_id: game.winnerId,
@@ -127,13 +138,16 @@ export async function removeGame(id: string): Promise<void> {
 
 /** Bulk insert games (used for import). Deletes all existing games first. */
 export async function replaceAllGames(games: Game[]): Promise<Game[]> {
-  // Delete all existing games for this user (RLS scopes automatically)
-  const { error: delErr } = await supabase.from("games").delete().neq("id", "00000000-0000-0000-0000-000000000000")
+  const userId = await getCurrentUserId()
+
+  // Delete all existing games for this user
+  const { error: delErr } = await supabase.from("games").delete().eq("user_id", userId)
   if (delErr) throw delErr
 
   if (games.length === 0) return []
 
   const rows = games.map((game) => ({
+    user_id: userId,
     played_at: game.playedAt,
     win_turn: game.winTurn,
     winner_player_id: game.winnerId,
