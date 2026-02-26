@@ -15,7 +15,17 @@ values
   ('DIES TO DOOM BLADE', true),
   ('MANA CRYPT FLIP', true),
   ('DRAW GO', true),
-  ('SCOOP AT SORCERY SPEED', true)
+  ('SCOOP AT SORCERY SPEED', true),
+  ('TAP OUT AND PRAY', true),
+  ('NEVER DIDNT HAVE IT', true),
+  ('BRAINSTORM IN RESPONSE', true),
+  ('PASS WITH TWO BLUE UP', true),
+  ('FETCH SHOCK CONCEDE', true),
+  ('RIP TO MY OPENING HAND', true),
+  ('MAYBE KEEPING SEVEN WAS WRONG', true),
+  ('TOPDECK MODE ACTIVATED', true),
+  ('SALT TRIGGER ON THE STACK', true),
+  ('NICE RHYSTIC STUDY TAX', true)
 on conflict (code) do nothing;
 
 -- Optional RLS (defaults deny all anon/authenticated reads)
