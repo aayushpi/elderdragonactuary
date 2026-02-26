@@ -87,8 +87,11 @@ export async function fetchGames(): Promise<Game[]> {
 export async function insertGame(game: Game): Promise<Game> {
   const userId = await getCurrentUserId()
 
-  const { data, error } = await supabase
-    .from("games")
+  const gamesTable = supabase.from("games") as unknown as {
+    insert: (values: unknown) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } }
+  }
+
+  const { data, error } = await gamesTable
     .insert({
       user_id: userId,
       played_at: game.playedAt,
@@ -120,8 +123,11 @@ export async function patchGame(id: string, patch: Partial<Game>): Promise<Game>
   if (patch.bracket !== undefined) update.bracket = patch.bracket ?? null
   if (patch.players !== undefined) update.players = patch.players.map(playerToDb)
 
-  const { data, error } = await supabase
-    .from("games")
+  const gamesTable = supabase.from("games") as unknown as {
+    update: (values: unknown) => { eq: (column: string, value: string) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } }
+  }
+
+  const { data, error } = await gamesTable
     .update(update)
     .eq("id", id)
     .select()
@@ -158,7 +164,11 @@ export async function replaceAllGames(games: Game[]): Promise<Game[]> {
     players: game.players.map(playerToDb) as unknown as GameRow["players"],
   }))
 
-  const { data, error } = await supabase.from("games").insert(rows).select()
+  const gamesTable = supabase.from("games") as unknown as {
+    insert: (values: unknown) => { select: () => Promise<{ data: unknown; error: unknown }> }
+  }
+
+  const { data, error } = await gamesTable.insert(rows).select()
   if (error) throw error
   return (data as GameRow[]).map(rowToGame)
 }

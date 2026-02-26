@@ -55,7 +55,20 @@ export interface Database {
         Row: GameRow
         Insert: GameInsert
         Update: GameUpdate
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
