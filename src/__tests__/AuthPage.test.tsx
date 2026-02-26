@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, act } from "@testing-library/react"
 import { AuthPage } from "@/pages/AuthPage"
-import { AuthProvider } from "@/hooks/useAuth"
+import { AuthProvider } from "@/providers/AuthProvider"
 
 // ensure global fetch stub
 beforeEach(() => {

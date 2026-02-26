@@ -5,9 +5,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ManaCost } from "@/components/ManaCost"
 import { useScryfall } from "@/hooks/useScryfall"
-import { resolveArtCrop } from "@/lib/scryfall"
 import { cn } from "@/lib/utils"
-import type { MtgColor, RecentCommander, ScryfallCard } from "@/types"
+import type { RecentCommander, ScryfallCard } from "@/types"
 
 interface CommanderSearchProps {
   value: string
@@ -162,11 +161,3 @@ export function CommanderSearch({
   )
 }
 
-export function extractCardData(card: ScryfallCard) {
-  return {
-    commanderImageUri: resolveArtCrop(card),
-    commanderColorIdentity: card.color_identity as MtgColor[],
-    commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
-    commanderTypeLine: card.type_line,
-  }
-}

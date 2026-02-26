@@ -23,18 +23,12 @@ let _supabase: SupabaseClient<Database> | MinimalSupabase
 if (supabaseUrl && supabaseAnonKey) {
   _supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 } else {
-  const makeThrower = (name: string) => () => {
-    throw new Error(
-      `Supabase not configured: ${name} called but VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set.`
-    )
-  }
-
   _supabase = {
     auth: {
       getSession: async () => ({ data: { session: null } }),
-      onAuthStateChange: (cb: (event: string, s: AuthSession) => void) => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signInWithPassword: async (_creds: { email: string; password: string }) => ({ error: { message: 'Supabase not configured' } }),
-      signUp: async (_args: unknown) => ({ error: { message: 'Supabase not configured' } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signInWithPassword: async () => ({ error: { message: 'Supabase not configured' } }),
+      signUp: async () => ({ error: { message: 'Supabase not configured' } }),
       signOut: async () => { throw new Error('Supabase not configured') },
     },
     from: () => ({ select: () => {}, insert: () => {}, update: () => {}, delete: () => {} }),
