@@ -87,9 +87,11 @@ const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: fa
 interface LogGamePageProps {
   onSave: (game: Game) => void
   onCancel: () => void
+  onMinimize?: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
+export function LogGamePage({ onSave, onCancel, onMinimize, onDirtyChange }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -357,6 +359,32 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
     || errors.winTurn
     || errors.koTiming
 
+  const hasPlayerDetails = players.some((player) =>
+    Boolean(
+      player.commanderName?.trim()
+      || player.seatPosition
+      || player.partnerName?.trim()
+      || player.fastMana?.hasFastMana
+      || (player.fastMana?.cards?.length ?? 0) > 0
+      || typeof player.knockoutTurn === "number"
+    )
+  )
+
+  const hasInProgressData =
+    playerCount !== null
+    || winnerId !== null
+    || winTurn.trim().length > 0
+    || notes.trim().length > 0
+    || winConditions.length > 0
+    || keyWinconCards.length > 0
+    || bracket !== null
+    || hasPlayerDetails
+
+  useEffect(() => {
+    onDirtyChange?.(hasInProgressData)
+    return () => onDirtyChange?.(false)
+  }, [hasInProgressData, onDirtyChange])
+
   const formErrorMessage = errors.koTiming
     ? "Winning turn can't be after all opponents are knocked out"
     : "Please fill in all highlighted fields."
@@ -433,7 +461,15 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
       </div>
 
       {/* Player rows */}
-      {players.length > 0 && (
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300",
+          players.length > 0
+            ? "max-h-[240rem] opacity-100 translate-y-0"
+            : "max-h-0 opacity-0 -translate-y-2 pointer-events-none"
+        )}
+        aria-hidden={players.length === 0}
+      >
         <>
           <Separator />
           <div className="space-y-3">
@@ -540,7 +576,7 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
             />
           </div>
         </>
-      )}
+      </div>
 
       {hasAnyError && (
         <div className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
@@ -554,6 +590,11 @@ export function LogGamePage({ onSave, onCancel }: LogGamePageProps) {
         <Button variant="outline" className="flex-1" onClick={onCancel}>
           Cancel
         </Button>
+        {onMinimize && (
+          <Button variant="outline" className="flex-1" onClick={onMinimize}>
+            Minimize
+          </Button>
+        )}
         <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0}>
           Save Game
         </Button>

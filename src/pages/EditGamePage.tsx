@@ -74,9 +74,10 @@ interface EditGamePageProps {
   game: Game
   onSave: (game: Game) => void
   onCancel: () => void
+  onMinimize?: () => void
 }
 
-export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
+export function EditGamePage({ game, onSave, onCancel, onMinimize }: EditGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -474,6 +475,11 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
         <Button variant="outline" className="flex-1" onClick={onCancel}>
           Cancel
         </Button>
+        {onMinimize && (
+          <Button variant="outline" className="flex-1" onClick={onMinimize}>
+            Minimize
+          </Button>
+        )}
         <Button className="flex-1" onClick={handleSubmit}>
           Save Changes
         </Button>
