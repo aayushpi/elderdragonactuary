@@ -25,6 +25,7 @@ function App() {
   const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
+  const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { games, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
@@ -34,10 +35,12 @@ function App() {
     : undefined
 
   function openLogGameFlow() {
+    setIsLogGameDirty(false)
     setGameFlow({ mode: "log", minimized: false })
   }
 
   function openEditGameFlow(id: string) {
+    setIsLogGameDirty(false)
     setGameFlow({ mode: "edit", minimized: false, editGameId: id })
   }
 
@@ -49,20 +52,26 @@ function App() {
     setGameFlow((prev) => (prev ? { ...prev, minimized: false } : prev))
   }
 
-  function closeGameFlow() {
+  function closeGameFlow(force = false) {
+    if (!force && gameFlow?.mode === "log" && isLogGameDirty) {
+      const shouldDiscard = window.confirm("Discard this in-progress game log?")
+      if (!shouldDiscard) return
+    }
+
+    setIsLogGameDirty(false)
     setGameFlow(null)
   }
 
   function handleSaveGame(game: Game) {
     addGame(game)
-    closeGameFlow()
+    closeGameFlow(true)
     toast.success("Game logged!")
   }
 
   function handleUpdateGame(game: Game) {
     updateGame(game.id, game)
     setRecentlyEditedGameId(game.id)
-    closeGameFlow()
+    closeGameFlow(true)
     navigate("/history")
     toast.success("Game updated!")
   }
@@ -137,6 +146,7 @@ function App() {
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onMinimize={minimizeGameFlow}
+              onDirtyChange={setIsLogGameDirty}
             />
           ) : (
             editingGame && (
