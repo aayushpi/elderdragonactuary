@@ -26,18 +26,14 @@ export async function initPostHog(): Promise<void> {
     // Try to use bundled module if available; otherwise load from CDN
     let ph: PostHogType | undefined
 
-    // @ts-ignore - dynamic import may not be available in runtime without installation
-    if (typeof (await import.meta.resolve ? undefined : undefined) !== 'undefined') {
-      // no-op; kept for type-aware environments
-    }
-
-    if ((window as any).posthog) {
-      ph = (window as any).posthog as PostHogType
+    // Attempt to detect a preloaded global posthog
+    if ((window as unknown as Record<string, unknown>).posthog) {
+      ph = (window as unknown as { posthog?: PostHogType }).posthog
     } else {
       // Load PostHog from CDN (unpkg) as a fallback so no npm install is required
       const cdn = `${host.replace(/\/$/, '')}/static/array.js` // PostHog provides builds under /static/
       await loadScript(cdn)
-      ph = (window as any).posthog as PostHogType | undefined
+      ph = (window as unknown as { posthog?: PostHogType }).posthog
     }
 
     if (!ph) return
@@ -45,10 +41,8 @@ export async function initPostHog(): Promise<void> {
     ph.init(key, { api_host: host, autocapture: false })
 
     // Log success so users can verify initialization in the browser console
-    // eslint-disable-next-line no-console
     console.info('PostHog initialized')
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.warn('PostHog init failed', e)
   }
 }

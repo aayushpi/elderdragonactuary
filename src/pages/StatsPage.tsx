@@ -52,7 +52,7 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
   const stats = useStats(games)
   useEffect(() => {
     import('@/lib/analytics').then((mod) => {
-      try { mod.trackViewStats({ stats_view: 'overall', games_played: stats.gamesPlayed }) } catch {}
+      try { mod.trackViewStats({ stats_view: 'overall', games_played: stats.gamesPlayed }) } catch { void 0 }
     })
   }, [stats.gamesPlayed])
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")

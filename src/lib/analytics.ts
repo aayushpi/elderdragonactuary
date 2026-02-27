@@ -1,26 +1,26 @@
 import type { Game } from '@/types'
 
-function getPosthog(): any | undefined {
-  return (typeof window !== 'undefined' && (window as any).posthog) || undefined
+function getPosthog(): unknown | undefined {
+  return (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).posthog) || undefined
 }
 
 export function track(event: string, props?: Record<string, unknown>): void {
   try {
-    const ph = getPosthog()
+    const ph = getPosthog() as { capture?: (event: string, props?: Record<string, unknown>) => void } | undefined
     if (!ph?.capture) return
     ph.capture(event, props ?? {})
   } catch (e) {
-    // swallow
+    void 0
   }
 }
 
 export function identify(id: string): void {
   try {
-    const ph = getPosthog()
+    const ph = getPosthog() as { identify?: (id: string) => void } | undefined
     if (!ph?.identify) return
     ph.identify(id)
   } catch (e) {
-    // swallow
+    void 0
   }
 }
 

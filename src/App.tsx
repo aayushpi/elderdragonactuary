@@ -109,7 +109,7 @@ function App() {
     void (async () => {
       try {
         await addGame(game)
-        try { trackGameLogged(game) } catch {}
+        try { trackGameLogged(game) } catch { void 0 }
         closeGameFlow(true)
         toast.success("Game logged!")
       } catch {
