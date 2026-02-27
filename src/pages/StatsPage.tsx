@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, ArrowRight, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -50,6 +50,11 @@ interface StatsPageProps {
 
 export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) {
   const stats = useStats(games)
+  useEffect(() => {
+    import('@/lib/analytics').then((mod) => {
+      try { mod.trackViewStats({ stats_view: 'overall', games_played: stats.gamesPlayed }) } catch {}
+    })
+  }, [stats.gamesPlayed])
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [winRateExpanded, setWinRateExpanded] = useState(true)

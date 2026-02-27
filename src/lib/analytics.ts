@@ -1,0 +1,54 @@
+import type { Game } from '@/types'
+
+function getPosthog(): any | undefined {
+  return (typeof window !== 'undefined' && (window as any).posthog) || undefined
+}
+
+export function track(event: string, props?: Record<string, unknown>): void {
+  try {
+    const ph = getPosthog()
+    if (!ph?.capture) return
+    ph.capture(event, props ?? {})
+  } catch (e) {
+    // swallow
+  }
+}
+
+export function identify(id: string): void {
+  try {
+    const ph = getPosthog()
+    if (!ph?.identify) return
+    ph.identify(id)
+  } catch (e) {
+    // swallow
+  }
+}
+
+export function trackAppStarted(props?: Record<string, unknown>) {
+  track('app_started', props)
+}
+
+export function trackUserSignedIn(props?: { user_id?: string; method?: string }) {
+  if (props?.user_id) identify(props.user_id)
+  track('user_signed_in', props)
+}
+
+export function trackUserSignedUp(props?: { user_id?: string; method?: string }) {
+  if (props?.user_id) identify(props.user_id)
+  track('user_signed_up', props)
+}
+
+export function trackGameLogged(game: Partial<Game>) {
+  const safeProps: Record<string, unknown> = {
+    players: game.players?.length ?? undefined,
+    winner_position: game.winnerPosition ?? undefined,
+    has_partners: Boolean(game.hasPartners ?? false),
+    fast_mana_used: Boolean(game.fastMana ?? false),
+    source: typeof window !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+  }
+  track('game_logged', safeProps)
+}
+
+export function trackViewStats(props?: { stats_view?: string; games_played?: number }) {
+  track('view_stats', props)
+}
