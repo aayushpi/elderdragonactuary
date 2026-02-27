@@ -1,4 +1,4 @@
-import type { Game } from '@/types'
+import type { Game, Player } from '@/types'
 
 function getPosthog(): unknown | undefined {
   return (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).posthog) || undefined
@@ -41,9 +41,9 @@ export function trackUserSignedUp(props?: { user_id?: string; method?: string })
 export function trackGameLogged(game: Partial<Game>) {
   const safeProps: Record<string, unknown> = {
     players: game.players?.length ?? undefined,
-    winner_position: game.winnerPosition ?? undefined,
-    has_partners: Boolean(game.hasPartners ?? false),
-    fast_mana_used: Boolean(game.fastMana ?? false),
+    win_turn: game.winTurn ?? undefined,
+    has_partners: Boolean(game.players?.some((p) => Boolean((p as Partial<Player>)?.partnerName))),
+    fast_mana_used: Boolean(game.players?.some((p) => Boolean((p as Partial<Player>)?.fastMana?.hasFastMana))),
     source: typeof window !== 'undefined' && /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
   }
   track('game_logged', safeProps)
