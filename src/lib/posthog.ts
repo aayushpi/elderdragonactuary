@@ -43,6 +43,10 @@ export async function initPostHog(): Promise<void> {
     if (!ph) return
 
     ph.init(key, { api_host: host, autocapture: false })
+
+    // Log success so users can verify initialization in the browser console
+    // eslint-disable-next-line no-console
+    console.info('PostHog initialized')
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('PostHog init failed', e)
