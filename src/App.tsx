@@ -24,6 +24,7 @@ import { SettingsPage } from "@/pages/SettingsPage"
 import { AuthPage } from "@/pages/AuthPage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
+import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
 import type { Game } from "@/types"
 
@@ -108,6 +109,7 @@ function App() {
     void (async () => {
       try {
         await addGame(game)
+        try { trackGameLogged(game) } catch { void 0 }
         closeGameFlow(true)
         toast.success("Game logged!")
       } catch {
