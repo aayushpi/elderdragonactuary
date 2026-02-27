@@ -9,7 +9,7 @@ export function track(event: string, props?: Record<string, unknown>): void {
     const ph = getPosthog() as { capture?: (event: string, props?: Record<string, unknown>) => void } | undefined
     if (!ph?.capture) return
     ph.capture(event, props ?? {})
-  } catch (e) {
+  } catch {
     void 0
   }
 }
@@ -19,7 +19,7 @@ export function identify(id: string): void {
     const ph = getPosthog() as { identify?: (id: string) => void } | undefined
     if (!ph?.identify) return
     ph.identify(id)
-  } catch (e) {
+  } catch {
     void 0
   }
 }
