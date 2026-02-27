@@ -109,7 +109,19 @@ All game data is stored in your browser's `localStorage` under the key `commando
 
 ## Data Privacy
 
-This app collects **no personal information** and sends **no data to any server**. All analytics and storage happen locally in your browser.
+This app collects **no personal information** by default. When analytics are enabled, the app will send limited telemetry to the configured analytics provider.
+
+**Analytics (optional)**
+
+- The project supports PostHog for opt-in analytics. Analytics are disabled unless you provide a PostHog key.
+- Set the following environment variables in your local `.env` (Vite):
+
+```env
+VITE_POSTHOG_API_KEY=your_posthog_project_api_key
+VITE_POSTHOG_API_HOST=https://app.posthog.com # optional, defaults to PostHog cloud
+```
+
+Analytics are initialized only when `VITE_POSTHOG_API_KEY` is present. If you prefer to keep the app entirely local and offline, do not set these variables.
 
 ## Credits & Attribution
 
