@@ -156,9 +156,40 @@ export async function replaceAllGames(games: Game[]): Promise<Game[]> {
 
   if (games.length === 0) return []
 
-  const rows = games.map((game) => ({
+  // If multiple games share the exact same `playedAt` timestamp (common when
+  // importing date-only exports), Postgres ordering by `played_at` alone can
+  // return them in arbitrary order. To preserve the original array order from
+  // the import, add tiny millisecond offsets for duplicate timestamps so
+  // ordering by `played_at` (descending) yields the same sequence as the
+  // imported array.
+  const playedAtGroups = new Map<string, number[]>()
+  games.forEach((g, idx) => {
+    const key = g.playedAt
+    const arr = playedAtGroups.get(key) ?? []
+    arr.push(idx)
+    playedAtGroups.set(key, arr)
+  })
+
+  const adjustedPlayedAts: string[] = new Array(games.length)
+  for (const [key, indices] of playedAtGroups.entries()) {
+    if (indices.length === 1) {
+      adjustedPlayedAts[indices[0]] = key
+      continue
+    }
+    // multiple entries with identical timestamp: assign millisecond offsets
+    // so that the earlier item in the array gets a slightly later timestamp
+    // (so it sorts earlier when ordering descending by played_at).
+    const base = new Date(key).getTime()
+    const len = indices.length
+    indices.forEach((origIdx, i) => {
+      const offset = len - i // 1..len
+      adjustedPlayedAts[origIdx] = new Date(base + offset).toISOString()
+    })
+  }
+
+  const rows = games.map((game, idx) => ({
     user_id: userId,
-    played_at: game.playedAt,
+    played_at: adjustedPlayedAts[idx] ?? game.playedAt,
     win_turn: game.winTurn,
     winner_player_id: game.winnerId,
     notes: game.notes ?? null,
