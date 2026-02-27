@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 
 beforeEach(() => {
   // ensure a valid session is returned
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(supabase as any).auth.getSession = async () => ({ data: { session: { user: { id: "test-user" } } } })
 })
 
@@ -18,13 +19,16 @@ describe("replaceAllGames ordering for date-only playedAt", () => {
     ]
 
     // Mock delete/insert to succeed (cast to any to avoid strict Supabase types)
-    ;(supabase as any).from = (_table: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(supabase as any).from = () => {
       return {
         delete: () => ({ eq: async () => ({ error: null }) }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         insert: (rows: any) => ({ select: async () => ({ data: rows, error: null }) }),
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await replaceAllGames(games as any)
 
     // returned playedAt should be strictly decreasing (newer first)
