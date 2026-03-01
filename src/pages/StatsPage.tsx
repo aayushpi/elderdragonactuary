@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react"
 import { Plus, ArrowRight, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react"
+import { Cell, Legend, Pie, PieChart, Sector } from "recharts"
+import { type PieSectorDataItem } from "recharts/types/polar/Pie"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  ChartContainer,
+  ChartTooltip,
+  type ChartConfig,
+} from "@/components/ui/chart"
 import { ManaCost } from "@/components/ManaCost"
 import { StatCard } from "@/components/StatCard"
 import { WinRateBar } from "@/components/WinRateBar"
@@ -14,6 +21,13 @@ import type { CommanderStat, Game } from "@/types"
 const SEAT_ORDINALS: Record<number, string> = {
   1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th",
 }
+
+const bracketChartConfig = {
+  wins: {
+    label: "Wins",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig
 
 type CommanderSort = "win-rate" | "win-turn" | "total-wins"
 type SortDirection = "asc" | "desc"
@@ -57,8 +71,7 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
   }, [stats.gamesPlayed])
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [winRateExpanded, setWinRateExpanded] = useState(true)
-  const [commanderColorsExpanded, setCommanderColorsExpanded] = useState(true)
+  const [selectedBracketLabel, setSelectedBracketLabel] = useState("")
   const [commanderExpanded, setCommanderExpanded] = useState(true)
 
   if (stats.gamesPlayed === 0) {
@@ -99,6 +112,25 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
   ).filter(([, stat]) => stat.games > 0)
 
   const sortedCommanders = sortCommanders(stats.byCommander, commanderSort, sortDirection)
+  const bracketChartData = stats.byBracket.map((entry) => ({
+    bracketLabel: `Bracket ${entry.bracket}`,
+    games: entry.games,
+    wins: entry.wins,
+  }))
+  const mostPlayedBracket = stats.byBracket.reduce(
+    (best, entry) => (entry.games > best.games ? entry : best),
+    stats.byBracket[0] ?? { bracket: 1, wins: 0, games: 0 }
+  )
+  const defaultBracketLabel = `Bracket ${mostPlayedBracket.bracket}`
+
+  useEffect(() => {
+    const selectedExists = bracketChartData.some((entry) => entry.bracketLabel === selectedBracketLabel)
+    if (!selectedBracketLabel || !selectedExists) {
+      setSelectedBracketLabel(defaultBracketLabel)
+    }
+  }, [defaultBracketLabel, selectedBracketLabel, bracketChartData])
+
+  const selectedBracket = bracketChartData.find((entry) => entry.bracketLabel === selectedBracketLabel)
 
   return (
     <div className="space-y-6">
@@ -133,52 +165,148 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
 
       {/* Win rate by starting turn */}
       <div className="space-y-3">
-        <button
-          onClick={() => setWinRateExpanded(!winRateExpanded)}
-          className="flex items-center gap-2 text-left"
-        >
-          {winRateExpanded ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Win rate by starting turn
-          </h2>
-        </button>
-        {winRateExpanded && (
-          <>
-            {activeSeatEntries.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
-            ) : (
-              activeSeatEntries.map(([seat, stat]) => (
-                <WinRateBar
-                  key={seat}
-                  label={`${SEAT_ORDINALS[seat]} to play`}
-                  stat={stat}
-                />
-              ))
-            )}
-          </>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Win rate by starting turn
+        </h2>
+        {activeSeatEntries.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
+        ) : (
+          activeSeatEntries.map(([seat, stat]) => (
+            <WinRateBar
+              key={seat}
+              label={`${SEAT_ORDINALS[seat]} to play`}
+              stat={stat}
+            />
+          ))
         )}
+      </div>
+
+      {/* Win rate by bracket */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Win rate by bracket
+        </h2>
+        <Card className="w-full md:w-1/2">
+          <CardContent className="pt-4">
+            <div className="mb-2 flex items-center gap-2">
+              <select
+                value={selectedBracketLabel}
+                onChange={(e) => setSelectedBracketLabel(e.target.value)}
+                className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground cursor-pointer"
+              >
+                {bracketChartData.map((entry) => (
+                  <option key={entry.bracketLabel} value={entry.bracketLabel}>
+                    {entry.bracketLabel}
+                  </option>
+                ))}
+              </select>
+              {selectedBracket && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedBracket.wins} wins / {selectedBracket.games} games
+                </p>
+              )}
+            </div>
+            <ChartContainer config={bracketChartConfig} className="rounded-md bg-muted/20 p-2">
+              <PieChart accessibilityLayer>
+                  <defs>
+                    <pattern id="pattern-bracket-1" patternUnits="userSpaceOnUse" width="8" height="8">
+                      <rect width="8" height="8" fill="hsl(var(--bracket-1))" />
+                      <path d="M0 0L8 8" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
+                    </pattern>
+                    <pattern id="pattern-bracket-2" patternUnits="userSpaceOnUse" width="8" height="8">
+                      <rect width="8" height="8" fill="hsl(var(--bracket-2))" />
+                      <path d="M0 4H8" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
+                    </pattern>
+                    <pattern id="pattern-bracket-3" patternUnits="userSpaceOnUse" width="8" height="8">
+                      <rect width="8" height="8" fill="hsl(var(--bracket-3))" />
+                      <path d="M4 0V8" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
+                    </pattern>
+                    <pattern id="pattern-bracket-4" patternUnits="userSpaceOnUse" width="8" height="8">
+                      <rect width="8" height="8" fill="hsl(var(--bracket-4))" />
+                      <circle cx="2" cy="2" r="1" fill="hsl(var(--background) / 0.45)" />
+                      <circle cx="6" cy="6" r="1" fill="hsl(var(--background) / 0.45)" />
+                    </pattern>
+                    <pattern id="pattern-bracket-5" patternUnits="userSpaceOnUse" width="8" height="8">
+                      <rect width="8" height="8" fill="hsl(var(--bracket-5))" />
+                      <path d="M0 8L8 0" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
+                    </pattern>
+                  </defs>
+                  <ChartTooltip
+                    cursor={false}
+                    content={({ active, payload }) => {
+                      const item = payload?.[0]?.payload as { bracketLabel: string; wins: number; games: number } | undefined
+                      if (!active || !item) return null
+
+                      return (
+                        <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-sm">
+                          <span className="font-medium text-foreground">
+                            {item.bracketLabel}: {item.wins} wins from {item.games} total games
+                          </span>
+                        </div>
+                      )
+                    }}
+                  />
+                  <Pie
+                    data={bracketChartData}
+                    dataKey="wins"
+                    nameKey="bracketLabel"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="85%"
+                    label={false}
+                    style={{ cursor: "pointer" }}
+                    onClick={(sliceData) => {
+                      const label = (sliceData as { bracketLabel?: string })?.bracketLabel
+                      if (label) setSelectedBracketLabel(label)
+                    }}
+                    shape={(props: PieSectorDataItem & { payload?: { bracketLabel?: string } }) => {
+                      const { outerRadius = 0, payload, ...rest } = props
+                      const isActive = payload?.bracketLabel === selectedBracketLabel
+
+                      if (!isActive) {
+                        return <Sector {...props} />
+                      }
+
+                      return (
+                        <g>
+                          <Sector {...rest} outerRadius={outerRadius + 8} />
+                          <Sector
+                            {...rest}
+                            outerRadius={outerRadius + 18}
+                            innerRadius={outerRadius + 11}
+                          />
+                        </g>
+                      )
+                    }}
+                  >
+                    {bracketChartData.map((entry, index) => (
+                      <Cell
+                        key={entry.bracketLabel}
+                        fill={`url(#pattern-bracket-${index + 1})`}
+                        opacity={entry.bracketLabel === selectedBracketLabel ? 1 : 0.45}
+                        stroke="hsl(var(--border))"
+                        strokeWidth={1}
+                      />
+                    ))}
+                  </Pie>
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    layout="horizontal"
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}
+                  />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats about your commander colors */}
       <div className="space-y-3">
-        <button
-          onClick={() => setCommanderColorsExpanded(!commanderColorsExpanded)}
-          className="flex items-center gap-2 text-left"
-        >
-          {commanderColorsExpanded ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Commander colors
-          </h2>
-        </button>
-        {commanderColorsExpanded && (
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Commander colors
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card>
             <CardContent className="pt-4 pb-4">
@@ -239,7 +367,6 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
             </CardContent>
           </Card>
         </div>
-        )}
       </div>
 
       {/* Commander performance */}
