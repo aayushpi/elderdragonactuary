@@ -64,6 +64,7 @@ def generate_games(count: int = 220):
 
         game = {
             "playedAt": (base_date + datetime.timedelta(days=i % 365)).isoformat(),
+            "bracket": random.randint(1, 5),
             "winTurn": random.randint(3, 14),
             "winnerIndex": random.randrange(player_count),
             "winConditions": random.sample(win_conditions, random.randint(1, 2)),
