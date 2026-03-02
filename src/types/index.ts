@@ -121,6 +121,7 @@ export interface ComputedStats {
   withFastMana: WinRateStat
   againstFastMana: WinRateStat
   bySeat: SeatStats
+  byBracket: Array<{ bracket: number; wins: number; games: number }>
   byCommander: CommanderStat[]
   byCommanderColorIdentity: CommanderColorIdentityStat[]
   mostPlayedCommanderColorIdentity: CommanderColorIdentityStat | null

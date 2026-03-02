@@ -40,7 +40,6 @@ interface FormErrors {
 }
 
 const WIN_CONDITION_CATEGORIES = [
-  "Players Scooped",
   "Lethal Combat Damage",
   "Combat Trick",
   "Lethal Non-Combat Damage",
@@ -424,11 +423,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Log Game</h1>
-        <p className="text-muted-foreground text-sm mt-1">Record a Commander game</p>
-      </div>
-
       {/* Player count */}
       <div className="space-y-2">
         <h2 className={`text-sm font-semibold uppercase tracking-wide ${errors.playerCount ? "text-destructive" : "text-muted-foreground"}`}>
