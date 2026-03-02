@@ -10,7 +10,6 @@ interface NavProps {
   onShowReleaseNotes: () => void
   userEmail?: string
   onSignOut?: () => void
-  onStartLiveGame?: () => void
 }
 
 const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -20,7 +19,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLiveGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
   function isActivePath(path: string) {
     if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(`${path}/`)
@@ -117,7 +116,6 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLiveGame, o
             <PopoverContent>
               <div className="flex flex-col gap-2">
                 <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
-                <Button variant="ghost" onClick={() => onStartLiveGame?.()}>Start a live game</Button>
               </div>
             </PopoverContent>
           </Popover>

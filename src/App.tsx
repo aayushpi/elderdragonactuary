@@ -3,7 +3,6 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Nav } from "@/components/Nav"
-import StartLiveDialog from "@/components/LiveGame/StartLiveDialog"
 import { Footer } from "@/components/Footer"
 import { GameFlowDrawer } from "@/components/GameFlowDrawer"
 import {
@@ -53,7 +52,6 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
-  const [startLiveOpen, setStartLiveOpen] = useState(false)
 
   const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
@@ -219,14 +217,7 @@ function App() {
           })()
         }}
       />
-      <StartLiveDialog
-        open={startLiveOpen}
-        onClose={() => setStartLiveOpen(false)}
-        onSelectLayout={(n) => {
-          setStartLiveOpen(false)
-          toast.success(`${n}-player layout selected`)
-        }}
-      />
+      {/* Live game UI removed */}
       <main className="container mx-auto max-w-5xl px-4 py-6">
         {gamesLoading ? (
           <div className="flex items-center justify-center py-20">
