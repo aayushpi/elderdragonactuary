@@ -34,9 +34,9 @@ export default function StartLiveDialog({ open, onClose, onSelectLayout }: { ope
 
   function renderSvg(raw: string) {
       return raw
-        .replace(/width=\"[^\"]+\"/g, 'width=\"100%\"')
-        .replace(/height=\"[^\"]+\"/g, 'height=\"auto\"')
-        .replace(/fill=\"#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\"/g, 'fill=\"currentColor\"')
+        .replace(/width="[^"]+"/g, 'width="100%"')
+        .replace(/height="[^"]+"/g, 'height="auto"')
+        .replace(/fill="#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})"/g, 'fill="currentColor"')
   }
 
   return (
