@@ -60,17 +60,11 @@ export default function StartLiveDialog({ open, onClose, onSelectLayout }: { ope
             <div className="mt-4 flex justify-end">
               <Button variant="ghost" onClick={() => onClose()}>Cancel</Button>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="mt-4 flex flex-col items-center gap-4">
-              <div className="w-full sm:w-[80%] relative">
-                <div className="w-full h-72 sm:h-64 bg-transparent overflow-hidden">
-                  <div className="w-full h-full text-slate-600 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: renderSvg(items.find(i => i.players === selected)!.raw) }} />
-                </div>
-                {seatPositions[selected].map((pos, idx) => (
-                  <div key={idx} style={{ left: pos.left, top: pos.top }} className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none text-center">
-                    <div className="text-black dark:text-white text-2xl sm:text-5xl font-bold">Player {idx + 1}</div>
+          )}
+        </DialogContent>
+      </Dialog>
+    )
+  }
                   </div>
                 ))}
               </div>
