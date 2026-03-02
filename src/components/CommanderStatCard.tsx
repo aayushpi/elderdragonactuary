@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
+import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { CommanderStat, WinRateStat } from "@/types"
 
 const statsImageCache = new Map<string, string | null>()
 const keyCardImageCache = new Map<string, string | null>()
+const commanderHoverImageCache = new Map<string, string | null>()
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank > 3) return null
@@ -50,14 +51,26 @@ function fmtStat(stat: WinRateStat): { val: string; sub: string } {
 
 function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
   const [hoveredCard, setHoveredCard] = useState<{ name: string; imageUri?: string } | null>(null)
-  const [hoverPosition, setHoverPosition] = useState<"top" | "bottom">("bottom")
+  const [hoverCoords, setHoverCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const activeHoverRef = useRef<string | null>(null)
   const hoverCardRef = useRef<HTMLDivElement>(null)
 
-  async function handleCardHover(cardName: string) {
+  async function handleCardHover(cardName: string, event: React.MouseEvent) {
     if (hoveredCard?.name === cardName) return
     activeHoverRef.current = cardName
-
+    // compute coordinates for popup placement relative to viewport
+    try {
+      const target = event.currentTarget as HTMLElement
+      const rect = target.getBoundingClientRect()
+      const popupHeight = 400
+      const spacing = 8
+      const left = rect.left + rect.width / 2
+      const canPlaceBelow = rect.bottom + popupHeight + spacing <= window.innerHeight
+      const top = canPlaceBelow ? rect.bottom + spacing : rect.top - popupHeight - spacing
+      setHoverCoords({ top, left })
+    } catch {
+      // ignore coordinate errors
+    }
     const cached = keyCardImageCache.get(cardName)
     if (cached !== undefined) {
       if (activeHoverRef.current !== cardName) return
@@ -67,7 +80,8 @@ function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
 
     try {
       const card = await fetchCardByName(cardName)
-      const imageUri = resolveArtCrop(card)
+      // Prefer full-card PNG for hover so users can read card text; fall back to art_crop
+      const imageUri = resolvePng(card) ?? resolveArtCrop(card)
       keyCardImageCache.set(cardName, imageUri ?? null)
       if (activeHoverRef.current !== cardName) return
       setHoveredCard({ name: cardName, imageUri: imageUri ?? undefined })
@@ -83,19 +97,7 @@ function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
     setHoveredCard(null)
   }
 
-  useEffect(() => {
-    if (hoveredCard && hoverCardRef.current) {
-      const rect = hoverCardRef.current.getBoundingClientRect()
-      const viewportHeight = window.innerHeight
-      const cardHeight = 400
-
-      if (rect.bottom + cardHeight > viewportHeight) {
-        setHoverPosition("top")
-      } else {
-        setHoverPosition("bottom")
-      }
-    }
-  }, [hoveredCard])
+  
 
   return (
     <Card className="h-full">
@@ -109,9 +111,9 @@ function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
             <div
               key={card.name}
               className="relative"
-              onMouseEnter={() => {
+              onMouseEnter={(e) => {
                 if (window.matchMedia('(hover: hover)').matches) {
-                  handleCardHover(card.name)
+                  handleCardHover(card.name, e)
                 }
               }}
               onMouseLeave={() => {
@@ -130,8 +132,8 @@ function KeyCardsStatCard({ cards }: { cards: CommanderStat["keyCards"] }) {
               {hoveredCard?.name === card.name && window.matchMedia('(hover: hover)').matches && (
                 <div
                   ref={hoverCardRef}
-                  className={`absolute z-[9999] ${hoverPosition === "top" ? "bottom-full mb-2" : "top-full mt-2"} left-1/2 transform -translate-x-1/2`}
-                  style={{ zIndex: 9999 }}
+                  className={`fixed z-[9999]`}
+                  style={{ zIndex: 9999, top: `${hoverCoords.top}px`, left: `${hoverCoords.left}px`, transform: 'translateX(-50%)' }}
                 >
                   <div className="bg-popover border rounded-md shadow-lg p-2" style={{ minWidth: "320px" }}>
                     {hoveredCard.imageUri ? (
@@ -224,6 +226,56 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
   const withFm = fmtStat(stat.withFastMana)
   const vsFm = fmtStat(stat.againstFastMana)
 
+  const [hoveredThumbnail, setHoveredThumbnail] = useState<{ name: string; imageUri?: string } | null>(null)
+  const [thumbnailCoords, setThumbnailCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const thumbnailActiveRef = useRef<string | null>(null)
+  const thumbnailHoverRef = useRef<HTMLDivElement>(null)
+
+  async function handleThumbnailHover(event: React.MouseEvent) {
+    if (hoveredThumbnail?.name === stat.name) return
+    thumbnailActiveRef.current = stat.name
+
+    // compute coordinates for thumbnail popup
+    try {
+      const target = event.currentTarget as HTMLElement
+      const rect = target.getBoundingClientRect()
+      const popupHeight = 400
+      const spacing = 8
+      const left = rect.left + rect.width / 2
+      const canPlaceBelow = rect.bottom + popupHeight + spacing <= window.innerHeight
+      const top = canPlaceBelow ? rect.bottom + spacing : rect.top - popupHeight - spacing
+      setThumbnailCoords({ top, left })
+    } catch {
+      // ignore
+    }
+
+    const cached = commanderHoverImageCache.get(stat.name)
+    if (cached !== undefined) {
+      if (thumbnailActiveRef.current !== stat.name) return
+      setHoveredThumbnail({ name: stat.name, imageUri: cached ?? undefined })
+      return
+    }
+
+    try {
+      const card = await fetchCardByName(stat.name)
+      const imageUri = resolvePng(card) ?? resolveArtCrop(card)
+      commanderHoverImageCache.set(stat.name, imageUri ?? null)
+      if (thumbnailActiveRef.current !== stat.name) return
+      setHoveredThumbnail({ name: stat.name, imageUri: imageUri ?? undefined })
+    } catch {
+      commanderHoverImageCache.set(stat.name, null)
+      if (thumbnailActiveRef.current !== stat.name) return
+      setHoveredThumbnail({ name: stat.name })
+    }
+  }
+
+  function handleThumbnailLeave() {
+    thumbnailActiveRef.current = null
+    setHoveredThumbnail(null)
+  }
+
+  
+
   useEffect(() => {
     let isCancelled = false
 
@@ -264,17 +316,55 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
     <div className="rounded-lg border bg-card p-3 space-y-3">
       {/* Header: thumbnail + rank badge + name */}
       <div className="flex items-center gap-3">
-        {resolvedImageUri ? (
-          <img
-            src={resolvedImageUri}
-            alt={stat.name}
-            className="w-14 h-14 rounded object-cover object-center border border-border shrink-0"
-          />
-        ) : (
-          <div className="w-14 h-14 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">
-            ?
-          </div>
-        )}
+        {/* Thumbnail with hover preview (prefer full PNG) */}
+        <div
+          className="relative"
+          onMouseEnter={(e) => {
+            if (window.matchMedia('(hover: hover)').matches) {
+              handleThumbnailHover(e)
+            }
+          }}
+          onMouseLeave={() => {
+            if (window.matchMedia('(hover: hover)').matches) {
+              handleThumbnailLeave()
+            }
+          }}
+        >
+          {resolvedImageUri ? (
+            <img
+              src={resolvedImageUri}
+              alt={stat.name}
+              className="w-14 h-14 rounded object-cover object-center border border-border shrink-0"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">
+              ?
+            </div>
+          )}
+
+          {hoveredThumbnail?.name === stat.name && window.matchMedia('(hover: hover)').matches && (
+            <div
+              ref={thumbnailHoverRef}
+              className={`fixed z-[9999]`}
+              style={{ zIndex: 9999, top: `${thumbnailCoords.top}px`, left: `${thumbnailCoords.left}px`, transform: 'translateX(-50%)' }}
+            >
+              <div className="bg-popover border rounded-md shadow-lg p-2" style={{ minWidth: "320px" }}>
+                {hoveredThumbnail.imageUri ? (
+                  <img
+                    src={hoveredThumbnail.imageUri}
+                    alt={stat.name}
+                    style={{ width: "300px", height: "auto", display: "block", maxWidth: "none" }}
+                    className="rounded-md"
+                  />
+                ) : (
+                  <div className="w-[300px] flex items-center justify-center bg-muted rounded-md text-sm text-muted-foreground p-4">
+                    {stat.name}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {rank !== undefined && rank <= 3 && <RankBadge rank={rank} />}
           <p className="text-sm font-semibold leading-snug">{stat.name}</p>
