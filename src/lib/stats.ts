@@ -62,6 +62,21 @@ export function computeStats(games: Game[]): ComputedStats {
     {} as SeatStats
   )
 
+  // By bracket (1-5)
+  const byBracket = [1, 2, 3, 4, 5].map((bracket) => {
+    const bracketGames = myGames.filter((g) => g.bracket === bracket)
+    const bracketWins = bracketGames.filter((g) => {
+      const me = getMe(g)
+      return me && g.winnerId === me.id
+    }).length
+
+    return {
+      bracket,
+      wins: bracketWins,
+      games: bracketGames.length,
+    }
+  })
+
   // By commander (with per-commander breakdowns)
   const commanderMap = new Map<string, {
     wins: number
@@ -236,6 +251,7 @@ export function computeStats(games: Game[]): ComputedStats {
     withFastMana,
     againstFastMana,
     bySeat,
+    byBracket,
     byCommander,
     byCommanderColorIdentity,
     mostPlayedCommanderColorIdentity,

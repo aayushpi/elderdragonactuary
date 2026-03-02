@@ -114,6 +114,45 @@ describe("per-seat win rates", () => {
   })
 })
 
+// ─── Per-bracket aggregation ───────────────────────────────────────────────
+
+describe("per-bracket stats", () => {
+  it("includes all 5 brackets with zero values when empty", () => {
+    const stats = computeStats([])
+
+    expect(stats.byBracket).toEqual([
+      { bracket: 1, wins: 0, games: 0 },
+      { bracket: 2, wins: 0, games: 0 },
+      { bracket: 3, wins: 0, games: 0 },
+      { bracket: 4, wins: 0, games: 0 },
+      { bracket: 5, wins: 0, games: 0 },
+    ])
+  })
+
+  it("counts games and wins by bracket for my games", () => {
+    const opp = makePlayer({ commanderName: "Korvold" })
+    const me1 = makePlayer({ isMe: true })
+    const me2 = makePlayer({ isMe: true })
+    const me3 = makePlayer({ isMe: true })
+
+    const games: Game[] = [
+      makeGame({ players: [me1, opp], winnerId: me1.id, bracket: 2 }),
+      makeGame({ players: [me2, opp], winnerId: opp.id, bracket: 2 }),
+      makeGame({ players: [me3, opp], winnerId: me3.id, bracket: 4 }),
+      makeGame({ players: [opp, makePlayer({ commanderName: "Atraxa" })], winnerId: opp.id, bracket: 4 }),
+    ]
+
+    const stats = computeStats(games)
+    expect(stats.byBracket).toEqual([
+      { bracket: 1, wins: 0, games: 0 },
+      { bracket: 2, wins: 1, games: 2 },
+      { bracket: 3, wins: 0, games: 0 },
+      { bracket: 4, wins: 1, games: 1 },
+      { bracket: 5, wins: 0, games: 0 },
+    ])
+  })
+})
+
 // ─── Per-commander aggregation ──────────────────────────────────────────────
 
 describe("per-commander stats", () => {
