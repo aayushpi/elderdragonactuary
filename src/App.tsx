@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Nav } from "@/components/Nav"
+import StartLiveDialog from "@/components/LiveGame/StartLiveDialog"
 import { Footer } from "@/components/Footer"
 import { GameFlowDrawer } from "@/components/GameFlowDrawer"
 import {
@@ -21,7 +22,8 @@ import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
-import { AuthPage } from "@/pages/AuthPage"
+import { MapPage } from "@/pages/MapPage"
+import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
 import { trackGameLogged } from '@/lib/analytics'
@@ -52,6 +54,7 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
+  const [startLiveOpen, setStartLiveOpen] = useState(false)
 
   const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
@@ -188,7 +191,16 @@ function App() {
   }
 
   if (!user) {
-    return <AuthPage />
+    return (
+      <Routes>
+        <Route
+          path="/"
+          element={<LoggedOutHomePage />}
+        />
+        <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
   }
 
   return (
@@ -198,10 +210,22 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
+        onStartLiveGame={() => setStartLiveOpen(true)}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         userEmail={user.email}
         onSignOut={() => {
-          void signOut()
+          void (async () => {
+            await signOut()
+            navigate("/", { replace: true })
+          })()
+        }}
+      />
+      <StartLiveDialog
+        open={startLiveOpen}
+        onClose={() => setStartLiveOpen(false)}
+        onSelectLayout={(n) => {
+          setStartLiveOpen(false)
+          toast.success(`${n}-player layout selected`)
         }}
       />
       <main className="container mx-auto max-w-5xl px-4 py-6">
@@ -218,7 +242,8 @@ function App() {
                 <DashboardPage
                   games={games}
                   onNavigate={navigateWithFlowMinimize}
-                  onOpenLogGame={openLogGameFlow}
+                    onOpenLogGame={openLogGameFlow}
+                    onStartLiveGame={() => setStartLiveOpen(true)}
                 />
               }
             />
@@ -249,6 +274,10 @@ function App() {
             <Route
               path="/settings"
               element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
+            />
+            <Route
+              path="/map"
+              element={<MapPage games={games} />}
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
