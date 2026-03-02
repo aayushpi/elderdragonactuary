@@ -1,5 +1,6 @@
 import { LayoutDashboard, ChartSpline, History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 interface NavProps {
@@ -9,6 +10,7 @@ interface NavProps {
   onShowReleaseNotes: () => void
   userEmail?: string
   onSignOut?: () => void
+  onStartLiveGame?: () => void
 }
 
 const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
@@ -18,7 +20,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/settings", label: "Data", Icon: Download },
 ]
 
-export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLiveGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
   function isActivePath(path: string) {
     if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(`${path}/`)
@@ -101,14 +103,24 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={() => onOpenLogGame()} className="gap-1.5 w-full sm:w-auto">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Track a game</span>
-            <span className="sm:hidden">Track Game</span>
-            <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-              N
-            </kbd>
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" className="gap-1.5 w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Track a game</span>
+                <span className="sm:hidden">Track Game</span>
+                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+                  N
+                </kbd>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent>
+              <div className="flex flex-col gap-2">
+                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
+                <Button variant="ghost" onClick={() => onStartLiveGame?.()}>Start a live game</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </nav>
