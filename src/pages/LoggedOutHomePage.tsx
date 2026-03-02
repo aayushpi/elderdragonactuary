@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ArrowRight, CheckCircle2 } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { AuthForm } from "@/components/AuthForm"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
