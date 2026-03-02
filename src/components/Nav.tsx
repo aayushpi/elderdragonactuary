@@ -1,6 +1,5 @@
 import { LayoutDashboard, ChartSpline, History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 interface NavProps {
@@ -102,23 +101,16 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
               </button>
             ))}
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" className="gap-1.5 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Track a game</span>
-                <span className="sm:hidden">Track Game</span>
-                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-                  N
-                </kbd>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent>
-              <div className="flex flex-col gap-2">
-                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <div>
+            <Button size="sm" className="gap-1.5 w-full sm:w-auto" onClick={() => onOpenLogGame?.()}>
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Track a game</span>
+              <span className="sm:hidden">Track Game</span>
+              <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+                N
+              </kbd>
+            </Button>
+          </div>
         </div>
       </div>
     </nav>
