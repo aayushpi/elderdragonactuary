@@ -22,7 +22,6 @@ import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
-import { MapPage } from "@/pages/MapPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
@@ -210,7 +209,7 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
-        onStartLiveGame={() => setStartLiveOpen(true)}
+        
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         userEmail={user.email}
         onSignOut={() => {
@@ -242,8 +241,7 @@ function App() {
                 <DashboardPage
                   games={games}
                   onNavigate={navigateWithFlowMinimize}
-                    onOpenLogGame={openLogGameFlow}
-                    onStartLiveGame={() => setStartLiveOpen(true)}
+                  onOpenLogGame={openLogGameFlow}
                 />
               }
             />
@@ -275,10 +273,7 @@ function App() {
               path="/settings"
               element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
             />
-            <Route
-              path="/map"
-              element={<MapPage games={games} />}
-            />
+            {/* Map page removed */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
