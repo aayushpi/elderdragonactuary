@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+// Single, clean implementation for StartLiveDialog
 export default function StartLiveDialog({ open, onClose, onSelectLayout }: { open: boolean; onClose: () => void; onSelectLayout?: (players: number) => void }) {
   useEffect(() => {}, [])
 
