@@ -74,6 +74,26 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
   const [selectedBracketLabel, setSelectedBracketLabel] = useState("")
   const [commanderExpanded, setCommanderExpanded] = useState(true)
 
+  // derived data and bracket selection must be computed before any early return
+  const sortedCommanders = sortCommanders(stats.byCommander, commanderSort, sortDirection)
+  const bracketChartData = stats.byBracket.map((entry) => ({
+    bracketLabel: `Bracket ${entry.bracket}`,
+    games: entry.games,
+    wins: entry.wins,
+  }))
+  const mostPlayedBracket = stats.byBracket.reduce(
+    (best, entry) => (entry.games > best.games ? entry : best),
+    stats.byBracket[0] ?? { bracket: 1, wins: 0, games: 0 }
+  )
+  const defaultBracketLabel = `Bracket ${mostPlayedBracket.bracket}`
+
+  useEffect(() => {
+    const selectedExists = bracketChartData.some((entry) => entry.bracketLabel === selectedBracketLabel)
+    if (!selectedBracketLabel || !selectedExists) {
+      setSelectedBracketLabel(defaultBracketLabel)
+    }
+  }, [defaultBracketLabel, selectedBracketLabel, bracketChartData])
+
   if (stats.gamesPlayed === 0) {
     return (
       <div className="space-y-6">
@@ -110,25 +130,6 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
       [6, stats.bySeat.seat6],
     ] as [number, (typeof stats.bySeat.seat1)][]
   ).filter(([, stat]) => stat.games > 0)
-
-  const sortedCommanders = sortCommanders(stats.byCommander, commanderSort, sortDirection)
-  const bracketChartData = stats.byBracket.map((entry) => ({
-    bracketLabel: `Bracket ${entry.bracket}`,
-    games: entry.games,
-    wins: entry.wins,
-  }))
-  const mostPlayedBracket = stats.byBracket.reduce(
-    (best, entry) => (entry.games > best.games ? entry : best),
-    stats.byBracket[0] ?? { bracket: 1, wins: 0, games: 0 }
-  )
-  const defaultBracketLabel = `Bracket ${mostPlayedBracket.bracket}`
-
-  useEffect(() => {
-    const selectedExists = bracketChartData.some((entry) => entry.bracketLabel === selectedBracketLabel)
-    if (!selectedBracketLabel || !selectedExists) {
-      setSelectedBracketLabel(defaultBracketLabel)
-    }
-  }, [defaultBracketLabel, selectedBracketLabel, bracketChartData])
 
   const selectedBracket = bracketChartData.find((entry) => entry.bracketLabel === selectedBracketLabel)
 
