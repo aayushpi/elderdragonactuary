@@ -122,7 +122,7 @@ export function PlayerRow({
 
   const ordinalLabels = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"]
   const positionLabel = ordinalLabels[playerOrder - 1] ?? `${playerOrder}th`
-  const label = `${positionLabel} Player`
+  const defaultLabel = `${positionLabel} Player`
 
   return (
     <div className={`relative space-y-3 p-3 rounded-lg border transition-colors ${isWinner ? "border-primary" : "border-border"} ${isMe ? "border-[3px] border-primary" : "border"} overflow-hidden bg-card`}>
@@ -136,7 +136,13 @@ export function PlayerRow({
       
       <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
-          <span className="text-sm font-semibold">{label}</span>
+          <input
+            aria-label={`Player ${playerOrder} name`}
+            value={player.displayName ?? ""}
+            placeholder={defaultLabel}
+            onChange={(e) => onChange({ displayName: e.target.value || undefined })}
+            className="text-sm font-semibold bg-transparent border-b border-transparent focus:border-b focus:border-input outline-none w-36 truncate"
+          />
           {isMe && (
             <span className="inline-flex items-center rounded-md bg-primary/10 text-primary text-[11px] font-medium px-2 py-0.5">
               Me

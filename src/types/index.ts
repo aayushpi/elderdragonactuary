@@ -53,6 +53,7 @@ export interface Player {
   knockoutTurn?: number
   seatPosition: SeatPosition
   fastMana: FastManaInfo
+  displayName?: string
 }
 
 export interface Game {
