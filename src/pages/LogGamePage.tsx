@@ -217,8 +217,10 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
     // persist first player display name to local profile
-    if (index === 0 && typeof updated.commanderName === "string") {
-      saveProfileDisplayName(updated.commanderName)
+    if (index === 0 && (typeof updated.commanderName === "string" || typeof updated.displayName === "string")) {
+      // prefer explicit displayName if provided, otherwise fallback to commanderName
+      const name = typeof updated.displayName === "string" ? updated.displayName : updated.commanderName
+      saveProfileDisplayName(name)
     }
   }
 
