@@ -131,7 +131,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
   const [pods, setPods] = useState<Pod[]>([])
   const [selectedPodId, setSelectedPodId] = useState<string | null>(null)
   const [podsOpen, setPodsOpen] = useState(false)
-  const [sheetBottom, setSheetBottom] = useState(0)
   const [winnerId, setWinnerId] = useState<string | null>(null)
   const [winTurn, setWinTurn] = useState("")
   const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
@@ -222,39 +221,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     setPods(loadPods())
   }, [])
 
-  // On mobile, reposition the bottom sheet above the on-screen keyboard
-  useEffect(() => {
-    if (!isMobile || !podsOpen) return
-
-    function update() {
-      const vv = window.visualViewport as VisualViewport | undefined
-      if (vv && typeof vv.height === "number") {
-        const bottom = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0))
-        setSheetBottom(bottom)
-      } else {
-        setSheetBottom(0)
-      }
-    }
-
-    update()
-    const vv = window.visualViewport as VisualViewport | undefined
-    if (vv) {
-      vv.addEventListener("resize", update)
-      vv.addEventListener("scroll", update)
-    } else {
-      window.addEventListener("resize", update)
-    }
-
-    return () => {
-      if (vv) {
-        vv.removeEventListener("resize", update)
-        vv.removeEventListener("scroll", update)
-      } else {
-        window.removeEventListener("resize", update)
-      }
-      setSheetBottom(0)
-    }
-  }, [isMobile, podsOpen])
+  
 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
