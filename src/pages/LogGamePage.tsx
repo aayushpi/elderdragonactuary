@@ -13,7 +13,7 @@ import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition, Pod } from "@/types"
-import { loadPods, createPodIfMissing, saveProfileDisplayName } from "@/lib/storage"
+import { loadPods, createPodIfMissing, saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -130,6 +130,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
   const [players, setPlayers] = useState<Partial<Player>[]>([])
   const [pods, setPods] = useState<Pod[]>([])
   const [selectedPodId, setSelectedPodId] = useState<string | null>(null)
+  const [podsOpen, setPodsOpen] = useState(false)
   const [winnerId, setWinnerId] = useState<string | null>(null)
   const [winTurn, setWinTurn] = useState("")
   const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
@@ -149,10 +150,14 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
 
     if (players.length === 0) {
       newPlayers = []
+      const profile = loadProfile()
       for (let i = 0; i < total; i++) {
         const p = makePlayer(i === 0)
         if (i === 0 && prefill) {
           p.commanderName = prefill
+        }
+        if (i === 0 && profile.displayName) {
+          p.displayName = profile.displayName
         }
         newPlayers.push(p)
       }
@@ -218,11 +223,9 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
-    // persist first player display name to local profile
-    if (index === 0 && (typeof updated.commanderName === "string" || typeof updated.displayName === "string")) {
-      // prefer explicit displayName if provided, otherwise fallback to commanderName
-      const name = typeof updated.displayName === "string" ? updated.displayName : updated.commanderName
-      saveProfileDisplayName(name)
+    // persist first player display name to local profile (only when displayName explicitly set)
+    if (index === 0 && typeof updated.displayName === "string") {
+      saveProfileDisplayName(updated.displayName)
     }
   }
 
@@ -460,44 +463,82 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
             </Button>
           ))}
         </div>
-        <div className="mt-2">
-          <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
-          <div className="mt-1">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base justify-between items-center text-left">
-                  <span className={"truncate text-sm "}>{selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}</span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Filter pods…" />
-                  <CommandList>
-                    {pods.length === 0 && <CommandEmpty>No pods saved.</CommandEmpty>}
-                    {pods.map((p) => (
-                      <CommandItem key={p.id} value={p.id} onSelect={() => {
-                        setSelectedPodId(p.id)
-                        const pod = p
-                        const total = pod.players.length
-                        const newPlayers: Partial<Player>[] = pod.players.map((name, i) => ({
-                          id: generateId(),
-                          isMe: i === 0,
-                          displayName: name,
-                          fastMana: { hasFastMana: false, cards: [] },
-                        }))
-                        setPlayerCount(total)
-                        setPlayers(newPlayers)
-                        setWinnerId(null)
-                        setWinTurn("")
-                      }}>{p.label ?? p.players.join(', ')}</CommandItem>
-                    ))}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+        {pods.length > 0 && (
+          <div className="mt-2">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
+            <div className="mt-1">
+              <Popover open={podsOpen} onOpenChange={setPodsOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base justify-between items-center text-left">
+                    <span className={"truncate text-sm "}>{selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Filter pods…" />
+                    <CommandList>
+                      {pods.map((p) => (
+                        <CommandItem key={p.id} value={p.id} onSelect={() => {
+                          setSelectedPodId(p.id)
+                          const pod = p
+                          const total = pod.players.length
+                          const newPlayers: Partial<Player>[] = pod.players.map((name, i) => {
+                            const existing = players[i]
+                            return {
+                              id: existing?.id ?? generateId(),
+                              isMe: i === 0,
+                              displayName: name,
+                              // Preserve any already-selected commander info for this slot (especially `me`)
+                              commanderName: existing?.commanderName ?? (i === 0 && prefillCommander ? prefillCommander : undefined),
+                              commanderImageUri: existing?.commanderImageUri,
+                              commanderManaCost: existing?.commanderManaCost,
+                              commanderTypeLine: existing?.commanderTypeLine,
+                              commanderColorIdentity: existing?.commanderColorIdentity,
+                              partnerName: existing?.partnerName,
+                              partnerImageUri: existing?.partnerImageUri,
+                              fastMana: existing?.fastMana ?? { hasFastMana: false, cards: [] },
+                              seatPosition: existing?.seatPosition,
+                              knockoutTurn: existing?.knockoutTurn,
+                            }
+                          })
+                          setPlayerCount(total)
+                          setPlayers(newPlayers)
+                          // If we applied a pod onto an empty players array but have a prefill commander,
+                          // fetch its card data and populate the first player's commander fields.
+                          if (prefillCommander && (!players[0] || !players[0].commanderName)) {
+                            fetchCardByName(prefillCommander)
+                              .then((card) => {
+                                const uri = resolveArtCrop(card)
+                                setPlayers((prev) => {
+                                  const next = [...prev]
+                                  if (next[0]) {
+                                    next[0] = {
+                                      ...next[0],
+                                      commanderName: prefillCommander,
+                                      commanderImageUri: uri ?? undefined,
+                                      commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
+                                      commanderTypeLine: card.type_line,
+                                      commanderColorIdentity: card.color_identity as MtgColor[],
+                                    }
+                                  }
+                                  return next
+                                })
+                              })
+                              .catch(() => {})
+                          }
+                          setWinnerId(null)
+                          setWinTurn("")
+                          setPodsOpen(false)
+                        }}>{p.label ?? p.players.join(', ')}</CommandItem>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Bracket Selector */}

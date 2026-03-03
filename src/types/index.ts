@@ -61,6 +61,7 @@ export interface Game {
   playedAt: string
   players: Player[]
   winnerId: string
+  podId?: string
   winTurn: number
   notes?: string
   winConditions?: string[]

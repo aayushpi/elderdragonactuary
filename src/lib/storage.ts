@@ -46,12 +46,14 @@ interface ExportGame {
   winConditions?: string[]
   keyWinconCards?: string[]
   bracket?: number        // 1-5, optional power level bracket
+  podId?: string
   players: ExportPlayer[]
 }
 
 interface ExportFile {
   exportedAt: string
   games: ExportGame[]
+  pods?: Pod[]
 }
 
 export function exportData(): string {
@@ -67,6 +69,7 @@ export function exportData(): string {
       winConditions: g.winConditions,
       keyWinconCards: g.keyWinconCards,
       bracket: g.bracket,
+      podId: g.podId,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
@@ -75,6 +78,7 @@ export function exportData(): string {
   const file: ExportFile = {
     exportedAt: new Date().toISOString().slice(0, 10),
     games: exportGames,
+    pods: loadPods(),
   }
 
   return JSON.stringify(file, null, 2)
@@ -209,6 +213,12 @@ export function saveProfileDisplayName(name: string | undefined): void {
     const cur = loadProfile()
     const next = { ...cur, displayName: name?.trim() || undefined }
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+    try {
+      const ev = new CustomEvent("profile:updated", { detail: { displayName: next.displayName } })
+      window.dispatchEvent(ev)
+    } catch {
+      // ignore event dispatch errors in older browsers
+    }
   } catch {
     // ignore
   }
@@ -221,9 +231,14 @@ export function saveProfileDisplayName(name: string | undefined): void {
  * persisting anywhere. Used by both the localStorage import and the
  * Supabase-backed import.
  */
-export function parseImportJson(json: string): { success: boolean; games: Game[]; error?: string } {
+export function parseImportJson(json: string): { success: boolean; games: Game[]; pods?: Pod[]; error?: string } {
   try {
     const parsed = JSON.parse(json)
+
+    let parsedPods: Pod[] | undefined = undefined
+    if (parsed && parsed.pods && Array.isArray(parsed.pods)) {
+      parsedPods = parsed.pods as Pod[]
+    }
 
     // Accept the clean export format { exportedAt, games: ExportGame[] }
     // or a raw Game[] array (backwards compat with old exports)
@@ -255,6 +270,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
           playedAt: typeof g.playedAt === "string" ? new Date(g.playedAt).toISOString() : new Date().toISOString(),
           winTurn: typeof g.winTurn === "number" ? g.winTurn : 0,
           winnerId: players[g.winnerIndex]?.id ?? players[0].id,
+          podId: typeof g.podId === "string" ? g.podId : undefined,
           notes: typeof g.notes === "string" ? g.notes : undefined,
           winConditions: Array.isArray(g.winConditions) ? g.winConditions as string[] : undefined,
           keyWinconCards: Array.isArray(g.keyWinconCards) ? g.keyWinconCards as string[] : undefined,
@@ -280,7 +296,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
       } as Game
     })
 
-    return { success: true, games }
+    return { success: true, games, pods: parsedPods }
   } catch {
     return { success: false, games: [], error: "Invalid JSON." }
   }
@@ -290,6 +306,15 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
 export function importData(json: string): { success: boolean; count: number; error?: string } {
   const result = parseImportJson(json)
   if (!result.success) return { success: false, count: 0, error: result.error }
+  // If pods were included in the export, restore them
+  if (result.pods && Array.isArray(result.pods)) {
+    try {
+      savePods(result.pods)
+    } catch {
+      // ignore save errors
+    }
+  }
+
   saveGames(result.games)
   return { success: true, count: result.games.length }
 }
