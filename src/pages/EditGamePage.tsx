@@ -9,6 +9,7 @@ import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import { createPodIfMissing, saveProfileDisplayName } from "@/lib/storage"
 
 interface PlayerFieldErrors {
   commanderName: boolean
@@ -122,6 +123,10 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
+    if (index === 0 && (typeof updated.commanderName === "string" || typeof updated.displayName === "string")) {
+      const name = typeof updated.displayName === "string" ? updated.displayName : updated.commanderName
+      saveProfileDisplayName(name)
+    }
   }
 
   function takenSeats(excludeIndex: number): SeatPosition[] {
@@ -214,6 +219,9 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       bracket: bracket ?? undefined,
     }
     onSave(updatedGame)
+    // Create a pod only if all players have explicit player names (`displayName`)
+    const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
+    createPodIfMissing(names)
   }
 
   const totalPlayers = playerCount ?? 0

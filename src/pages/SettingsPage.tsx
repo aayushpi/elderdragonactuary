@@ -1,7 +1,9 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Download, Upload, Trash2, FileText, Loader2 } from "lucide-react"
+import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return ""
@@ -22,6 +24,20 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [importLoading, setImportLoading] = useState(false)
+  const [playerName, setPlayerName] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    const profile = loadProfile()
+    setPlayerName(profile.displayName)
+  }, [])
+  // Listen for profile updates from other parts of the app
+  useEffect(() => {
+    function onProfileUpdate() {
+      const profile = loadProfile()
+      setPlayerName(profile.displayName)
+    }
+    window.addEventListener("profile:updated", onProfileUpdate)
+    return () => window.removeEventListener("profile:updated", onProfileUpdate)
+  }, [])
   const isDevOrLocalhost = import.meta.env.DEV || window.location.hostname === "localhost"
 
   /** Build a backup JSON from the games already loaded in memory (from Supabase). */
@@ -139,9 +155,22 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
 
   return (
     <div className="space-y-6">
-      {/* Data section */}
+      {/* Settings section */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Data</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Settings</h2>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="mb-3">
+            <p className="text-sm font-medium">Player name</p>
+            <p className="text-xs text-muted-foreground mt-0.5">This name will be used as your player display name when creating new games.</p>
+          </div>
+          <div className="flex gap-2">
+            <Input placeholder="Your player name" value={playerName ?? ""} onChange={(e) => setPlayerName(e.target.value)} />
+            <Button onClick={() => {
+              saveProfileDisplayName(playerName)
+              toast.success("Player name saved to profile")
+            }}>Save</Button>
+          </div>
+        </div>
         <div className="rounded-lg border bg-card divide-y divide-border">
           <div className="flex items-center justify-between px-4 py-3">
             <div>

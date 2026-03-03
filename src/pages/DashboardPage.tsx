@@ -118,10 +118,16 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPag
       {topCommanders.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Your favorite commanders</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-            {topCommanders.map((c) => (
-              <FavoriteCommanderCard key={c.name} name={c.name} />
-            ))}
+          <div className="mt-2">
+            <div className="-mx-3 px-3">
+              <div className="flex gap-3 overflow-x-auto scroll-pl-3 py-2">
+                {topCommanders.map((c) => (
+                  <div key={c.name} className="flex-shrink-0 w-56 scroll-snap-align-start">
+                    <FavoriteCommanderCard name={c.name} />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

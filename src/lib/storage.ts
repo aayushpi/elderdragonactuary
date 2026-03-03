@@ -1,6 +1,8 @@
 import type { Game, Player } from "@/types"
 
 const STORAGE_KEY = "commando_games"
+const PODS_KEY = "commando_pods"
+const PROFILE_KEY = "commando_profile"
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -44,12 +46,14 @@ interface ExportGame {
   winConditions?: string[]
   keyWinconCards?: string[]
   bracket?: number        // 1-5, optional power level bracket
+  podId?: string
   players: ExportPlayer[]
 }
 
 interface ExportFile {
   exportedAt: string
   games: ExportGame[]
+  pods?: Pod[]
 }
 
 export function exportData(): string {
@@ -65,6 +69,7 @@ export function exportData(): string {
       winConditions: g.winConditions,
       keyWinconCards: g.keyWinconCards,
       bracket: g.bracket,
+      podId: g.podId,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
@@ -73,6 +78,7 @@ export function exportData(): string {
   const file: ExportFile = {
     exportedAt: new Date().toISOString().slice(0, 10),
     games: exportGames,
+    pods: loadPods(),
   }
 
   return JSON.stringify(file, null, 2)
@@ -151,6 +157,73 @@ export function exportCSV(): string {
   return rows.join('\n')
 }
 
+// ------------------ Pods & Profile helpers ------------------
+
+import type { Pod } from "@/types"
+
+export function loadPods(): Pod[] {
+  try {
+    const raw = localStorage.getItem(PODS_KEY)
+    return raw ? (JSON.parse(raw) as Pod[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function savePods(pods: Pod[]): void {
+  localStorage.setItem(PODS_KEY, JSON.stringify(pods))
+}
+
+function generatePodId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
+export function createPodIfMissing(playerNames: string[]): Pod | null {
+  const trimmed = playerNames.map((n) => (n ?? "").trim())
+  if (trimmed.length === 0) return null
+  if (trimmed.some((n) => !n)) return null
+
+  const existing = loadPods()
+  // simple duplicate detection by exact sequence
+  const found = existing.find((p) => p.players.length === trimmed.length && p.players.every((v, i) => v === trimmed[i]))
+  if (found) return found
+
+  const pod: Pod = {
+    id: generatePodId(),
+    players: trimmed,
+    label: trimmed.join(", "),
+    createdAt: new Date().toISOString(),
+  }
+  const next = [...existing, pod]
+  savePods(next)
+  return pod
+}
+
+export function loadProfile(): { displayName?: string } {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY)
+    return raw ? (JSON.parse(raw) as { displayName?: string }) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveProfileDisplayName(name: string | undefined): void {
+  try {
+    const cur = loadProfile()
+    const next = { ...cur, displayName: name?.trim() || undefined }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+    try {
+      const ev = new CustomEvent("profile:updated", { detail: { displayName: next.displayName } })
+      window.dispatchEvent(ev)
+    } catch {
+      // ignore event dispatch errors in older browsers
+    }
+  } catch {
+    // ignore
+  }
+}
+
 // ── Import ────────────────────────────────────────────────────────────────────
 
 /**
@@ -158,9 +231,14 @@ export function exportCSV(): string {
  * persisting anywhere. Used by both the localStorage import and the
  * Supabase-backed import.
  */
-export function parseImportJson(json: string): { success: boolean; games: Game[]; error?: string } {
+export function parseImportJson(json: string): { success: boolean; games: Game[]; pods?: Pod[]; error?: string } {
   try {
     const parsed = JSON.parse(json)
+
+    let parsedPods: Pod[] | undefined = undefined
+    if (parsed && parsed.pods && Array.isArray(parsed.pods)) {
+      parsedPods = parsed.pods as Pod[]
+    }
 
     // Accept the clean export format { exportedAt, games: ExportGame[] }
     // or a raw Game[] array (backwards compat with old exports)
@@ -192,6 +270,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
           playedAt: typeof g.playedAt === "string" ? new Date(g.playedAt).toISOString() : new Date().toISOString(),
           winTurn: typeof g.winTurn === "number" ? g.winTurn : 0,
           winnerId: players[g.winnerIndex]?.id ?? players[0].id,
+          podId: typeof g.podId === "string" ? g.podId : undefined,
           notes: typeof g.notes === "string" ? g.notes : undefined,
           winConditions: Array.isArray(g.winConditions) ? g.winConditions as string[] : undefined,
           keyWinconCards: Array.isArray(g.keyWinconCards) ? g.keyWinconCards as string[] : undefined,
@@ -217,7 +296,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
       } as Game
     })
 
-    return { success: true, games }
+    return { success: true, games, pods: parsedPods }
   } catch {
     return { success: false, games: [], error: "Invalid JSON." }
   }
@@ -227,6 +306,15 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
 export function importData(json: string): { success: boolean; count: number; error?: string } {
   const result = parseImportJson(json)
   if (!result.success) return { success: false, count: 0, error: result.error }
+  // If pods were included in the export, restore them
+  if (result.pods && Array.isArray(result.pods)) {
+    try {
+      savePods(result.pods)
+    } catch {
+      // ignore save errors
+    }
+  }
+
   saveGames(result.games)
   return { success: true, count: result.games.length }
 }
