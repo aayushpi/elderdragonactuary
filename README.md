@@ -123,6 +123,14 @@ VITE_POSTHOG_API_HOST=https://app.posthog.com # optional, defaults to PostHog cl
 
 Analytics are initialized only when `VITE_POSTHOG_API_KEY` is present. If you prefer to keep the app entirely local and offline, do not set these variables.
 
+## Supabase Staging / Production
+
+- **Goal:** Use the staging Supabase for local development and all Vercel preview deployments; use the production Supabase only on the live (Vercel Production) deployment.
+- **Local:** copy `.env.example` to `.env` and set the `VITE_SUPABASE_URL_STAGING` and `VITE_SUPABASE_ANON_KEY_STAGING` values.
+- **Vercel Preview:** set the Preview environment variables `VITE_SUPABASE_URL_STAGING` and `VITE_SUPABASE_ANON_KEY_STAGING` (and optionally `VITE_VERCEL_ENV=preview`).
+- **Vercel Production:** set `VITE_SUPABASE_URL_PROD` and `VITE_SUPABASE_ANON_KEY_PROD` and set `VITE_VERCEL_ENV=production` for production builds.
+- **How it works:** the client build reads `VITE_VERCEL_ENV` at build-time; when it equals `production` the app prefers the production keys, otherwise it uses staging. If staging/prod-specific vars are not present, the code falls back to the legacy `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` for compatibility.
+
 ## Credits & Attribution
 
 - Card data & images: [Scryfall](https://scryfall.com)

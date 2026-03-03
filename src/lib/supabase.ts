@@ -1,8 +1,26 @@
 import { createClient, type SupabaseClient, type Session } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+// Environment selection:
+// - Local and Vercel preview builds use the staging DB.
+// - Vercel production builds use the production DB.
+// Vite only exposes vars prefixed with `VITE_`, so we read a VITE_VERCEL_ENV
+// that should be set per-deployment in Vercel (or omitted locally).
+const viteVercelEnv = import.meta.env.VITE_VERCEL_ENV as string | undefined
+
+const defaultUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const defaultKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+
+const stagingUrl = import.meta.env.VITE_SUPABASE_URL_STAGING as string | undefined
+const stagingKey = import.meta.env.VITE_SUPABASE_ANON_KEY_STAGING as string | undefined
+
+const prodUrl = import.meta.env.VITE_SUPABASE_URL_PROD as string | undefined
+const prodKey = import.meta.env.VITE_SUPABASE_ANON_KEY_PROD as string | undefined
+
+const isProd = viteVercelEnv === 'production'
+
+const supabaseUrl = (isProd ? (prodUrl ?? defaultUrl) : (stagingUrl ?? defaultUrl)) as string | undefined
+const supabaseAnonKey = (isProd ? (prodKey ?? defaultKey) : (stagingKey ?? defaultKey)) as string | undefined
 
 type AuthSession = Session | null
 
