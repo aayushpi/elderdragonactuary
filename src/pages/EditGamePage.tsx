@@ -123,8 +123,9 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
-    if (index === 0 && typeof updated.commanderName === "string") {
-      saveProfileDisplayName(updated.commanderName)
+    if (index === 0 && (typeof updated.commanderName === "string" || typeof updated.displayName === "string")) {
+      const name = typeof updated.displayName === "string" ? updated.displayName : updated.commanderName
+      saveProfileDisplayName(name)
     }
   }
 

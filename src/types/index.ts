@@ -52,6 +52,7 @@ export interface Player {
   partnerTypeLine?: string
   knockoutTurn?: number
   seatPosition: SeatPosition
+  displayName?: string
   fastMana: FastManaInfo
 }
 

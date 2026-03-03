@@ -136,7 +136,12 @@ export function PlayerRow({
       
       <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
-          <span className="text-sm font-semibold">{label}</span>
+          <Input
+            value={player.displayName ?? ""}
+            onChange={(e) => onChange({ displayName: e.target.value })}
+            placeholder={label}
+            className="text-sm font-semibold max-w-xs"
+          />
           {isMe && (
             <span className="inline-flex items-center rounded-md bg-primary/10 text-primary text-[11px] font-medium px-2 py-0.5">
               Me
@@ -312,7 +317,6 @@ export function PlayerRow({
           onChange={handleCommanderChange}
           hasError={fieldErrors?.commanderName}
           recentCommanders={recentCommanders}
-          placeholder={label}
           onSelectRecent={(rc) => {
             onChange({
               commanderName: rc.name,
