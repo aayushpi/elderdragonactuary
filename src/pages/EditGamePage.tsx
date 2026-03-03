@@ -8,8 +8,8 @@ import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
-import type { Game, Player, RecentCommander, SeatPosition, Pod } from "@/types"
-import { createPodIfMissing, saveProfileDisplayName, loadPods } from "@/lib/storage"
+import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import { createPodIfMissing, saveProfileDisplayName } from "@/lib/storage"
 
 interface PlayerFieldErrors {
   commanderName: boolean
