@@ -21,7 +21,7 @@ import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
-import { AuthPage } from "@/pages/AuthPage"
+import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
 import { trackGameLogged } from '@/lib/analytics'
@@ -188,7 +188,16 @@ function App() {
   }
 
   if (!user) {
-    return <AuthPage />
+    return (
+      <Routes>
+        <Route
+          path="/"
+          element={<LoggedOutHomePage />}
+        />
+        <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
   }
 
   return (
@@ -198,12 +207,17 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
+        
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         userEmail={user.email}
         onSignOut={() => {
-          void signOut()
+          void (async () => {
+            await signOut()
+            navigate("/", { replace: true })
+          })()
         }}
       />
+      {/* Live game UI removed */}
       <main className="container mx-auto max-w-5xl px-4 py-6">
         {gamesLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -250,6 +264,7 @@ function App() {
               path="/settings"
               element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
             />
+            {/* Map page removed */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

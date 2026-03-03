@@ -101,14 +101,16 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
               </button>
             ))}
           </div>
-          <Button size="sm" onClick={() => onOpenLogGame()} className="gap-1.5 w-full sm:w-auto">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Track a game</span>
-            <span className="sm:hidden">Track Game</span>
-            <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-              N
-            </kbd>
-          </Button>
+          <div>
+            <Button size="sm" className="gap-1.5 w-full sm:w-auto" onClick={() => onOpenLogGame?.()}>
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Track a game</span>
+              <span className="sm:hidden">Track Game</span>
+              <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+                N
+              </kbd>
+            </Button>
+          </div>
         </div>
       </div>
     </nav>
