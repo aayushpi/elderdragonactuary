@@ -219,8 +219,8 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       bracket: bracket ?? undefined,
     }
     onSave(updatedGame)
-    // Create pod if all players have player names (displayName), fallback to commander names
-    const names = finalizedPlayers.map((p) => (p.displayName?.trim() ?? p.commanderName?.trim() ?? ""))
+    // Create a pod only if all players have explicit player names (`displayName`)
+    const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
     createPodIfMissing(names)
   }
 
