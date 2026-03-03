@@ -1,6 +1,8 @@
 import type { Game, Player } from "@/types"
 
 const STORAGE_KEY = "commando_games"
+const PODS_KEY = "commando_pods"
+const PROFILE_KEY = "commando_profile"
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -149,6 +151,67 @@ export function exportCSV(): string {
   })
 
   return rows.join('\n')
+}
+
+// ------------------ Pods & Profile helpers ------------------
+
+import type { Pod } from "@/types"
+
+export function loadPods(): Pod[] {
+  try {
+    const raw = localStorage.getItem(PODS_KEY)
+    return raw ? (JSON.parse(raw) as Pod[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function savePods(pods: Pod[]): void {
+  localStorage.setItem(PODS_KEY, JSON.stringify(pods))
+}
+
+function generatePodId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
+export function createPodIfMissing(playerNames: string[]): Pod | null {
+  const trimmed = playerNames.map((n) => (n ?? "").trim())
+  if (trimmed.length === 0) return null
+  if (trimmed.some((n) => !n)) return null
+
+  const existing = loadPods()
+  // simple duplicate detection by exact sequence
+  const found = existing.find((p) => p.players.length === trimmed.length && p.players.every((v, i) => v === trimmed[i]))
+  if (found) return found
+
+  const pod: Pod = {
+    id: generatePodId(),
+    players: trimmed,
+    label: trimmed.join(", "),
+    createdAt: new Date().toISOString(),
+  }
+  const next = [...existing, pod]
+  savePods(next)
+  return pod
+}
+
+export function loadProfile(): { displayName?: string } {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY)
+    return raw ? (JSON.parse(raw) as { displayName?: string }) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveProfileDisplayName(name: string | undefined): void {
+  try {
+    const cur = loadProfile()
+    const next = { ...cur, displayName: name?.trim() || undefined }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+  } catch {
+    // ignore
+  }
 }
 
 // ── Import ────────────────────────────────────────────────────────────────────

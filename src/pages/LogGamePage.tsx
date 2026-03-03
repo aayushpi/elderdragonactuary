@@ -10,7 +10,8 @@ import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
-import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import type { Game, Player, RecentCommander, SeatPosition, Pod } from "@/types"
+import { loadPods, createPodIfMissing, saveProfileDisplayName } from "@/lib/storage"
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -125,6 +126,8 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
 
   const [playerCount, setPlayerCount] = useState<number | null>(null)
   const [players, setPlayers] = useState<Partial<Player>[]>([])
+  const [pods, setPods] = useState<Pod[]>([])
+  const [selectedPodId, setSelectedPodId] = useState<string | null>(null)
   const [winnerId, setWinnerId] = useState<string | null>(null)
   const [winTurn, setWinTurn] = useState("")
   const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
@@ -207,8 +210,16 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     setErrors(EMPTY_ERRORS)
   }
 
+  useEffect(() => {
+    setPods(loadPods())
+  }, [])
+
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
+    // persist first player display name to local profile
+    if (index === 0 && typeof updated.commanderName === "string") {
+      saveProfileDisplayName(updated.commanderName)
+    }
   }
 
   function takenSeats(excludeIndex: number): SeatPosition[] {
@@ -303,6 +314,10 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       bracket: bracket ?? undefined,
     }
     onSave(game)
+    // Create a pod if all players have commander names
+    const names = finalizedPlayers.map((p) => p.commanderName?.trim() ?? "")
+    const pod = createPodIfMissing(names)
+    if (pod) setPods((prev) => [...prev, pod])
   }
 
   const totalPlayers = playerCount ?? 0
@@ -440,6 +455,39 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
               {n}
             </Button>
           ))}
+        </div>
+        <div className="mt-2">
+          <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
+          <div className="mt-1">
+            <select
+              className="w-full rounded-md border px-2 py-2"
+              value={selectedPodId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value || null
+                setSelectedPodId(id)
+                if (!id) return
+                const pod = pods.find((p) => p.id === id)
+                if (!pod) return
+                // Prefill players from pod
+                const total = pod.players.length
+                const newPlayers: Partial<Player>[] = pod.players.map((name, i) => ({
+                  id: generateId(),
+                  isMe: i === 0,
+                  commanderName: name,
+                  fastMana: { hasFastMana: false, cards: [] },
+                }))
+                setPlayerCount(total)
+                setPlayers(newPlayers)
+                setWinnerId(null)
+                setWinTurn("")
+              }}
+            >
+              <option value="">Select a pod…</option>
+              {pods.map((p) => (
+                <option key={p.id} value={p.id}>{p.label ?? p.players.join(', ')}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
