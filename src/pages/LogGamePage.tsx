@@ -4,6 +4,8 @@ import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Command, CommandList, CommandItem, CommandEmpty, CommandInput } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
 import { CardSearch } from "@/components/CardSearch"
@@ -461,34 +463,38 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
         <div className="mt-2">
           <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
           <div className="mt-1">
-            <select
-              className="w-full rounded-md border px-2 py-2"
-              value={selectedPodId ?? ""}
-              onChange={(e) => {
-                const id = e.target.value || null
-                setSelectedPodId(id)
-                if (!id) return
-                const pod = pods.find((p) => p.id === id)
-                if (!pod) return
-                // Prefill players from pod
-                const total = pod.players.length
-                const newPlayers: Partial<Player>[] = pod.players.map((name, i) => ({
-                  id: generateId(),
-                  isMe: i === 0,
-                  displayName: name,
-                  fastMana: { hasFastMana: false, cards: [] },
-                }))
-                setPlayerCount(total)
-                setPlayers(newPlayers)
-                setWinnerId(null)
-                setWinTurn("")
-              }}
-            >
-              <option value="">Select a pod…</option>
-              {pods.map((p) => (
-                <option key={p.id} value={p.id}>{p.label ?? p.players.join(', ')}</option>
-              ))}
-            </select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full text-left">
+                  {selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Filter pods…" />
+                  <CommandList>
+                    {pods.length === 0 && <CommandEmpty>No pods saved.</CommandEmpty>}
+                    {pods.map((p) => (
+                      <CommandItem key={p.id} value={p.id} onSelect={() => {
+                        setSelectedPodId(p.id)
+                        const pod = p
+                        const total = pod.players.length
+                        const newPlayers: Partial<Player>[] = pod.players.map((name, i) => ({
+                          id: generateId(),
+                          isMe: i === 0,
+                          displayName: name,
+                          fastMana: { hasFastMana: false, cards: [] },
+                        }))
+                        setPlayerCount(total)
+                        setPlayers(newPlayers)
+                        setWinnerId(null)
+                        setWinTurn("")
+                      }}>{p.label ?? p.players.join(', ')}</CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </div>
