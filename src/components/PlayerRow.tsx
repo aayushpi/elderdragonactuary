@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CommanderSearch } from "@/components/CommanderSearch"
 import { extractCardData } from "@/lib/shared"
-import { CommanderCard } from "@/components/CommanderCard"
+// CommanderCard removed: using low-opacity background image instead
 import { CardSearch } from "@/components/CardSearch"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
@@ -125,8 +125,16 @@ export function PlayerRow({
   const label = `${positionLabel} Player`
 
   return (
-    <div className={`space-y-3 p-3 rounded-lg border transition-colors bg-card ${isWinner ? "border-primary" : "border-border"} ${isMe ? "border-[3px] border-primary" : "border"}`}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className={`relative space-y-3 p-3 rounded-lg border transition-colors ${isWinner ? "border-primary" : "border-border"} ${isMe ? "border-[3px] border-primary" : "border"} overflow-hidden bg-card`}>
+      {player.commanderImageUri && (
+        <img
+          src={player.commanderImageUri}
+          alt={`${player.commanderName} art`}
+          className="absolute inset-0 w-full h-full object-cover opacity-10 pointer-events-none"
+        />
+      )}
+      
+      <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
           <span className="text-sm font-semibold">{label}</span>
           {isMe && (
@@ -314,15 +322,7 @@ export function PlayerRow({
             })
           }}
         />
-        {player.commanderName && (
-          <CommanderCard
-            commanderName={player.commanderName}
-            imageUri={player.commanderImageUri}
-            manaCost={player.commanderManaCost}
-            typeLine={player.commanderTypeLine}
-          />
-        )}
-
+       
         {/* Partner */}
         {player.commanderName && !showPartner && (
           <button
@@ -352,14 +352,6 @@ export function PlayerRow({
               onChange={handlePartnerChange}
               placeholder="Search partner…"
             />
-            {player.partnerName && (
-              <CommanderCard
-                commanderName={player.partnerName}
-                imageUri={player.partnerImageUri}
-                manaCost={player.partnerManaCost}
-                typeLine={player.partnerTypeLine}
-              />
-            )}
           </div>
         )}
       </div>
