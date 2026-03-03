@@ -474,7 +474,13 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                     <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <PopoverContent
+                  className={isMobile
+                    ? "fixed left-0 right-0 bottom-0 rounded-t-lg max-h-[60vh] p-0 z-50 overflow-auto"
+                    : "w-[var(--radix-popover-trigger-width)] p-0"
+                  }
+                  align="start"
+                >
                   <Command>
                     <CommandInput placeholder="Filter pods…" />
                     <CommandList>
