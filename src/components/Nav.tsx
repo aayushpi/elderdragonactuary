@@ -1,4 +1,4 @@
-import { LayoutDashboard, ChartSpline, History, Download, Plus, FileText, Bug, LogOut } from "lucide-react"
+import { LayoutDashboard, ChartSpline, History, Settings, Plus, FileText, Bug, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -15,7 +15,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/", label: "Dashboard", Icon: LayoutDashboard },
   { path: "/stats", label: "Stats", Icon: ChartSpline },
   { path: "/history", label: "History", Icon: History },
-  { path: "/settings", label: "Data", Icon: Download },
+  { path: "/settings", label: "Settings", Icon: Settings },
 ]
 
 export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
