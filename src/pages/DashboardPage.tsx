@@ -25,8 +25,8 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPag
 
   const topCommanders = useMemo(() => {
     return [...stats.byCommander]
+      .filter((c) => c.games > 1)
       .sort((a, b) => b.games - a.games)
-      .slice(0, 4)
   }, [stats.byCommander])
 
   // early empty state mirrors StatsPage so users still see a call to action
