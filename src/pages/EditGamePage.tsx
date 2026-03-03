@@ -8,7 +8,8 @@ import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
-import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import type { Game, Player, RecentCommander, SeatPosition, Pod } from "@/types"
+import { createPodIfMissing, saveProfileDisplayName, loadPods } from "@/lib/storage"
 
 interface PlayerFieldErrors {
   commanderName: boolean
@@ -122,6 +123,9 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
+    if (index === 0 && typeof updated.commanderName === "string") {
+      saveProfileDisplayName(updated.commanderName)
+    }
   }
 
   function takenSeats(excludeIndex: number): SeatPosition[] {
@@ -214,6 +218,9 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       bracket: bracket ?? undefined,
     }
     onSave(updatedGame)
+    // Create pod if all player names present
+    const names = finalizedPlayers.map((p) => p.commanderName?.trim() ?? "")
+    createPodIfMissing(names)
   }
 
   const totalPlayers = playerCount ?? 0

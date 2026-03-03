@@ -312,6 +312,7 @@ export function PlayerRow({
           onChange={handleCommanderChange}
           hasError={fieldErrors?.commanderName}
           recentCommanders={recentCommanders}
+          placeholder={label}
           onSelectRecent={(rc) => {
             onChange({
               commanderName: rc.name,

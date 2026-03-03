@@ -67,6 +67,13 @@ export interface Game {
   bracket?: number // 1-5, optional power level bracket
 }
 
+export interface Pod {
+  id: string
+  players: string[] // commander names in pod order
+  label?: string // human readable label (e.g. "Jack, Jill, Andy")
+  createdAt: string
+}
+
 // ─── Stats ──────────────────────────────────────────────────────────────────
 
 export interface WinRateStat {
