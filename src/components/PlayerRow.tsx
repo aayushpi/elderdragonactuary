@@ -2,6 +2,8 @@ import { useState } from "react"
 import { Trophy, UserPlus, X, Minus, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { FormField } from "@/components/ui/form-field"
+import { InputGroup, InputGroupText } from "@/components/ui/input-group"
 import { CommanderSearch } from "@/components/CommanderSearch"
 import { extractCardData } from "@/lib/shared"
 // CommanderCard removed: using low-opacity background image instead
@@ -136,20 +138,24 @@ export function PlayerRow({
       
       <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
-          <span className="text-sm font-semibold">{label}</span>
-          {isMe && (
-            <span className="inline-flex items-center rounded-md bg-primary/10 text-primary text-[11px] font-medium px-2 py-0.5">
-              Me
-            </span>
-          )}
+          <FormField>
+            <InputGroup className="w-40">
+              <Input
+                value={player.displayName ?? ""}
+                onChange={(e) => onChange({ displayName: e.target.value })}
+                placeholder={label}
+                className="w-full h-10 bg-transparent border-0 text-sm px-3"
+              />
+              {isMe && <InputGroupText>Me</InputGroupText>}
+            </InputGroup>
+          </FormField>
         </div>
 
         <div className="hidden sm:flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto max-w-full">
           <Button
             type="button"
-            size="sm"
             variant={isWinner ? "default" : "outline"}
-            className={`gap-1.5 text-xs h-7 px-2 ${
+            className={`gap-1.5 text-sm h-10 px-3 ${
               isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
             }`}
             onClick={onSetWinner}
@@ -161,9 +167,8 @@ export function PlayerRow({
             <div className="flex items-center gap-1 justify-end">
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0"
+                className="h-10 w-10 p-0"
                 onClick={decrementTurn}
               >
                 <Minus className="h-3 w-3" />
@@ -175,13 +180,12 @@ export function PlayerRow({
                 placeholder="turn"
                 value={winTurn}
                 onChange={(e) => onWinTurnChange(e.target.value)}
-                className={`w-14 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
+                className={`w-20 h-10 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
               />
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0"
+                className="h-10 w-10 p-0"
                 onClick={incrementTurn}
               >
                 <Plus className="h-3 w-3" />
@@ -193,9 +197,8 @@ export function PlayerRow({
               <span className="text-xs text-muted-foreground uppercase tracking-wide px-1">KO</span>
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0"
+                className="h-10 w-10 p-0"
                 onClick={decrementKoTurn}
               >
                 <Minus className="h-3 w-3" />
@@ -207,13 +210,12 @@ export function PlayerRow({
                 placeholder="turn"
                 value={koTurn}
                 onChange={(e) => onKoTurnChange(e.target.value)}
-                className="w-14 h-7 text-sm text-center"
+                className="w-20 h-10 text-sm text-center"
               />
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0"
+                className="h-10 w-10 p-0"
                 onClick={incrementKoTurn}
               >
                 <Plus className="h-3 w-3" />
@@ -227,9 +229,8 @@ export function PlayerRow({
       <div className="flex items-center justify-center gap-2 sm:hidden">
         <Button
           type="button"
-          size="sm"
           variant={isWinner ? "default" : "outline"}
-          className={`gap-1.5 text-xs h-7 px-2 ${
+          className={`gap-1.5 text-sm h-10 px-3 ${
             isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
           }`}
           onClick={onSetWinner}

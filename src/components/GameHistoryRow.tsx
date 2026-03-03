@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
+import { loadPods } from "@/lib/storage"
 import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import type { Game } from "@/types"
 
@@ -28,6 +29,7 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
   // Thumbnail URIs (prefer Scryfall art_crop)
   const [commanderThumb, setCommanderThumb] = useState<string | undefined>(me?.commanderImageUri)
   const [partnerThumb, setPartnerThumb] = useState<string | undefined>(me?.partnerImageUri)
+  const [podLabel, setPodLabel] = useState<string | undefined>(undefined)
   const activeHoverRef = useRef<string | null>(null)
   const hoverCardRef = useRef<HTMLDivElement>(null)
 
@@ -67,6 +69,15 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
       cancelled = true
     }
   }, [me?.commanderName, me?.commanderImageUri, me?.partnerName, me?.partnerImageUri])
+
+  useEffect(() => {
+    if (game.podId) {
+      const pod = loadPods().find((p) => p.id === game.podId)
+      setPodLabel(pod?.label)
+    } else {
+      setPodLabel(undefined)
+    }
+  }, [game.podId])
 
   async function handleCardHover(cardName: string, event: React.MouseEvent) {
     if (hoveredCard?.name === cardName) return
@@ -250,6 +261,7 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{game.players.length} players</span>
+          {podLabel && <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{podLabel}</span>}
           <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">{date}</span>
         </div>
       </div>

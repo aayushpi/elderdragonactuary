@@ -21,10 +21,10 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
   }, [])
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 pb-0 sm:px-4 sm:pb-0 pointer-events-none">
+    <div className="fixed inset-0 z-50 pb-0 sm:inset-x-0 sm:bottom-0 sm:px-4 sm:pb-0 pointer-events-none">
       <div
         className={cn(
-          "pointer-events-auto mx-auto w-full rounded-t-xl rounded-b-none border border-t-2 bg-card shadow-lg transition-[transform,opacity] duration-300 ease-out sm:max-w-[min(96vw,1400px)]",
+          "pointer-events-auto mx-auto w-full h-full rounded-none border border-t-2 bg-card shadow-lg transition-[transform,opacity] duration-300 ease-out sm:rounded-t-xl sm:max-w-[min(96vw,1400px)]",
           !isReady
             ? "translate-y-full opacity-0"
             : minimized
@@ -69,7 +69,7 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
           </div>
         </div>
 
-        <div className="max-h-[85vh] overflow-y-auto p-4">{children}</div>
+        <div className="h-full overflow-y-auto p-4 sm:max-h-[85vh]">{children}</div>
       </div>
     </div>
   )

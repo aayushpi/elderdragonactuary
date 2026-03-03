@@ -52,6 +52,7 @@ export interface Player {
   partnerTypeLine?: string
   knockoutTurn?: number
   seatPosition: SeatPosition
+  displayName?: string
   fastMana: FastManaInfo
 }
 
@@ -60,11 +61,19 @@ export interface Game {
   playedAt: string
   players: Player[]
   winnerId: string
+  podId?: string
   winTurn: number
   notes?: string
   winConditions?: string[]
   keyWinconCards?: string[]
   bracket?: number // 1-5, optional power level bracket
+}
+
+export interface Pod {
+  id: string
+  players: string[] // commander names in pod order
+  label?: string // human readable label (e.g. "Jack, Jill, Andy")
+  createdAt: string
 }
 
 // ─── Stats ──────────────────────────────────────────────────────────────────
