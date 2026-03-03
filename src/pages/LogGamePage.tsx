@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { AlertCircle, ExternalLink } from "lucide-react"
+import { AlertCircle, ExternalLink, ChevronsUpDown } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -465,9 +465,10 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
           <div className="mt-1">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full text-left">
-                  {selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}
-                </Button>
+                <button className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base justify-between items-center text-left">
+                  <span className={"truncate text-sm "}>{selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+                </button>
               </PopoverTrigger>
               <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                 <Command>
