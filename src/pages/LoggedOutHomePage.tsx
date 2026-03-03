@@ -45,6 +45,24 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
               <Button size="lg" variant="outline" onClick={() => setReleaseNotesOpen(true)}>
                 View release notes
               </Button>
+              {typeof window !== "undefined" && (window.location.hostname === "localhost" || import.meta.env.MODE !== 'production') && (
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  onClick={() => {
+                    // toggle dev flag then reload so AuthProvider picks it up
+                    const current = window.localStorage.getItem("dev_auto_sign_in") === "true"
+                    if (current) {
+                      window.localStorage.removeItem("dev_auto_sign_in")
+                    } else {
+                      window.localStorage.setItem("dev_auto_sign_in", "true")
+                    }
+                    window.location.reload()
+                  }}
+                >
+                  Use test account (dev)
+                </Button>
+              )}
             </div>
           </section>
 

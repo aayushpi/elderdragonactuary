@@ -40,6 +40,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription?.unsubscribe?.()
   }, [])
 
+  // Local dev helper: allow loading a test user when a local flag is set.
+  useEffect(() => {
+    try {
+      const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || import.meta.env.MODE !== 'production')
+      const devFlag = isDev && typeof window !== "undefined" ? window.localStorage.getItem("dev_auto_sign_in") : null
+      if (devFlag === "true") {
+        // If there's no real session, inject a lightweight dev user for local testing.
+        if (!session) {
+          const devUser = {
+            id: "local-dev-user",
+            email: "aayush.iyer+test@gmail.com",
+            aud: "authenticated",
+            app_metadata: {},
+            user_metadata: {},
+            created_at: new Date().toISOString(),
+            confirmed_at: new Date().toISOString(),
+          } as unknown as User
+          setUser(devUser)
+          setLoading(false)
+        }
+      }
+    } catch {
+      // ignore in non-browser environments
+    }
+  }, [session])
+
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message ?? null }
