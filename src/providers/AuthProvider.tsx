@@ -43,10 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Local dev helper: allow loading a test user when a local flag is set.
   useEffect(() => {
     try {
-      const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || import.meta.env.MODE !== 'production')
+      const hostname = typeof window !== "undefined" ? window.location.hostname : ""
+      const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0"
+      const isDev = typeof window !== "undefined" && (isLocalHost || import.meta.env.DEV || import.meta.env.MODE !== 'production')
       const devFlag = isDev && typeof window !== "undefined" ? window.localStorage.getItem("dev_auto_sign_in") : null
       if (devFlag === "true") {
-        // If there's no real session, inject a lightweight dev user for local testing.
+        // If there's no real session, inject a lightweight dev user and session for local testing.
         if (!session) {
           const devUser = {
             id: "local-dev-user",
@@ -57,7 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             created_at: new Date().toISOString(),
             confirmed_at: new Date().toISOString(),
           } as unknown as User
+
+          const devSession = {
+            access_token: "dev-token",
+            refresh_token: "dev-refresh",
+            expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+            token_type: "bearer",
+            provider_token: null,
+            provider_refresh_token: null,
+            user: devUser,
+          } as unknown as Session
+
           setUser(devUser)
+          setSession(devSession)
           setLoading(false)
         }
       }

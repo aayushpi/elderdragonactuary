@@ -45,7 +45,7 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
               <Button size="lg" variant="outline" onClick={() => setReleaseNotesOpen(true)}>
                 View release notes
               </Button>
-              {typeof window !== "undefined" && (window.location.hostname === "localhost" || import.meta.env.MODE !== 'production') && (
+              {typeof window !== "undefined" && (window.location.hostname === "localhost" || import.meta.env.DEV || import.meta.env.MODE !== 'production') && (
                 <Button
                   size="lg"
                   variant="ghost"
