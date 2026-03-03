@@ -316,8 +316,8 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       bracket: bracket ?? undefined,
     }
     onSave(game)
-    // Create a pod if all players have player names (displayName), fallback to commander names
-    const names = finalizedPlayers.map((p) => (p.displayName?.trim() ?? p.commanderName?.trim() ?? ""))
+    // Create a pod only if all players have explicit player names (`displayName`)
+    const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
     const pod = createPodIfMissing(names)
     if (pod) setPods((prev) => [...prev, pod])
   }
