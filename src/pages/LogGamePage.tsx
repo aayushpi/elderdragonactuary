@@ -514,7 +514,12 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                     ? "fixed left-0 right-0 rounded-t-lg max-h-[60vh] p-0 z-50 overflow-auto"
                     : "w-[var(--radix-popover-trigger-width)] p-0"
                   }
-                  style={isMobile ? { bottom: `${sheetBottom}px` } : undefined}
+                  style={isMobile ? {
+                    bottom: 0,
+                    transform: sheetBottom ? `translateY(-${sheetBottom}px)` : undefined,
+                    transition: 'transform 220ms ease',
+                    willChange: 'transform'
+                  } : undefined}
                   align="start"
                 >
                   <Command>
