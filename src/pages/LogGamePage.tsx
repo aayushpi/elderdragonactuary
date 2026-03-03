@@ -227,7 +227,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     if (!isMobile || !podsOpen) return
 
     function update() {
-      const vv = (window as any).visualViewport
+      const vv = window.visualViewport as VisualViewport | undefined
       if (vv && typeof vv.height === "number") {
         const bottom = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0))
         setSheetBottom(bottom)
@@ -237,7 +237,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     }
 
     update()
-    const vv = (window as any).visualViewport
+    const vv = window.visualViewport as VisualViewport | undefined
     if (vv) {
       vv.addEventListener("resize", update)
       vv.addEventListener("scroll", update)
