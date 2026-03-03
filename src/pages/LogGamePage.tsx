@@ -316,8 +316,8 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       bracket: bracket ?? undefined,
     }
     onSave(game)
-    // Create a pod if all players have commander names
-    const names = finalizedPlayers.map((p) => p.commanderName?.trim() ?? "")
+    // Create a pod if all players have player names (displayName), fallback to commander names
+    const names = finalizedPlayers.map((p) => (p.displayName?.trim() ?? p.commanderName?.trim() ?? ""))
     const pod = createPodIfMissing(names)
     if (pod) setPods((prev) => [...prev, pod])
   }
@@ -475,7 +475,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                 const newPlayers: Partial<Player>[] = pod.players.map((name, i) => ({
                   id: generateId(),
                   isMe: i === 0,
-                  commanderName: name,
+                  displayName: name,
                   fastMana: { hasFastMana: false, cards: [] },
                 }))
                 setPlayerCount(total)
