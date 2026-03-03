@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { Plus, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { GameHistoryRow } from "@/components/GameHistoryRow"
 import { useStats } from "@/hooks/useStats"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
@@ -39,13 +40,22 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPag
               Log a game to see your stats here.
             </p>
           </div>
-          <Button onClick={() => onOpenLogGame()} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Track a game
-            <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-              N
-            </kbd>
-          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Track a game
+                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+                  N
+                </kbd>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent>
+              <div className="flex flex-col gap-2">
+                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     )
