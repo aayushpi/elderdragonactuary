@@ -719,7 +719,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       )}
 
       {/* Actions */}
-      <div className="flex gap-2 pt-2 sticky-action">
+      <div className="flex gap-2 pt-2 floating-action">
         <Button variant="outline" className="flex-1" onClick={onCancel}>
           Cancel
         </Button>
