@@ -201,7 +201,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background safe-bottom">
       <Toaster position="bottom-center" richColors />
       <Nav
         currentPath={location.pathname}
