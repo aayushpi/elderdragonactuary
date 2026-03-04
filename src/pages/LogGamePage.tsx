@@ -446,7 +446,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     : "Please fill in all highlighted fields."
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       {/* Player count */}
       <div className="space-y-2">
         <h2 className={`text-sm font-semibold uppercase tracking-wide ${errors.playerCount ? "text-destructive" : "text-muted-foreground"}`}>
