@@ -223,7 +223,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
       {(onEdit || onDelete) && (
         <>
           <Separator />
-          <div className="flex gap-2">
+          <div className="flex gap-2 safe-bottom">
             {onEdit && (
               <Button
                 variant="outline"

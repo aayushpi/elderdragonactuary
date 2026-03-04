@@ -40,3 +40,8 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Safe area helper for iOS Safari bottom bar */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+}
