@@ -85,6 +85,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Ensure the OS safe-area inset is honored globally on iOS Safari */
+  html, body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
   
   /* Hide number input spinners */
   input[type="number"] {
