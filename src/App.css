@@ -45,3 +45,12 @@
 .safe-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
 }
+
+/* Sticky action bar that sits above iOS Safari bottom chrome inside scrollable containers */
+.sticky-action {
+  position: sticky;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  z-index: 20;
+  background: inherit;
+  padding-bottom: env(safe-area-inset-bottom);
+}
