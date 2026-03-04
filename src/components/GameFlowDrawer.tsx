@@ -24,12 +24,12 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
     <div className="fixed inset-0 z-50 pb-0 sm:inset-x-0 sm:bottom-0 sm:px-4 sm:pb-0 pointer-events-none safe-bottom">
       <div
         className={cn(
-          "pointer-events-auto mx-auto w-full h-full rounded-none border border-t-2 bg-card shadow-lg transition-[transform,opacity] duration-300 ease-out sm:rounded-t-xl sm:max-w-[min(96vw,1400px)]",
+          "pointer-events-auto mx-auto w-full h-full rounded-none border border-t-2 bg-card shadow-lg transition-[transform,opacity] duration-300 ease-out sm:rounded-t-xl sm:max-w-[min(96vw,1400px)] drawer-panel",
           !isReady
-            ? "translate-y-full opacity-0"
+            ? "translate-y-full opacity-0 drawer-hidden"
             : minimized
-              ? "translate-y-[calc(100%-3.25rem)] opacity-100"
-              : "translate-y-0 opacity-100"
+              ? "translate-y-[calc(100%-3.25rem)] opacity-100 drawer-minimized"
+              : "translate-y-0 opacity-100 drawer-open"
         )}
       >
         <div
