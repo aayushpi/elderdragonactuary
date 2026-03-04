@@ -69,7 +69,7 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
           </div>
         </div>
 
-        <div className="h-full overflow-y-auto p-4 sm:max-h-[85vh]">{children}</div>
+        <div className="h-full overflow-y-auto p-4 sm:max-h-[85vh] safe-bottom">{children}</div>
       </div>
     </div>
   )
