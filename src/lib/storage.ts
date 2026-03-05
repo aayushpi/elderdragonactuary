@@ -317,6 +317,7 @@ export function saveProfilePlayerNames(names: string[] | undefined): void {
     const uniq: string[] = Array.from(new Set(trimmed))
     const next = { ...cur, playerNames: uniq }
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+    console.debug('saveProfilePlayerNames: saved local profile', next)
     try {
       const ev = new CustomEvent("profile:updated", { detail: { displayName: next.displayName, playerNames: next.playerNames } })
       window.dispatchEvent(ev)
@@ -334,13 +335,17 @@ export function saveProfilePlayerNames(names: string[] | undefined): void {
         if (typeof sb.from === 'function') {
           const fromFn = sb.from as unknown as (table: string) => FromQuery
           await fromFn('profiles').upsert?.({ id: user.id, player_names: uniq })
+          console.debug('saveProfilePlayerNames: supabase user', user?.id)
         }
       } catch (err) {
-        void err
+            const resp = await sb.auth.updateUser({ data: { player_names: uniq } })
+            console.debug('saveProfilePlayerNames: updateUser response', resp)
       }
     })()
   } catch (err) { void err }
-}
+            const fromFn = sb.from as unknown as (table: string) => FromQuery
+            const resp = await fromFn('profiles').upsert?.({ id: user.id, player_names: uniq })
+            console.debug('saveProfilePlayerNames: profiles upsert response', resp)
 
 /** Merge and add new player names into existing saved profile player list. */
 export function addProfilePlayerNames(names: string[] | undefined): void {
