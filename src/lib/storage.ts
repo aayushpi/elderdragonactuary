@@ -9,6 +9,8 @@ type AuthLike = {
 
 type FromQuery = {
   select: (cols?: string) => { eq: (col: string, val: unknown) => { single: () => Promise<{ data: unknown }> } }
+  upsert?: (values: unknown) => Promise<unknown>
+  insert?: (values: unknown) => Promise<unknown>
 }
 
 type SupabaseLike = {
@@ -295,7 +297,8 @@ export function saveProfileDisplayName(name: string | undefined): void {
         }
         // otherwise upsert into profiles table if available
         if (typeof sb.from === 'function') {
-          await sb.from!('profiles').upsert({ id: user.id, display_name: next.displayName, player_names: next.playerNames })
+          const fromFn = sb.from as unknown as (table: string) => FromQuery
+          await fromFn('profiles').upsert?.({ id: user.id, display_name: next.displayName, player_names: next.playerNames })
         }
       } catch (err) {
         void err
@@ -329,7 +332,8 @@ export function saveProfilePlayerNames(names: string[] | undefined): void {
           return
         }
         if (typeof sb.from === 'function') {
-          await sb.from!('profiles').upsert({ id: user.id, player_names: uniq })
+          const fromFn = sb.from as unknown as (table: string) => FromQuery
+          await fromFn('profiles').upsert?.({ id: user.id, player_names: uniq })
         }
       } catch (err) {
         void err
