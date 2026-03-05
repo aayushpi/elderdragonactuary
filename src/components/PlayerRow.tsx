@@ -162,7 +162,8 @@ export function PlayerRow({
                       const pods = loadPods()
                       const profile = loadProfile()
                       const profileName = (profile.displayName ?? "").trim()
-                      const allNames = Array.from(new Set(pods.flatMap((p) => p.players).filter(Boolean)))
+                      const cloudNames = profile.playerNames ?? []
+                      const allNames = Array.from(new Set([...cloudNames, ...pods.flatMap((p) => p.players)].filter(Boolean)))
                       const q = (player.displayName ?? "").trim().toLowerCase()
                       const candidates = q
                         ? allNames.filter((n) => n.toLowerCase().includes(q))

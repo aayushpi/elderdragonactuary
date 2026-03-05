@@ -1,5 +1,22 @@
 import type { Game, Player } from "@/types"
+import { supabase } from "@/lib/supabase"
 
+// Minimal runtime shape for the supabase client we interact with here.
+type AuthLike = {
+  getUser?: () => Promise<{ data: { user?: { id?: string; user_metadata?: unknown } } }>;
+  updateUser?: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+}
+
+type FromQuery = {
+  select: (cols?: string) => { eq: (col: string, val: unknown) => { single: () => Promise<{ data: unknown }> } }
+}
+
+type SupabaseLike = {
+  auth?: AuthLike
+  from?: (table: string) => FromQuery
+}
+
+const sb = supabase as unknown as SupabaseLike
 const STORAGE_KEY = "commando_games"
 const PODS_KEY = "commando_pods"
 const PROFILE_KEY = "commando_profile"
@@ -199,10 +216,55 @@ export function createPodIfMissing(playerNames: string[]): Pod | null {
   return pod
 }
 
-export function loadProfile(): { displayName?: string } {
+export function loadProfile(): { displayName?: string; playerNames?: string[] } {
   try {
     const raw = localStorage.getItem(PROFILE_KEY)
-    return raw ? (JSON.parse(raw) as { displayName?: string }) : {}
+    const local = raw ? (JSON.parse(raw) as { displayName?: string; playerNames?: string[] }) : {}
+    // Fire-and-forget: attempt to refresh profile from cloud
+    ;(async function fetchRemote() {
+      try {
+        // Try to read user metadata first
+        if (sb.auth && typeof sb.auth.getUser === 'function') {
+          const resp = await sb.auth.getUser!()
+          const remoteUser = resp?.data?.user
+          const remoteMeta = remoteUser?.user_metadata ?? undefined
+          if (remoteMeta && Array.isArray((remoteMeta as Record<string, unknown>).player_names)) {
+            const remoteList = (remoteMeta as Record<string, unknown>).player_names as unknown[]
+            const merged = { ...local, playerNames: remoteList.map(String) }
+            localStorage.setItem(PROFILE_KEY, JSON.stringify(merged))
+            try {
+              const ev = new CustomEvent("profile:updated", { detail: { displayName: merged.displayName, playerNames: merged.playerNames } })
+              window.dispatchEvent(ev)
+            } catch (err) { void err }
+            return
+          }
+        }
+
+        // Fallback: try to fetch from `profiles` table if available
+        if (typeof sb.from === 'function' && sb.auth && typeof sb.auth.getUser === 'function') {
+          const userResp = await sb.auth.getUser!()
+          const userId = userResp?.data?.user?.id
+          if (userId) {
+            const { data } = await sb.from!('profiles').select('player_names,display_name').eq('id', userId).single()
+            if (data) {
+              const d = data as Record<string, unknown>
+              const remoteNames = Array.isArray(d.player_names) ? (d.player_names as unknown[]).map(String) : undefined
+              const remoteDisplay = typeof d.display_name === 'string' ? d.display_name : undefined
+              const merged = { ...local, displayName: remoteDisplay ?? local.displayName, playerNames: remoteNames ?? local.playerNames }
+              localStorage.setItem(PROFILE_KEY, JSON.stringify(merged))
+              try {
+                const ev = new CustomEvent("profile:updated", { detail: { displayName: merged.displayName, playerNames: merged.playerNames } })
+                window.dispatchEvent(ev)
+              } catch (err) { void err }
+            }
+          }
+        }
+      } catch (err) {
+        void err
+      }
+    })()
+
+    return local
   } catch {
     return {}
   }
@@ -214,14 +276,78 @@ export function saveProfileDisplayName(name: string | undefined): void {
     const next = { ...cur, displayName: name?.trim() || undefined }
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
     try {
-      const ev = new CustomEvent("profile:updated", { detail: { displayName: next.displayName } })
+      const ev = new CustomEvent("profile:updated", { detail: { displayName: next.displayName, playerNames: next.playerNames } })
       window.dispatchEvent(ev)
-    } catch {
-      // ignore event dispatch errors in older browsers
+    } catch (err) {
+      void err
     }
+    // best-effort: persist to cloud
+    ;(async function persist() {
+      try {
+        if (!sb.auth || typeof sb.auth.getUser !== 'function') return
+        const userResp = await sb.auth.getUser!()
+        const user = userResp?.data?.user
+        if (!user) return
+        // prefer updating user metadata when available
+        if (typeof sb.auth.updateUser === 'function') {
+          await sb.auth.updateUser({ data: { display_name: next.displayName, player_names: next.playerNames } })
+          return
+        }
+        // otherwise upsert into profiles table if available
+        if (typeof sb.from === 'function') {
+          await sb.from!('profiles').upsert({ id: user.id, display_name: next.displayName, player_names: next.playerNames })
+        }
+      } catch (err) {
+        void err
+      }
+    })()
   } catch {
     // ignore
   }
+}
+
+/** Save a deduplicated list of player names to the local profile and cloud. */
+export function saveProfilePlayerNames(names: string[] | undefined): void {
+  try {
+    const cur = loadProfile()
+    const trimmed = (names ?? []).map((n) => (n ?? '').trim()).filter(Boolean)
+    const uniq: string[] = Array.from(new Set(trimmed))
+    const next = { ...cur, playerNames: uniq }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+    try {
+      const ev = new CustomEvent("profile:updated", { detail: { displayName: next.displayName, playerNames: next.playerNames } })
+      window.dispatchEvent(ev)
+    } catch (err) { void err }
+    ;(async function persist() {
+      try {
+        if (!sb.auth || typeof sb.auth.getUser !== 'function') return
+        const userResp = await sb.auth.getUser!()
+        const user = userResp?.data?.user
+        if (!user) return
+        if (typeof sb.auth.updateUser === 'function') {
+          await sb.auth.updateUser({ data: { player_names: uniq } })
+          return
+        }
+        if (typeof sb.from === 'function') {
+          await sb.from!('profiles').upsert({ id: user.id, player_names: uniq })
+        }
+      } catch (err) {
+        void err
+      }
+    })()
+  } catch (err) { void err }
+}
+
+/** Merge and add new player names into existing saved profile player list. */
+export function addProfilePlayerNames(names: string[] | undefined): void {
+  if (!names || names.length === 0) return
+  try {
+    const cur = loadProfile()
+    const existing = (cur.playerNames ?? []).map((n) => n.trim()).filter(Boolean)
+    const incoming = names.map((n) => (n ?? '').trim()).filter(Boolean)
+    const merged = Array.from(new Set([...existing, ...incoming]))
+    saveProfilePlayerNames(merged)
+  } catch (err) { void err }
 }
 
 // ── Import ────────────────────────────────────────────────────────────────────

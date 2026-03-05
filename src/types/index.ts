@@ -53,6 +53,8 @@ export interface Player {
   knockoutTurn?: number
   seatPosition: SeatPosition
   displayName?: string
+  // Canonical saved player name used for opponent/autocomplete purposes
+  playerName?: string
   fastMana: FastManaInfo
 }
 
