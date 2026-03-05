@@ -14,25 +14,30 @@ create index if not exists idx_profiles_id on public.profiles(id);
 -- Row Level Security: users may only operate on their own profile
 alter table public.profiles enable row level security;
 
-create policy if not exists "Users can view own profile"
+drop policy if exists "Users can view own profile" on public.profiles;
+create policy "Users can view own profile"
   on public.profiles for select
   using (auth.uid() = id);
 
-create policy if not exists "Users can insert own profile"
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
 
-create policy if not exists "Users can update own profile"
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
-create policy if not exists "Users can delete own profile"
+drop policy if exists "Users can delete own profile" on public.profiles;
+create policy "Users can delete own profile"
   on public.profiles for delete
   using (auth.uid() = id);
 
 -- Use existing handle_updated_at trigger if available
-create trigger if not exists on_profiles_updated
+drop trigger if exists on_profiles_updated on public.profiles;
+create trigger on_profiles_updated
   before update on public.profiles
   for each row
   execute function public.handle_updated_at();
