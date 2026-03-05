@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react"
-import { Plus, ArrowRight } from "lucide-react"
+import { Plus, ArrowRight, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { GameHistoryRow } from "@/components/GameHistoryRow"
@@ -12,15 +12,16 @@ interface DashboardPageProps {
   games: Game[]
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
+  onEditGame: (id: string) => void
 }
 
-export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPageProps) {
+export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: DashboardPageProps) {
   const stats = useStats(games)
 
   const recentGames = useMemo(() => {
     return [...games]
       .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
-      .slice(0, 3)
+      .slice(0, 5)
   }, [games])
 
   const topCommanders = useMemo(() => {
@@ -150,9 +151,17 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame }: DashboardPag
             {recentGames.map((game) => (
               <div
                 key={game.id}
-                className="rounded-lg border border-border bg-card"
+                className="rounded-lg border border-border bg-card flex items-start justify-between"
               >
-                <GameHistoryRow game={game} />
+                <div className="flex-1">
+                  <GameHistoryRow game={game} />
+                </div>
+                <div className="p-3">
+                  <Button size="sm" variant="outline" onClick={() => onEditGame(game.id)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="ml-2 text-sm">Edit</span>
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

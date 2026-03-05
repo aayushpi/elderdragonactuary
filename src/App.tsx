@@ -233,6 +233,7 @@ function App() {
                   games={games}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={openLogGameFlow}
+                  onEditGame={openEditGameFlow}
                 />
               }
             />
