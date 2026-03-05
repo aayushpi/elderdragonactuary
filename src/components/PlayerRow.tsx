@@ -1,5 +1,7 @@
 import { useState } from "react"
-import { Trophy, UserPlus, X, Minus, Plus } from "lucide-react"
+import { Trophy, UserPlus, X, Minus, Plus, HelpCircle } from "lucide-react"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { loadPods, loadProfile } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
@@ -57,6 +59,7 @@ export function PlayerRow({
   showWinnerError,
 }: PlayerRowProps) {
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   function handleCommanderChange(name: string, card: ScryfallCard | null) {
     if (card) {
@@ -139,15 +142,66 @@ export function PlayerRow({
       <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
           <FormField>
-            <InputGroup className="w-40">
-              <Input
-                value={player.displayName ?? ""}
-                onChange={(e) => onChange({ displayName: e.target.value })}
-                placeholder={label}
-                className="w-full h-10 bg-transparent border-0 text-sm px-3"
-              />
-              {isMe && <InputGroupText>Me</InputGroupText>}
-            </InputGroup>
+                <div className="flex items-center gap-2 relative">
+                  <InputGroup className="w-40">
+                <Input
+                  value={player.displayName ?? ""}
+                      onChange={(e) => onChange({ displayName: e.target.value })}
+                  placeholder={label}
+                  className="w-full h-10 bg-transparent border-0 text-sm px-3"
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                />
+                {isMe && <InputGroupText>Me</InputGroupText>}
+              </InputGroup>
+
+                  {/* Suggestions dropdown for existing pod player names (non-me only) */}
+                  <div className="absolute left-0 top-full mt-1 z-50 w-40">
+                    {(() => {
+                      if (isMe || !showSuggestions) return null
+                      const pods = loadPods()
+                      const profile = loadProfile()
+                      const profileName = (profile.displayName ?? "").trim()
+                      const allNames = Array.from(new Set(pods.flatMap((p) => p.players).filter(Boolean)))
+                      const q = (player.displayName ?? "").trim().toLowerCase()
+                      const candidates = q
+                        ? allNames.filter((n) => n.toLowerCase().includes(q))
+                        : allNames
+                      const filtered = candidates.filter((n) => n.trim() && n.trim() !== profileName)
+                      if (!filtered.length) return null
+                      return (
+                        <div className="rounded-md border bg-popover p-1 shadow-md">
+                          {filtered.map((n) => (
+                            <button
+                              key={n}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                onChange({ displayName: n })
+                                setShowSuggestions(false)
+                              }}
+                              className="w-full text-left px-2 py-1 text-sm hover:bg-accent"
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
+
+                  <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" className="p-0" aria-label="Player name info">
+                    <HelpCircle className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent>
+                  <p className="text-sm">
+                    Adding names for each player will save this game as a pod and makes starting games with these players simpler. A pod is only saved if all names are entered!
+                  </p>
+                </PopoverContent>
+              </Popover>
+            </div>
           </FormField>
         </div>
 
