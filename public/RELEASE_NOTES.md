@@ -1,6 +1,12 @@
 # Elder Dragon Actuary
 
 
+## v0.2.0 - March 8, 2026
+
+- Player names and pods are now saved to the cloud alongside game data
+- Game history shows pod stats as well
+- Quickly start a game with your existing pod!
+
 ## v0.1.0 - February 26, 2026
 
 - Games are now saved on the cloud. It's still early days so please backup often!

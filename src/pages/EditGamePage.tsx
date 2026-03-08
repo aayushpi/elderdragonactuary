@@ -9,7 +9,7 @@ import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
-import { createPodIfMissing, saveProfileDisplayName } from "@/lib/storage"
+import { createPodIfMissing, saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
 interface PlayerFieldErrors {
   commanderName: boolean
@@ -108,9 +108,32 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
     return result
   }, [games])
 
-  // Initialize from existing game
+  // Derive unique opponent names from game history for autocomplete
+  const knownPlayerNames = useMemo((): string[] => {
+    const names = new Set<string>()
+    for (const g of games) {
+      for (const p of g.players) {
+        if (!p.isMe && p.displayName?.trim()) {
+          names.add(p.displayName.trim())
+        }
+      }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [games])
+
+  // Initialize from existing game — prefill "me" displayName from profile if missing
+  const initialPlayers = useMemo(() => {
+    const profile = loadProfile()
+    return game.players.map((p) => {
+      if (p.isMe && !p.displayName && profile.displayName) {
+        return { ...p, displayName: profile.displayName }
+      }
+      return p
+    })
+  }, [game.players])
+
   const [playerCount] = useState<number>(game.players.length)
-  const [players, setPlayers] = useState<Partial<Player>[]>(game.players)
+  const [players, setPlayers] = useState<Partial<Player>[]>(initialPlayers)
   const [winnerId, setWinnerId] = useState<string | null>(game.winnerId)
   const [winTurn, setWinTurn] = useState(game.winTurn.toString())
   const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
@@ -218,9 +241,22 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
       bracket: bracket ?? undefined,
     }
+    // Build playerNames map when all players have explicit display names
+    const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
+    const allNamed = names.every((n) => n.length > 0)
+    if (allNamed) {
+      const playerNamesMap: Record<string, string> = {}
+      finalizedPlayers.forEach((p) => {
+        if (p.id && p.displayName?.trim()) {
+          playerNamesMap[p.id] = p.displayName.trim()
+        }
+      })
+      updatedGame.playerNames = playerNamesMap
+    } else {
+      updatedGame.playerNames = undefined
+    }
     onSave(updatedGame)
     // Create a pod only if all players have explicit player names (`displayName`)
-    const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
     createPodIfMissing(names)
   }
 
@@ -349,6 +385,7 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
                 onKoTurnChange={(turn) => handleKoTurnChange(originalIndex, turn)}
                 onChange={(updated) => updatePlayer(originalIndex, updated)}
                 recentCommanders={player.isMe ? recentMyCommanders : undefined}
+                knownPlayerNames={knownPlayerNames}
                 fieldErrors={{
                   commanderName: errors.players[originalIndex]?.commanderName,
                   seatPosition: errors.players[originalIndex]?.seatPosition,
