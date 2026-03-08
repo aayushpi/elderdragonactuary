@@ -1,24 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock supabase client used by storage.ts. Create mocks inside factory
-// to avoid vi.mock hoisting issues, and expose them on globalThis for assertions.
-vi.mock('@/lib/supabase', () => {
-  const mockUpdateUser = vi.fn(async (_args: unknown) => ({ data: null, error: null }))
-  const mockUpsert = vi.fn(async (vals: unknown) => ({ data: vals, error: null }))
-  // Expose mocks for test assertions
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore - test-only global attachment
-  globalThis.__TEST_MOCKS = { mockUpdateUser, mockUpsert }
-  return {
-    supabase: {
-      auth: {
-        getUser: async () => ({ data: { user: { id: 'test-user-123' } } }),
-        updateUser: mockUpdateUser,
-      },
-      from: (_table: string) => ({ upsert: mockUpsert }),
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getUser: async () => ({ data: { user: { id: 'test-user-123' } } }),
     },
-  }
-})
+  },
+}))
 
 import { saveProfilePlayerNames } from '@/lib/storage'
 
@@ -35,27 +23,36 @@ if (typeof globalThis.localStorage === 'undefined') {
   }
 }
 
-describe('saveProfilePlayerNames (simulate)', () => {
+describe('saveProfilePlayerNames', () => {
   beforeEach(() => {
-    const m = (globalThis as any).__TEST_MOCKS
-    m.mockUpdateUser.mockClear()
-    m.mockUpsert.mockClear()
     localStorage.clear()
   })
 
-  it('persists locally and calls supabase update/upsert', async () => {
-    saveProfilePlayerNames(['Andy'])
-    // wait for background async IIFE to run
-    await new Promise((r) => setTimeout(r, 100))
+  it('persists player names to localStorage profile', () => {
+    saveProfilePlayerNames(['Andy', 'Beth'])
 
-    // localStorage should have the profile
     const raw = localStorage.getItem('commando_profile')
     expect(raw).toBeTruthy()
     const profile = JSON.parse(raw as string)
-    expect(profile.playerNames).toContain('Andy')
+    expect(profile.playerNames).toEqual(['Andy', 'Beth'])
+  })
 
-    // Supabase auth.updateUser should have been called OR from().upsert
-    const m = (globalThis as any).__TEST_MOCKS
-    expect(m.mockUpdateUser.mock.calls.length + m.mockUpsert.mock.calls.length).toBeGreaterThan(0)
+  it('trims and filters empty names', () => {
+    saveProfilePlayerNames(['  Andy  ', '', '  '])
+
+    const raw = localStorage.getItem('commando_profile')
+    expect(raw).toBeTruthy()
+    const profile = JSON.parse(raw as string)
+    expect(profile.playerNames).toEqual(['Andy'])
+  })
+
+  it('removes playerNames when all names are empty', () => {
+    saveProfilePlayerNames(['Andy'])
+    saveProfilePlayerNames(['', '  '])
+
+    const raw = localStorage.getItem('commando_profile')
+    expect(raw).toBeTruthy()
+    const profile = JSON.parse(raw as string)
+    expect(profile.playerNames).toBeUndefined()
   })
 })
