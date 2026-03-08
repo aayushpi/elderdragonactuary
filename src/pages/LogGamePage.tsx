@@ -12,8 +12,8 @@ import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
-import type { Game, Player, RecentCommander, SeatPosition, Pod } from "@/types"
-import { loadPods, createPodIfMissing, saveProfileDisplayName, loadProfile } from "@/lib/storage"
+import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import { saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -126,9 +126,21 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     return result
   }, [games])
 
+  // Derive unique opponent names from game history for autocomplete
+  const knownPlayerNames = useMemo((): string[] => {
+    const names = new Set<string>()
+    for (const g of games) {
+      for (const p of g.players) {
+        if (!p.isMe && p.displayName?.trim()) {
+          names.add(p.displayName.trim())
+        }
+      }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [games])
+
   const [playerCount, setPlayerCount] = useState<number | null>(null)
   const [players, setPlayers] = useState<Partial<Player>[]>([])
-  const [pods, setPods] = useState<Pod[]>([])
   const [selectedPodId, setSelectedPodId] = useState<string | null>(null)
   const [podsOpen, setPodsOpen] = useState(false)
   const [winnerId, setWinnerId] = useState<string | null>(null)
@@ -217,9 +229,24 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     setErrors(EMPTY_ERRORS)
   }
 
-  useEffect(() => {
-    setPods(loadPods())
-  }, [])
+  // Derive pods from game history: groups of named players that played together
+  // Only opponent names are stored — the user is always implied.
+  const pods = useMemo(() => {
+    const map = new Map<string, { id: string; opponents: string[]; label: string; totalPlayers: number }>()
+    for (const g of games) {
+      const names = g.players.map((p) => p.displayName?.trim()).filter(Boolean) as string[]
+      if (names.length !== g.players.length || names.length === 0) continue
+      const key = [...names].sort((a, b) => a.localeCompare(b)).join("|||")
+      if (!map.has(key)) {
+        const opponents = g.players
+          .filter((p) => !p.isMe)
+          .map((p) => p.displayName!.trim())
+          .sort((a, b) => a.localeCompare(b))
+        map.set(key, { id: key, opponents, label: opponents.join(", "), totalPlayers: g.players.length })
+      }
+    }
+    return Array.from(map.values())
+  }, [games])
 
   
 
@@ -322,11 +349,19 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
       bracket: bracket ?? undefined,
     }
-    onSave(game)
-    // Create a pod only if all players have explicit player names (`displayName`)
+    // Build playerNames map when all players have explicit display names
     const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
-    const pod = createPodIfMissing(names)
-    if (pod) setPods((prev) => [...prev, pod])
+    const allNamed = names.every((n) => n.length > 0)
+    if (allNamed) {
+      const playerNamesMap: Record<string, string> = {}
+      finalizedPlayers.forEach((p) => {
+        if (p.id && p.displayName?.trim()) {
+          playerNamesMap[p.id] = p.displayName.trim()
+        }
+      })
+      game.playerNames = playerNamesMap
+    }
+    onSave(game)
   }
 
   const totalPlayers = playerCount ?? 0
@@ -472,7 +507,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
               <Popover open={podsOpen} onOpenChange={setPodsOpen}>
                 <PopoverTrigger asChild>
                   <button className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base justify-between items-center text-left">
-                    <span className={"truncate text-sm "}>{selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}</span>
+                    <span className="truncate text-sm">{selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
                   </button>
                 </PopoverTrigger>
@@ -490,15 +525,33 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                         <CommandItem key={p.id} value={p.id} onSelect={() => {
                           setSelectedPodId(p.id)
                           const pod = p
-                          const total = pod.players.length
-                          const newPlayers: Partial<Player>[] = pod.players.map((name, i) => {
-                            const existing = players[i]
+                          const total = pod.totalPlayers
+                          const profile = loadProfile()
+                          // Player 0 = me
+                          const meExisting = players[0]
+                          const mePlayer: Partial<Player> = {
+                            id: meExisting?.id ?? generateId(),
+                            isMe: true,
+                            displayName: profile.displayName || "",
+                            commanderName: meExisting?.commanderName ?? (prefillCommander || undefined),
+                            commanderImageUri: meExisting?.commanderImageUri,
+                            commanderManaCost: meExisting?.commanderManaCost,
+                            commanderTypeLine: meExisting?.commanderTypeLine,
+                            commanderColorIdentity: meExisting?.commanderColorIdentity,
+                            partnerName: meExisting?.partnerName,
+                            partnerImageUri: meExisting?.partnerImageUri,
+                            fastMana: meExisting?.fastMana ?? { hasFastMana: false, cards: [] },
+                            seatPosition: meExisting?.seatPosition,
+                            knockoutTurn: meExisting?.knockoutTurn,
+                          }
+                          // Remaining slots = opponents from pod
+                          const opponentPlayers: Partial<Player>[] = pod.opponents.map((name, i) => {
+                            const existing = players[i + 1]
                             return {
                               id: existing?.id ?? generateId(),
-                              isMe: i === 0,
+                              isMe: false,
                               displayName: name,
-                              // Preserve any already-selected commander info for this slot (especially `me`)
-                              commanderName: existing?.commanderName ?? (i === 0 && prefillCommander ? prefillCommander : undefined),
+                              commanderName: existing?.commanderName,
                               commanderImageUri: existing?.commanderImageUri,
                               commanderManaCost: existing?.commanderManaCost,
                               commanderTypeLine: existing?.commanderTypeLine,
@@ -510,6 +563,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                               knockoutTurn: existing?.knockoutTurn,
                             }
                           })
+                          const newPlayers = [mePlayer, ...opponentPlayers]
                           setPlayerCount(total)
                           setPlayers(newPlayers)
                           // If we applied a pod onto an empty players array but have a prefill commander,
@@ -538,7 +592,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                           setWinnerId(null)
                           setWinTurn("")
                           setPodsOpen(false)
-                        }}>{p.label ?? p.players.join(', ')}</CommandItem>
+                        }}>{p.label}</CommandItem>
                       ))}
                     </CommandList>
                   </Command>
@@ -633,6 +687,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                     onKoTurnChange={(turn) => handleKoTurnChange(originalIndex, turn)}
                     onChange={(updated) => updatePlayer(originalIndex, updated)}
                     recentCommanders={player.isMe ? recentMyCommanders : undefined}
+                    knownPlayerNames={knownPlayerNames}
                     fieldErrors={{
                       commanderName: errors.players[originalIndex]?.commanderName,
                       seatPosition: errors.players[originalIndex]?.seatPosition,

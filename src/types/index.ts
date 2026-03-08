@@ -67,6 +67,7 @@ export interface Game {
   winConditions?: string[]
   keyWinconCards?: string[]
   bracket?: number // 1-5, optional power level bracket
+  playerNames?: Record<string, string> // map of player id → display name (set when all names provided)
 }
 
 export interface Pod {
