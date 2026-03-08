@@ -35,6 +35,7 @@ function playerToDb(p: Player): DbPlayer {
     partnerTypeLine: p.partnerTypeLine,
     knockoutTurn: p.knockoutTurn,
     seatPosition: p.seatPosition,
+    displayName: p.displayName,
     fastMana: p.fastMana,
   }
 }
@@ -54,12 +55,22 @@ function dbToPlayer(d: DbPlayer): Player {
     partnerTypeLine: d.partnerTypeLine,
     knockoutTurn: d.knockoutTurn,
     seatPosition: d.seatPosition,
+    displayName: d.displayName,
     fastMana: d.fastMana,
   }
 }
 
 function rowToGame(row: GameRow): Game {
   const players = (row.players as unknown as DbPlayer[]).map(dbToPlayer)
+  // Derive playerNames from per-player displayName stored in the JSONB
+  let playerNames: Record<string, string> | undefined
+  const allNamed = players.every((p) => p.displayName?.trim())
+  if (allNamed && players.length > 0) {
+    playerNames = {}
+    for (const p of players) {
+      playerNames[p.id] = p.displayName!.trim()
+    }
+  }
   return {
     id: row.id,
     playedAt: row.played_at,
@@ -70,6 +81,7 @@ function rowToGame(row: GameRow): Game {
     winConditions: row.win_conditions ?? undefined,
     keyWinconCards: row.key_wincon_cards ?? undefined,
     bracket: row.bracket ?? undefined,
+    playerNames,
   }
 }
 
