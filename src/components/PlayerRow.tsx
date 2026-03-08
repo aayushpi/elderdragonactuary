@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Trophy, UserPlus, X, Minus, Plus, HelpCircle } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { loadPods, loadProfile } from "@/lib/storage"
+import { loadProfile } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
@@ -36,6 +36,7 @@ interface PlayerRowProps {
   onKoTurnChange: (turn: string) => void
   onChange: (updated: Partial<Player>) => void
   recentCommanders?: RecentCommander[]
+  knownPlayerNames?: string[]
   fieldErrors?: FieldErrors
   showWinnerError?: boolean
 }
@@ -55,6 +56,7 @@ export function PlayerRow({
   onKoTurnChange,
   onChange,
   recentCommanders,
+  knownPlayerNames,
   fieldErrors,
   showWinnerError,
 }: PlayerRowProps) {
@@ -155,18 +157,16 @@ export function PlayerRow({
                 {isMe && <InputGroupText>Me</InputGroupText>}
               </InputGroup>
 
-                  {/* Suggestions dropdown for existing pod player names (non-me only) */}
+                  {/* Suggestions dropdown for existing player names (non-me only) */}
                   <div className="absolute left-0 top-full mt-1 z-50 w-40">
                     {(() => {
-                      if (isMe || !showSuggestions) return null
-                      const pods = loadPods()
+                      if (isMe || !showSuggestions || !knownPlayerNames?.length) return null
                       const profile = loadProfile()
                       const profileName = (profile.displayName ?? "").trim()
-                      const allNames = Array.from(new Set(pods.flatMap((p) => p.players).filter(Boolean)))
                       const q = (player.displayName ?? "").trim().toLowerCase()
                       const candidates = q
-                        ? allNames.filter((n) => n.toLowerCase().includes(q))
-                        : allNames
+                        ? knownPlayerNames.filter((n) => n.toLowerCase().includes(q))
+                        : knownPlayerNames
                       const filtered = candidates.filter((n) => n.trim() && n.trim() !== profileName)
                       if (!filtered.length) return null
                       return (

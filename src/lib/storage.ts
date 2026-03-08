@@ -33,6 +33,7 @@ interface ExportPlayer {
   partnerManaCost?: string
   partnerTypeLine?: string
   partnerImageUri?: string
+  displayName?: string
   knockoutTurn?: number
   seatPosition: number
   fastMana: { hasFastMana: boolean; cards: string[] }
@@ -47,6 +48,7 @@ interface ExportGame {
   keyWinconCards?: string[]
   bracket?: number        // 1-5, optional power level bracket
   podId?: string
+  playerNames?: Record<string, string>
   players: ExportPlayer[]
 }
 
@@ -70,6 +72,7 @@ export function exportData(): string {
       keyWinconCards: g.keyWinconCards,
       bracket: g.bracket,
       podId: g.podId,
+      playerNames: g.playerNames,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
@@ -224,6 +227,17 @@ export function saveProfileDisplayName(name: string | undefined): void {
   }
 }
 
+export function saveProfilePlayerNames(names: string[]): void {
+  try {
+    const cur = loadProfile()
+    const trimmed = names.map((n) => (n ?? "").trim()).filter(Boolean)
+    const next = { ...cur, playerNames: trimmed.length > 0 ? trimmed : undefined }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+  } catch {
+    // ignore
+  }
+}
+
 // ── Import ────────────────────────────────────────────────────────────────────
 
 /**
@@ -265,6 +279,27 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
           seatPosition: p.seatPosition as Player["seatPosition"],
           commanderColorIdentity: p.commanderColorIdentity as Player["commanderColorIdentity"],
         }))
+        // Rebuild playerNames map with the newly generated player IDs
+        let playerNames: Record<string, string> | undefined
+        if (g.playerNames && typeof g.playerNames === "object" && !Array.isArray(g.playerNames)) {
+          // Re-map old IDs to new IDs using index correspondence
+          const oldValues = Object.values(g.playerNames as Record<string, string>)
+          playerNames = {}
+          // If we can match by index, use index-based mapping
+          players.forEach((p, i) => {
+            if (i < oldValues.length && typeof oldValues[i] === "string") {
+              playerNames![p.id] = oldValues[i]
+            }
+          })
+          if (Object.keys(playerNames).length === 0) playerNames = undefined
+        } else {
+          // Build from displayName on players if all present
+          const allNamed = players.every((p) => p.displayName?.trim())
+          if (allNamed) {
+            playerNames = {}
+            players.forEach((p) => { if (p.displayName?.trim()) playerNames![p.id] = p.displayName!.trim() })
+          }
+        }
         return {
           id: generateId(),
           playedAt: typeof g.playedAt === "string" ? new Date(g.playedAt).toISOString() : new Date().toISOString(),
@@ -275,6 +310,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
           winConditions: Array.isArray(g.winConditions) ? g.winConditions as string[] : undefined,
           keyWinconCards: Array.isArray(g.keyWinconCards) ? g.keyWinconCards as string[] : undefined,
           bracket: typeof g.bracket === "number" ? g.bracket : undefined,
+          playerNames,
           players,
         } as Game
       }

@@ -92,12 +92,17 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <div className="space-y-1">
-                  <CommanderCard
-                    commanderName={player.commanderName}
-                    mobileDisplayName={getMobileMdfcFrontName(player.commanderName)}
-                    imageUri={player.commanderImageUri}
-                    compact
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <CommanderCard
+                      commanderName={player.commanderName}
+                      mobileDisplayName={getMobileMdfcFrontName(player.commanderName)}
+                      imageUri={player.commanderImageUri}
+                      compact
+                    />
+                    {player.displayName && (
+                      <Badge variant="outline" className="text-xs shrink-0">{player.displayName}</Badge>
+                    )}
+                  </div>
                   {player.partnerName && (
                     <CommanderCard
                       commanderName={player.partnerName}
