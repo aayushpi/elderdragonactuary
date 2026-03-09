@@ -46,13 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (email: string, password: string, inviteCode: string) => {
-    const resp = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          invite_code: inviteCode,
-        },
+    const resp = await supabase.auth.signUp({ email, password }, {
+      data: {
+        invite_code: inviteCode,
       },
     })
     if (!error) return { error: null }
