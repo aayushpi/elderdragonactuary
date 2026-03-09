@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LogIn, UserPlus, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
@@ -66,6 +66,18 @@ export function AuthForm({ onSignedIn }: AuthFormProps) {
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const modeParam = params.get("mode")
+      const inviteParam = params.get("invite")
+      if (modeParam === "signup") setMode("signup")
+      if (inviteParam) setInviteCode(inviteParam)
+    } catch {
+      // ignore when not running in browser
+    }
+  }, [])
 
   return (
     <div className="mx-auto w-full max-w-sm space-y-6">
