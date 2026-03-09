@@ -159,7 +159,7 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
   useEffect(() => {
     if (!shareOpen) return
     try {
-      const signupUrl = `${window.location.origin}/?mode=signup&invite=${encodeURIComponent("BOLT THE BIRD")}`
+      const signupUrl = `${window.location.origin}/auth?mode=signup&invite=${encodeURIComponent("BOLT THE BIRD")}`
       const qr = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(signupUrl)}`
       setQrSrc(qr)
     } catch {
@@ -271,7 +271,7 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-sm">
           <div className="text-center">
-            <h3 className="text-lg font-semibold mb-4">Invite someone!</h3>
+            <h3 className="text-lg font-semibold mb-4">Invite someone!D</h3>
             {qrSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qrSrc} alt="Invite QR code" className="mx-auto mb-4 w-72 h-72" />
