@@ -30,36 +30,6 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
   }, [stats.byCommander])
 
   // early empty state mirrors StatsPage so users still see a call to action
-  if (stats.gamesPlayed === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-lg border border-dashed border-border p-12 text-center space-y-4">
-          <div>
-            <p className="text-muted-foreground text-sm">No games logged yet.</p>
-            <p className="text-muted-foreground text-xs mt-1">
-              Log a game to see your stats here.
-            </p>
-          </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                Track a game
-                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-                  N
-                </kbd>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent>
-              <div className="flex flex-col gap-2">
-                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-    )
-  }
 
 
   // render helper for favorite commander cards
@@ -140,6 +110,38 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
     const amount = card ? card.offsetWidth + 12 : 230 // card width + gap
     el.scrollBy({ left: dir * amount, behavior: "smooth" })
   }, [])
+
+  // early empty state mirrors StatsPage so users still see a call to action
+  if (stats.gamesPlayed === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-lg border border-dashed border-border p-12 text-center space-y-4">
+          <div>
+            <p className="text-muted-foreground text-sm">No games logged yet.</p>
+            <p className="text-muted-foreground text-xs mt-1">
+              Log a game to see your stats here.
+            </p>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Track a game
+                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+                  N
+                </kbd>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent>
+              <div className="flex flex-col gap-2">
+                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
