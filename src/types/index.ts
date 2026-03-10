@@ -142,6 +142,46 @@ export interface ComputedStats {
   topWinConditions: Array<{ condition: string; count: number }>
 }
 
+// ─── Pod ELO ────────────────────────────────────────────────────────────────
+
+/** A single snapshot in a player's ELO history within a pod */
+export interface PodEloSnapshot {
+  gameIndex: number   // 1-based game number in the pod
+  gameId: string
+  date: string        // ISO date of the game
+  rating: number      // ELO after this game
+}
+
+/** ELO data for one player inside a pod */
+export interface PodPlayerElo {
+  name: string        // display name
+  currentRating: number
+  history: PodEloSnapshot[]
+  wins: number
+  games: number
+}
+
+/** ELO data for an entire pod */
+export interface PodEloGroup {
+  podKey: string
+  label: string
+  players: PodPlayerElo[]
+  totalGames: number
+}
+
+// ─── Commander ELO ──────────────────────────────────────────────────────────
+
+/** ELO data for a single commander */
+export interface CommanderEloEntry {
+  name: string
+  manaCost?: string
+  imageUri?: string
+  currentRating: number
+  history: PodEloSnapshot[]   // reuse same snapshot shape
+  wins: number
+  games: number
+}
+
 // ─── Routing ────────────────────────────────────────────────────────────────
 
 export type AppView = "dashboard" | "log-game" | "edit-game" | "history" | "settings" | "game-detail"

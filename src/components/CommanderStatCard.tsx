@@ -334,10 +334,10 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
             <img
               src={resolvedImageUri}
               alt={stat.name}
-              className="w-14 h-14 rounded object-cover object-center border border-border shrink-0"
+              className="w-14 h-14 rounded-full object-cover object-center border border-border shrink-0"
             />
           ) : (
-            <div className="w-14 h-14 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">
+            <div className="w-14 h-14 rounded-full bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">
               ?
             </div>
           )}
