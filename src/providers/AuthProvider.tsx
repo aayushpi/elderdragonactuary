@@ -46,15 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (email: string, password: string, inviteCode: string) => {
-    const resp = await supabase.auth.signUp({ email, password }, {
-      data: {
-        invite_code: inviteCode,
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          invite_code: inviteCode,
+        },
       },
     })
     if (!error) return { error: null }
 
     // Log full error for debugging server-side trigger/database issues
-    // eslint-disable-next-line no-console
     console.error("signUp error:", error, { email, inviteCode })
 
     // Supabase/GoTrue wraps trigger exceptions as opaque "Database error" messages.
