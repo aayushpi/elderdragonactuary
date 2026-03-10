@@ -30,7 +30,7 @@ vi.mock("@/lib/analytics", () => ({
   trackUserSignedUp: vi.fn(),
 }))
 
-import { useAuth, AuthContext } from "@/hooks/useAuth"
+import { useAuth } from "@/hooks/useAuth"
 import { AuthProvider } from "@/providers/AuthProvider"
 
 function wrapper({ children }: { children: ReactNode }) {

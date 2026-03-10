@@ -18,6 +18,8 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
     setSignInOpen(defaultSignInOpen)
   }, [defaultSignInOpen])
 
+  
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-6xl px-6 py-10 sm:py-14">
@@ -45,6 +47,7 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
               <Button size="lg" variant="outline" onClick={() => setReleaseNotesOpen(true)}>
                 View release notes
               </Button>
+            
             </div>
           </section>
 

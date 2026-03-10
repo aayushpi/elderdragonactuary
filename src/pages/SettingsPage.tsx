@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Download, Upload, Trash2, FileText, Loader2 } from "lucide-react"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
@@ -24,6 +25,8 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [importLoading, setImportLoading] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [qrSrc, setQrSrc] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState<string | undefined>(undefined)
   useEffect(() => {
     const profile = loadProfile()
@@ -153,6 +156,17 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
     }
   }
 
+  useEffect(() => {
+    if (!shareOpen) return
+    try {
+      const signupUrl = `${window.location.origin}/auth?mode=signup&invite=${encodeURIComponent("BOLT THE BIRD")}`
+      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(signupUrl)}`
+      setQrSrc(qr)
+    } catch {
+      setQrSrc(null)
+    }
+  }, [shareOpen])
+
   return (
     <div className="space-y-6">
       {/* Settings section */}
@@ -169,6 +183,17 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
               saveProfileDisplayName(playerName)
               toast.success("Player name saved to profile")
             }}>Save</Button>
+          </div>
+        </div>
+        <div className="rounded-lg border bg-card p-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Invite friends</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Share an invite QR that pre-fills the signup code.</p>
+            </div>
+            <div>
+              <Button size="sm" variant="outline" onClick={() => setShareOpen(true)}>Share invite</Button>
+            </div>
           </div>
         </div>
         <div className="rounded-lg border bg-card divide-y divide-border">
@@ -242,6 +267,19 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
           onChange={handleImportFile}
         />
       </div>
+
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-4">Invite someone!D</h3>
+            {qrSrc ? (
+              <img src={qrSrc} alt="Invite QR code" className="mx-auto mb-4 w-72 h-72" />
+            ) : (
+              <div className="h-72 w-72 mx-auto bg-muted/30 flex items-center justify-center">QR unavailable</div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Danger zone */}
       <div className="space-y-3">
