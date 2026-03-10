@@ -273,7 +273,6 @@ export function SettingsPage({ onImport, onClearAll, games }: SettingsPageProps)
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-4">Invite someone!D</h3>
             {qrSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={qrSrc} alt="Invite QR code" className="mx-auto mb-4 w-72 h-72" />
             ) : (
               <div className="h-72 w-72 mx-auto bg-muted/30 flex items-center justify-center">QR unavailable</div>
