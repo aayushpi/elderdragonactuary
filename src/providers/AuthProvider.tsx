@@ -55,7 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     })
-    return { error: error?.message ?? null }
+    if (!error) return { error: null }
+
+    // Supabase/GoTrue wraps trigger exceptions as opaque "Database error" messages.
+    // Surface friendlier messages for known cases.
+    const msg = error.message ?? ""
+    if (/database error/i.test(msg)) {
+      return { error: "Signup failed — please double-check your invite code and try again." }
+    }
+    return { error: msg }
   }, [])
 
   const signOut = useCallback(async () => {
