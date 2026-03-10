@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Plus, ArrowRight, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react"
 import { Cell, Legend, Pie, PieChart, Sector } from "recharts"
 import { type PieSectorDataItem } from "recharts/types/polar/Pie"
@@ -15,7 +15,9 @@ import { WinRateBar } from "@/components/WinRateBar"
 import { WinStreakCard } from "@/components/WinStreakCard"
 import { TopWinConditionsCard } from "@/components/TopWinConditionsCard"
 import { CommanderStatCard } from "@/components/CommanderStatCard"
+import { EloCard } from "@/components/EloCard"
 import { useStats } from "@/hooks/useStats"
+import { computePodElo, computeCommanderElo } from "@/lib/stats"
 import type { CommanderStat, Game } from "@/types"
 
 const SEAT_ORDINALS: Record<number, string> = {
@@ -64,6 +66,8 @@ interface StatsPageProps {
 
 export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) {
   const stats = useStats(games)
+  const podEloGroups = useMemo(() => computePodElo(games), [games])
+  const commanderElo = useMemo(() => computeCommanderElo(games), [games])
   useEffect(() => {
     import('@/lib/analytics').then((mod) => {
       try { mod.trackViewStats({ stats_view: 'overall', games_played: stats.gamesPlayed }) } catch { void 0 }
@@ -369,6 +373,11 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
           </Card>
         </div>
       </div>
+
+      {/* ELO */}
+      {(podEloGroups.length > 0 || commanderElo.length > 0) && (
+        <EloCard podEloGroups={podEloGroups} commanders={commanderElo} />
+      )}
 
       {/* Commander performance */}
       {stats.byCommander.length > 0 && (

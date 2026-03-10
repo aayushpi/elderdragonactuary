@@ -1,4 +1,4 @@
-import type { Game, WinRateStat, SeatStats, ComputedStats, SeatPosition, MtgColor } from "@/types"
+import type { Game, WinRateStat, SeatStats, ComputedStats, SeatPosition, MtgColor, PodEloGroup, PodPlayerElo, PodEloSnapshot, CommanderEloEntry } from "@/types"
 
 function winRate(wins: number, games: number): WinRateStat {
   return { wins, games, rate: games === 0 ? 0 : wins / games }
@@ -261,4 +261,252 @@ export function computeStats(games: Game[]): ComputedStats {
     gamesPlayed: myGames.length,
     topWinConditions,
   }
+}
+
+// ─── Pod ELO ────────────────────────────────────────────────────────────────
+
+const DEFAULT_ELO = 1500
+const K_FACTOR = 32
+
+/**
+ * Compute multiplayer ELO for a single game.
+ *
+ * In a multiplayer free-for-all, each player is compared pairwise against every
+ * other player.  The winner scores 1 against every opponent; each loser scores 0
+ * against the winner and 0.5 against other losers ("drew" with fellow non-winners).
+ *
+ * The rating adjustment is the average of all pairwise adjustments.
+ */
+function multiplayerEloUpdate(
+  ratings: Map<string, number>,
+  playerNames: string[],
+  winnerName: string,
+): Map<string, number> {
+  const n = playerNames.length
+  if (n < 2) return new Map(ratings)
+
+  const deltas = new Map<string, number>()
+  for (const name of playerNames) deltas.set(name, 0)
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = playerNames[i]
+      const b = playerNames[j]
+      const ra = ratings.get(a) ?? DEFAULT_ELO
+      const rb = ratings.get(b) ?? DEFAULT_ELO
+
+      const ea = 1 / (1 + Math.pow(10, (rb - ra) / 400))
+      const eb = 1 - ea
+
+      let sa: number, sb: number
+      if (a === winnerName) {
+        sa = 1; sb = 0
+      } else if (b === winnerName) {
+        sa = 0; sb = 1
+      } else {
+        // both lost — treat as draw
+        sa = 0.5; sb = 0.5
+      }
+
+      deltas.set(a, (deltas.get(a) ?? 0) + K_FACTOR * (sa - ea))
+      deltas.set(b, (deltas.get(b) ?? 0) + K_FACTOR * (sb - eb))
+    }
+  }
+
+  // Average over (n-1) pairwise comparisons per player
+  const next = new Map<string, number>()
+  for (const name of playerNames) {
+    const old = ratings.get(name) ?? DEFAULT_ELO
+    next.set(name, Math.round(old + (deltas.get(name) ?? 0) / (n - 1)))
+  }
+  return next
+}
+
+/** Pod key: sorted set of display names joined by ||| */
+function podKeyForGame(game: Game): string | null {
+  const names = game.players.map((p) => p.displayName?.trim()).filter(Boolean) as string[]
+  if (names.length !== game.players.length || names.length === 0) return null
+  return [...names].sort((a, b) => a.localeCompare(b)).join("|||")
+}
+
+function winnerDisplayName(game: Game): string | null {
+  const winner = game.players.find((p) => p.id === game.winnerId)
+  return winner?.displayName?.trim() ?? null
+}
+
+/**
+ * Compute ELO ratings for every pod detected across all games.
+ * Games are processed in chronological order (oldest first).
+ */
+export function computePodElo(games: Game[]): PodEloGroup[] {
+  // Group games by pod key
+  const podMap = new Map<string, { label: string; players: string[]; games: Game[] }>()
+
+  for (const game of games) {
+    const key = podKeyForGame(game)
+    if (!key) continue
+
+    let entry = podMap.get(key)
+    if (!entry) {
+      const players = [...new Set(game.players.map((p) => p.displayName!.trim()))].sort((a, b) => a.localeCompare(b))
+      entry = { label: players.join(", "), players, games: [] }
+      podMap.set(key, entry)
+    }
+    entry.games.push(game)
+  }
+
+  const result: PodEloGroup[] = []
+
+  for (const [podKey, { label, players, games: podGames }] of podMap) {
+    // Sort oldest-first for chronological ELO processing
+    const sorted = [...podGames].sort(
+      (a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime(),
+    )
+
+    const ratings = new Map<string, number>()
+    for (const name of players) ratings.set(name, DEFAULT_ELO)
+
+    const histories = new Map<string, PodEloSnapshot[]>()
+    const winCounts = new Map<string, number>()
+    const gameCounts = new Map<string, number>()
+    for (const name of players) {
+      histories.set(name, [])
+      winCounts.set(name, 0)
+      gameCounts.set(name, 0)
+    }
+
+    for (let gi = 0; gi < sorted.length; gi++) {
+      const game = sorted[gi]
+      const wName = winnerDisplayName(game)
+      const gamePlayers = game.players
+        .map((p) => p.displayName?.trim())
+        .filter(Boolean) as string[]
+
+      if (!wName) continue
+
+      const updated = multiplayerEloUpdate(ratings, gamePlayers, wName)
+
+      for (const name of gamePlayers) {
+        const newRating = updated.get(name) ?? DEFAULT_ELO
+        ratings.set(name, newRating)
+        gameCounts.set(name, (gameCounts.get(name) ?? 0) + 1)
+        if (name === wName) winCounts.set(name, (winCounts.get(name) ?? 0) + 1)
+
+        histories.get(name)?.push({
+          gameIndex: gi + 1,
+          gameId: game.id,
+          date: game.playedAt,
+          rating: newRating,
+        })
+      }
+    }
+
+    const podPlayers: PodPlayerElo[] = players.map((name) => ({
+      name,
+      currentRating: ratings.get(name) ?? DEFAULT_ELO,
+      history: histories.get(name) ?? [],
+      wins: winCounts.get(name) ?? 0,
+      games: gameCounts.get(name) ?? 0,
+    }))
+
+    result.push({
+      podKey,
+      label,
+      players: podPlayers,
+      totalGames: sorted.length,
+    })
+  }
+
+  // Sort pods: most games first
+  return result.sort((a, b) => b.totalGames - a.totalGames)
+}
+
+// ─── Commander ELO ──────────────────────────────────────────────────────────
+
+/**
+ * Compute ELO ratings for commanders the user ("me") has played.
+ *
+ * Each game the user participated in is a multiplayer match between the
+ * commanders present.  All commanders in those games get ELO updates, but
+ * only the commanders the user personally piloted are returned.
+ * Games are processed chronologically.
+ */
+export function computeCommanderElo(games: Game[]): CommanderEloEntry[] {
+  const myGames = games.filter((g) => g.players.some((p) => p.isMe))
+  const sorted = [...myGames].sort(
+    (a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime(),
+  )
+
+  const ratings = new Map<string, number>()
+  const histories = new Map<string, PodEloSnapshot[]>()
+  const winCounts = new Map<string, number>()
+  const gameCounts = new Map<string, number>()
+  const metaMap = new Map<string, { manaCost?: string; imageUri?: string }>()
+  const myCommanders = new Set<string>()
+
+  // Track per-commander game index for the x-axis
+  const perCommanderGameIndex = new Map<string, number>()
+
+  for (let gi = 0; gi < sorted.length; gi++) {
+    const game = sorted[gi]
+    const winner = game.players.find((p) => p.id === game.winnerId)
+    if (!winner) continue
+    const winnerCmd = winner.commanderName
+
+    const commanders = game.players.map((p) => p.commanderName)
+
+    // Track which commanders "I" have played
+    const me = getMe(game)
+    if (me) myCommanders.add(me.commanderName)
+
+    // Initialize any new commanders
+    for (const p of game.players) {
+      const cmd = p.commanderName
+      if (!ratings.has(cmd)) {
+        ratings.set(cmd, DEFAULT_ELO)
+        histories.set(cmd, [])
+        winCounts.set(cmd, 0)
+        gameCounts.set(cmd, 0)
+        perCommanderGameIndex.set(cmd, 0)
+        metaMap.set(cmd, { manaCost: p.commanderManaCost, imageUri: p.commanderImageUri })
+      }
+    }
+
+    const updated = multiplayerEloUpdate(ratings, commanders, winnerCmd)
+
+    for (const cmd of commanders) {
+      const newRating = updated.get(cmd) ?? DEFAULT_ELO
+      ratings.set(cmd, newRating)
+      gameCounts.set(cmd, (gameCounts.get(cmd) ?? 0) + 1)
+      if (cmd === winnerCmd) winCounts.set(cmd, (winCounts.get(cmd) ?? 0) + 1)
+
+      const idx = (perCommanderGameIndex.get(cmd) ?? 0) + 1
+      perCommanderGameIndex.set(cmd, idx)
+
+      histories.get(cmd)?.push({
+        gameIndex: idx,
+        gameId: game.id,
+        date: game.playedAt,
+        rating: newRating,
+      })
+    }
+  }
+
+  // Only return commanders the user has personally played
+  const result: CommanderEloEntry[] = []
+  for (const name of myCommanders) {
+    const rating = ratings.get(name) ?? DEFAULT_ELO
+    result.push({
+      name,
+      manaCost: metaMap.get(name)?.manaCost,
+      imageUri: metaMap.get(name)?.imageUri,
+      currentRating: rating,
+      history: histories.get(name) ?? [],
+      wins: winCounts.get(name) ?? 0,
+      games: gameCounts.get(name) ?? 0,
+    })
+  }
+
+  // Sort by current rating descending
+  return result.sort((a, b) => b.currentRating - a.currentRating)
 }
