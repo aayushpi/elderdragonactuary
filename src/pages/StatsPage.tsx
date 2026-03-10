@@ -15,8 +15,7 @@ import { WinRateBar } from "@/components/WinRateBar"
 import { WinStreakCard } from "@/components/WinStreakCard"
 import { TopWinConditionsCard } from "@/components/TopWinConditionsCard"
 import { CommanderStatCard } from "@/components/CommanderStatCard"
-import { PodEloCard } from "@/components/PodEloCard"
-import { CommanderEloCard } from "@/components/CommanderEloCard"
+import { EloCard } from "@/components/EloCard"
 import { useStats } from "@/hooks/useStats"
 import { computePodElo, computeCommanderElo } from "@/lib/stats"
 import type { CommanderStat, Game } from "@/types"
@@ -375,14 +374,9 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
         </div>
       </div>
 
-      {/* Pod ELO */}
-      {podEloGroups.length > 0 && (
-        <PodEloCard podEloGroups={podEloGroups} />
-      )}
-
-      {/* Commander ELO */}
-      {commanderElo.length > 0 && (
-        <CommanderEloCard commanders={commanderElo} />
+      {/* ELO */}
+      {(podEloGroups.length > 0 || commanderElo.length > 0) && (
+        <EloCard podEloGroups={podEloGroups} commanders={commanderElo} />
       )}
 
       {/* Commander performance */}
