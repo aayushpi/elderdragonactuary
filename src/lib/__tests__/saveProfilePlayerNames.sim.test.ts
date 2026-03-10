@@ -13,8 +13,7 @@ import { saveProfilePlayerNames } from '@/lib/storage'
 // Minimal localStorage polyfill for Node test environment
 if (typeof globalThis.localStorage === 'undefined') {
   const store: Record<string, string> = {}
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore - test helper
+  // @ts-expect-error - test helper
   globalThis.localStorage = {
     getItem: (k: string) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
     setItem: (k: string, v: string) => { store[k] = String(v) },
