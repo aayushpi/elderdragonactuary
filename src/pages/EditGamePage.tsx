@@ -25,7 +25,7 @@ interface FormErrors {
 }
 
 const WIN_CONDITION_CATEGORIES = [
-  "Players Scooped",
+  "Commander Damage",
   "Lethal Combat Damage",
   "Combat Trick",
   "Lethal Non-Combat Damage",
