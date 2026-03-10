@@ -1,6 +1,13 @@
 # Elder Dragon Actuary
 
 
+## v0.2.1 - March 9, 2026
+
+- "Your favorite commanders" section is now a carousel showing all commanders you've played, sorted by most played
+- Added Commander ELO ratings and charts for your played commanders
+- Added Pod ELO ratings and charts for each pod
+- UI improvements: area charts, sparklines, merged leaderboard and chart cards, circular commander thumbnails
+
 ## v0.2.0 - March 8, 2026
 
 - Player names and pods are now saved to the cloud alongside game data
