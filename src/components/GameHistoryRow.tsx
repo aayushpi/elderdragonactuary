@@ -156,10 +156,10 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
                   <img
                     src={commanderThumb}
                     alt={me.commanderName}
-                    className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer"
+                    className="hidden sm:block w-8 h-8 rounded-full object-cover object-center border border-border shrink-0 cursor-pointer"
                   />
                 ) : (
-                  <div className="hidden sm:flex w-8 h-8 rounded bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer">
+                  <div className="hidden sm:flex w-8 h-8 rounded-full bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer">
                     ?
                   </div>
                 )}
@@ -217,10 +217,10 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
                       <img
                         src={partnerThumb}
                         alt={me.partnerName}
-                        className="hidden sm:block w-8 h-8 rounded object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
+                        className="hidden sm:block w-8 h-8 rounded-full object-cover object-center border border-border shrink-0 cursor-pointer mr-2"
                       />
                     ) : (
-                      <div className="hidden sm:flex w-8 h-8 rounded bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer mr-2">
+                      <div className="hidden sm:flex w-8 h-8 rounded-full bg-muted border border-border items-center justify-center text-xs text-muted-foreground shrink-0 cursor-pointer mr-2">
                         ?
                       </div>
                     )}

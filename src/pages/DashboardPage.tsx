@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from "react"
-import { Plus, ArrowRight, Pencil } from "lucide-react"
+import { useMemo, useState, useEffect, useRef, useCallback } from "react"
+import { Plus, ArrowRight, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { GameHistoryRow } from "@/components/GameHistoryRow"
@@ -27,7 +27,6 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
   const topCommanders = useMemo(() => {
     return [...stats.byCommander]
       .sort((a, b) => b.games - a.games)
-      .slice(0, 4)
   }, [stats.byCommander])
 
   // early empty state mirrors StatsPage so users still see a call to action
@@ -113,21 +112,74 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
     )
   }
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const updateScrollButtons = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 0)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    updateScrollButtons()
+    el.addEventListener("scroll", updateScrollButtons, { passive: true })
+    const ro = new ResizeObserver(updateScrollButtons)
+    ro.observe(el)
+    return () => { el.removeEventListener("scroll", updateScrollButtons); ro.disconnect() }
+  }, [updateScrollButtons, topCommanders])
+
+  const scroll = useCallback((dir: 1 | -1) => {
+    const el = scrollRef.current
+    if (!el) return
+    const card = el.querySelector<HTMLElement>("[data-carousel-card]")
+    const amount = card ? card.offsetWidth + 12 : 230 // card width + gap
+    el.scrollBy({ left: dir * amount, behavior: "smooth" })
+  }, [])
+
   return (
     <div className="space-y-6">
     {/* favorite commanders */}
       {topCommanders.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Your favorite commanders</h2>
-          <div className="mt-2">
-            <div className="-mx-3 px-3">
-              <div className="flex gap-3 overflow-x-auto scroll-pl-3 py-2">
-                {topCommanders.map((c) => (
-                  <div key={c.name} className="flex-shrink-0 w-56 scroll-snap-align-start">
-                    <FavoriteCommanderCard name={c.name} />
-                  </div>
-                ))}
-              </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Your favorite commanders</h2>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                disabled={!canScrollLeft}
+                onClick={() => scroll(-1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                disabled={!canScrollRight}
+                onClick={() => scroll(1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="mt-2 -mx-3 px-3">
+            <div
+              ref={scrollRef}
+              className="flex gap-3 overflow-x-auto py-2 scroll-smooth"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
+            >
+              {topCommanders.map((c) => (
+                <div key={c.name} data-carousel-card className="flex-shrink-0 w-56">
+                  <FavoriteCommanderCard name={c.name} />
+                </div>
+              ))}
             </div>
           </div>
         </div>

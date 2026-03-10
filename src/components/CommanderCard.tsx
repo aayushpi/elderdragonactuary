@@ -125,10 +125,10 @@ export function CommanderCard({
           <img
             src={resolvedImageUri}
             alt={commanderName}
-            className="w-8 h-8 rounded object-cover object-center border border-border shrink-0"
+            className="w-8 h-8 rounded-full object-cover object-center border border-border shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">
+          <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">
             ?
           </div>
         )}
@@ -185,7 +185,7 @@ export function CommanderCard({
         </a>
       </div>
       {resolvedImageUri ? (
-        <div className="w-16 h-16 rounded overflow-hidden shrink-0 border border-border">
+        <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border border-border">
           <img
             src={resolvedImageUri}
             alt={commanderName}
@@ -193,7 +193,7 @@ export function CommanderCard({
           />
         </div>
       ) : (
-        <div className="w-16 h-16 rounded shrink-0 border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground text-center px-1">
+        <div className="w-16 h-16 rounded-full shrink-0 border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground text-center px-1">
           No image
         </div>
       )}
