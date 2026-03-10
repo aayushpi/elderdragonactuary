@@ -43,6 +43,7 @@ interface FormErrors {
 }
 
 const WIN_CONDITION_CATEGORIES = [
+  "Commander Damage",
   "Lethal Combat Damage",
   "Combat Trick",
   "Lethal Non-Combat Damage",
