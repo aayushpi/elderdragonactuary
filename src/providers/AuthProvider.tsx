@@ -57,6 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (!error) return { error: null }
 
+    // Log full error for debugging server-side trigger/database issues
+    console.error("signUp error:", error, { email, inviteCode })
+
     // Supabase/GoTrue wraps trigger exceptions as opaque "Database error" messages.
     // Surface friendlier messages for known cases.
     const msg = error.message ?? ""
