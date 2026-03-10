@@ -1,0 +1,30 @@
+name: Smoke Test — Signup
+
+on:
+  # Run after every deployment (trigger manually or from Vercel deploy hook)
+  workflow_dispatch:
+  # Also run on pushes that touch auth/migration files
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "src/providers/AuthProvider.tsx"
+      - "src/hooks/useAuth.tsx"
+      - "src/components/AuthForm.tsx"
+
+jobs:
+  smoke-test-signup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run signup smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/smoke_test_signup.mjs
