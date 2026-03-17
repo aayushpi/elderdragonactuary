@@ -1,4 +1,4 @@
-import type { Player } from "@/types"
+import type { LiveGameSummary, Player } from "@/types"
 
 // ─── Supabase Database Types ────────────────────────────────────────────────
 
@@ -8,16 +8,23 @@ export type DbPlayer = Omit<Player, "id" | "isMe"> & {
   is_me: boolean
 }
 
+export type DbLiveGameSummary = LiveGameSummary
+
 export interface GameRow {
   id: string
   user_id: string
   played_at: string
+  started_at: string | null
+  ended_at: string | null
+  duration_ms: number | null
+  starting_player_id: string | null
   win_turn: number
   winner_player_id: string
   notes: string | null
   win_conditions: string[] | null
   key_wincon_cards: string[] | null
   bracket: number | null
+  live_summary: DbLiveGameSummary | null
   players: DbPlayer[]
   created_at: string
   updated_at: string
@@ -27,23 +34,33 @@ export interface GameInsert {
   id?: string
   user_id?: string // set by RLS default
   played_at: string
+  started_at?: string | null
+  ended_at?: string | null
+  duration_ms?: number | null
+  starting_player_id?: string | null
   win_turn: number
   winner_player_id: string
   notes?: string | null
   win_conditions?: string[] | null
   key_wincon_cards?: string[] | null
   bracket?: number | null
+  live_summary?: DbLiveGameSummary | null
   players: DbPlayer[]
 }
 
 export interface GameUpdate {
   played_at?: string
+  started_at?: string | null
+  ended_at?: string | null
+  duration_ms?: number | null
+  starting_player_id?: string | null
   win_turn?: number
   winner_player_id?: string
   notes?: string | null
   win_conditions?: string[] | null
   key_wincon_cards?: string[] | null
   bracket?: number | null
+  live_summary?: DbLiveGameSummary | null
   players?: DbPlayer[]
   updated_at?: string
 }

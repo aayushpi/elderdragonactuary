@@ -41,6 +41,10 @@ interface ExportPlayer {
 
 interface ExportGame {
   playedAt: string        // YYYY-MM-DD
+  startedAt?: string
+  endedAt?: string
+  durationMs?: number
+  startingPlayerIndex?: number
   winTurn: number
   winnerIndex: number     // index into players array (0 = you)
   notes?: string
@@ -49,6 +53,7 @@ interface ExportGame {
   bracket?: number        // 1-5, optional power level bracket
   podId?: string
   playerNames?: Record<string, string>
+  liveSummary?: Game["liveSummary"]
   players: ExportPlayer[]
 }
 
@@ -63,8 +68,15 @@ export function exportData(): string {
 
   const exportGames: ExportGame[] = games.map((g) => {
     const winnerIndex = g.players.findIndex((p) => p.id === g.winnerId)
+    const startingPlayerIndex = g.startingPlayerId
+      ? g.players.findIndex((p) => p.id === g.startingPlayerId)
+      : undefined
     return {
       playedAt: g.playedAt.slice(0, 10),
+      startedAt: g.startedAt,
+      endedAt: g.endedAt,
+      durationMs: g.durationMs,
+      startingPlayerIndex: startingPlayerIndex !== undefined && startingPlayerIndex >= 0 ? startingPlayerIndex : undefined,
       winTurn: g.winTurn,
       winnerIndex: winnerIndex >= 0 ? winnerIndex : 0,
       notes: g.notes,
@@ -73,6 +85,7 @@ export function exportData(): string {
       bracket: g.bracket,
       podId: g.podId,
       playerNames: g.playerNames,
+      liveSummary: g.liveSummary,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       players: g.players.map(({ id: _id, isMe: _isMe, ...rest }) => rest as ExportPlayer),
     }
@@ -303,6 +316,10 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
         return {
           id: generateId(),
           playedAt: typeof g.playedAt === "string" ? new Date(g.playedAt).toISOString() : new Date().toISOString(),
+          startedAt: typeof g.startedAt === "string" ? g.startedAt : undefined,
+          endedAt: typeof g.endedAt === "string" ? g.endedAt : undefined,
+          durationMs: typeof g.durationMs === "number" ? g.durationMs : undefined,
+          startingPlayerId: typeof g.startingPlayerIndex === "number" ? players[g.startingPlayerIndex]?.id : undefined,
           winTurn: typeof g.winTurn === "number" ? g.winTurn : 0,
           winnerId: players[g.winnerIndex]?.id ?? players[0].id,
           podId: typeof g.podId === "string" ? g.podId : undefined,
@@ -310,6 +327,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
           winConditions: Array.isArray(g.winConditions) ? g.winConditions as string[] : undefined,
           keyWinconCards: Array.isArray(g.keyWinconCards) ? g.keyWinconCards as string[] : undefined,
           bracket: typeof g.bracket === "number" ? g.bracket : undefined,
+          liveSummary: g.liveSummary as Game["liveSummary"],
           playerNames,
           players,
         } as Game

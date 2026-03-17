@@ -9,7 +9,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
 import { CardSearch } from "@/components/CardSearch"
-import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
@@ -90,14 +89,14 @@ function getMirroredSeatOrder(totalPlayers: number): number[] {
 const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false, koTiming: false }
 
 interface LogGamePageProps {
+  games: Game[]
   onSave: (game: Game) => void
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
   prefillCommander?: string
 }
 
-export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
-  const { games } = useGames()
+export function LogGamePage({ games, onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {

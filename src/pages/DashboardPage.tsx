@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import { Plus, ArrowRight, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { NewGameMenu } from "@/components/NewGameMenu"
 import { GameHistoryRow } from "@/components/GameHistoryRow"
 import { useStats } from "@/hooks/useStats"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
@@ -12,10 +12,13 @@ interface DashboardPageProps {
   games: Game[]
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
+  onOpenLiveGame: (commanderName?: string) => void
+  onResumeLiveGame: () => void
+  hasLiveGame?: boolean
   onEditGame: (id: string) => void
 }
 
-export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: DashboardPageProps) {
+export function DashboardPage({ games, onNavigate, onOpenLogGame, onOpenLiveGame, onResumeLiveGame, hasLiveGame = false, onEditGame }: DashboardPageProps) {
   const stats = useStats(games)
 
   const recentGames = useMemo(() => {
@@ -58,20 +61,32 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="rounded-lg border bg-card p-3 flex flex-col items-center">
-              <img
-                src={artUri ?? ""}
-                alt={name}
-                className="w-full h-32 rounded object-cover bg-muted"
+              {artUri ? (
+                <img
+                  src={artUri}
+                  alt={name}
+                  className="w-full h-32 rounded object-cover bg-muted"
+                />
+              ) : (
+                <div className="w-full h-32 rounded bg-muted" aria-hidden="true" />
+              )}
+              <NewGameMenu
+                hasLiveGame={hasLiveGame}
+                prefillCommander={name}
+                onQuickLog={onOpenLogGame}
+                onStartLiveGame={onOpenLiveGame}
+                onResumeLiveGame={onResumeLiveGame}
+                trigger={
+                  <Button
+                    size="sm"
+                    className="mt-2 w-full gap-1.5"
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Track game
+                  </Button>
+                }
               />
-              <Button
-                size="sm"
-                className="mt-2 w-full gap-1.5"
-                variant="outline"
-                onClick={() => onOpenLogGame(name)}
-              >
-                <Plus className="h-4 w-4" />
-                Track game
-              </Button>
             </div>
           </TooltipTrigger>
           <TooltipContent>
@@ -122,8 +137,12 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
               Log a game to see your stats here.
             </p>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
+          <NewGameMenu
+            hasLiveGame={hasLiveGame}
+            onQuickLog={onOpenLogGame}
+            onStartLiveGame={onOpenLiveGame}
+            onResumeLiveGame={onResumeLiveGame}
+            trigger={
               <Button className="gap-1.5">
                 <Plus className="h-4 w-4" />
                 Track a game
@@ -131,13 +150,8 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
                   N
                 </kbd>
               </Button>
-            </PopoverTrigger>
-            <PopoverContent>
-              <div className="flex flex-col gap-2">
-                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+            }
+          />
         </div>
       </div>
     )

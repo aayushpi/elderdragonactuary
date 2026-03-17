@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
@@ -19,6 +19,7 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
+import { LiveGamePage } from "@/pages/LiveGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
@@ -26,19 +27,39 @@ import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { useGames } from "@/hooks/useGames"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
+import { clearLiveGameSession, loadLiveGameSession } from "@/lib/liveGameStorage"
 import type { Game } from "@/types"
 
-type GameFlowMode = "log" | "edit"
+type GameFlowMode = "log" | "edit" | "live"
 
 interface GameFlowState {
   mode: GameFlowMode
   minimized: boolean
   editGameId?: string
   prefillCommander?: string
+  resumeLiveGame?: boolean
 }
 
 type ThemeMode = "light" | "dark" | "system"
 type Theme = "light" | "dark"
+const LOCAL_LIVE_COMPLETED_KEY_PREFIX = "commando_local_live_completed_games:"
+
+function getLocalLiveCompletedKey(userId: string) {
+  return `${LOCAL_LIVE_COMPLETED_KEY_PREFIX}${userId}`
+}
+
+function loadLocalLiveCompletedGames(userId: string): Game[] {
+  try {
+    const raw = localStorage.getItem(getLocalLiveCompletedKey(userId))
+    return raw ? (JSON.parse(raw) as Game[]) : []
+  } catch {
+    return []
+  }
+}
+
+function saveLocalLiveCompletedGames(userId: string, games: Game[]): void {
+  localStorage.setItem(getLocalLiveCompletedKey(userId), JSON.stringify(games))
+}
 
 function App() {
   const { user, loading: authLoading, signOut } = useAuth()
@@ -47,19 +68,35 @@ function App() {
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
+  const [hasLiveGame, setHasLiveGame] = useState(false)
+  const [localLiveCompletedGames, setLocalLiveCompletedGames] = useState<Game[]>([])
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
-  const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
+  const { games, loading: gamesLoading, addGame, updateGame, deleteGame, replaceGames, clearGames } = useGames()
+  const displayedGames = useMemo(
+    () => [...localLiveCompletedGames, ...games].sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()),
+    [games, localLiveCompletedGames]
+  )
 
   const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
   const editingGame = gameFlow?.mode === "edit" && gameFlow.editGameId
-    ? getGame(gameFlow.editGameId)
+    ? displayedGames.find((game) => game.id === gameFlow.editGameId)
     : undefined
 
+  function discardInProgressLiveSession() {
+    if (!user?.id) return
+    if (!loadLiveGameSession(user.id)) return
+    clearLiveGameSession(user.id)
+    setHasLiveGame(false)
+    setGameFlow((prev) => (prev?.mode === "live" ? null : prev))
+    toast.message("Discarded in-progress live game.")
+  }
+
   function openLogGameFlow(prefillCommander?: string) {
+    discardInProgressLiveSession()
     setIsLogGameDirty(false)
     setGameFlow({ mode: "log", minimized: false, prefillCommander })
   }
@@ -67,6 +104,17 @@ function App() {
   function openEditGameFlow(id: string) {
     setIsLogGameDirty(false)
     setGameFlow({ mode: "edit", minimized: false, editGameId: id })
+  }
+
+  function openLiveGameFlow(prefillCommander?: string) {
+    discardInProgressLiveSession()
+    setIsLogGameDirty(false)
+    setGameFlow({ mode: "live", minimized: false, prefillCommander })
+  }
+
+  function resumeLiveGameFlow() {
+    setIsLogGameDirty(false)
+    setGameFlow({ mode: "live", minimized: false, resumeLiveGame: true })
   }
 
   function navigateWithFlowMinimize(path: string) {
@@ -83,7 +131,7 @@ function App() {
   }
 
   function closeGameFlow(force = false) {
-    if (!force && gameFlow?.mode === "log" && isLogGameDirty) {
+    if (!force && (gameFlow?.mode === "log" || gameFlow?.mode === "live") && isLogGameDirty) {
       setShowDiscardLogDialog(true)
       return
     }
@@ -118,10 +166,36 @@ function App() {
     })()
   }
 
+  function handleSaveLiveGame(game: Game) {
+    if (!user?.id) {
+      toast.error("Could not save local live game.")
+      return
+    }
+    const localGame: Game = { ...game, isLocalOnly: true }
+    setLocalLiveCompletedGames((prev) => {
+      const next = [localGame, ...prev]
+      saveLocalLiveCompletedGames(user.id, next)
+      return next
+    })
+    try { trackGameLogged(localGame) } catch { void 0 }
+    closeGameFlow(true)
+    toast.success("Live game saved locally.")
+  }
+
   function handleUpdateGame(game: Game) {
     void (async () => {
       try {
-        await updateGame(game.id, game)
+        const isLocalOnly = localLiveCompletedGames.some((entry) => entry.id === game.id)
+        if (isLocalOnly) {
+          if (!user?.id) throw new Error("No user")
+          setLocalLiveCompletedGames((prev) => {
+            const next = prev.map((entry) => (entry.id === game.id ? { ...game, isLocalOnly: true } : entry))
+            saveLocalLiveCompletedGames(user.id, next)
+            return next
+          })
+        } else {
+          await updateGame(game.id, game)
+        }
         setRecentlyEditedGameId(game.id)
         closeGameFlow(true)
         navigate("/history")
@@ -134,6 +208,13 @@ function App() {
 
   function handleCancelGameFlow() {
     closeGameFlow()
+  }
+
+  function handleClearAllGames() {
+    if (!user?.id) return
+    void clearGames()
+    setLocalLiveCompletedGames([])
+    saveLocalLiveCompletedGames(user.id, [])
   }
 
   useEffect(() => {
@@ -175,6 +256,17 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!user?.id) {
+      setHasLiveGame(false)
+      setLocalLiveCompletedGames([])
+      return
+    }
+
+    setHasLiveGame(Boolean(loadLiveGameSession(user.id)))
+    setLocalLiveCompletedGames(loadLocalLiveCompletedGames(user.id))
+  }, [user?.id])
+
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", resolvedTheme === "dark")
     localStorage.setItem("theme-mode", themeMode)
   }, [resolvedTheme, themeMode])
@@ -207,6 +299,9 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
+        onOpenLiveGame={openLiveGameFlow}
+        onResumeLiveGame={resumeLiveGameFlow}
+        hasLiveGame={hasLiveGame}
         
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         userEmail={user.email}
@@ -230,9 +325,12 @@ function App() {
               path="/"
               element={
                 <DashboardPage
-                  games={games}
+                  games={displayedGames}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={openLogGameFlow}
+                  onOpenLiveGame={openLiveGameFlow}
+                  onResumeLiveGame={resumeLiveGameFlow}
+                  hasLiveGame={hasLiveGame}
                   onEditGame={openEditGameFlow}
                 />
               }
@@ -241,9 +339,12 @@ function App() {
               path="/stats"
               element={
                 <StatsPage
-                  games={games}
+                  games={displayedGames}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={openLogGameFlow}
+                  onOpenLiveGame={openLiveGameFlow}
+                  onResumeLiveGame={resumeLiveGameFlow}
+                  hasLiveGame={hasLiveGame}
                 />
               }
             />
@@ -251,8 +352,17 @@ function App() {
               path="/history"
               element={
                 <HistoryPage
-                  games={games}
+                  games={displayedGames}
                   onDeleteGame={(id) => {
+                    const isLocalOnly = localLiveCompletedGames.some((entry) => entry.id === id)
+                    if (isLocalOnly) {
+                      setLocalLiveCompletedGames((prev) => {
+                        const next = prev.filter((entry) => entry.id !== id)
+                        saveLocalLiveCompletedGames(user.id, next)
+                        return next
+                      })
+                      return
+                    }
                     void deleteGame(id)
                   }}
                   onEditGame={openEditGameFlow}
@@ -263,7 +373,7 @@ function App() {
             />
             <Route
               path="/settings"
-              element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
+              element={<SettingsPage onImport={replaceGames} onClearAll={handleClearAllGames} games={displayedGames} />}
             />
             {/* Map page removed */}
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -295,7 +405,7 @@ function App() {
 
       {gameFlow && (
         <GameFlowDrawer
-          title={gameFlow.mode === "log" ? "Log Game" : "Edit Game"}
+          title={gameFlow.mode === "log" ? "Log Game" : gameFlow.mode === "edit" ? "Edit Game" : "Live Game"}
           minimized={gameFlow.minimized}
           onMinimize={minimizeGameFlow}
           onRestore={restoreGameFlow}
@@ -303,10 +413,22 @@ function App() {
         >
           {gameFlow.mode === "log" ? (
             <LogGamePage
+              games={displayedGames}
               prefillCommander={gameFlow.prefillCommander}
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}
+            />
+          ) : gameFlow.mode === "live" ? (
+            <LiveGamePage
+              games={displayedGames}
+              userId={user.id}
+              initialSession={gameFlow.resumeLiveGame ? loadLiveGameSession(user.id) : null}
+              prefillCommander={gameFlow.prefillCommander}
+              onSave={handleSaveLiveGame}
+              onCancel={handleCancelGameFlow}
+              onDirtyChange={setIsLogGameDirty}
+              onSessionStateChange={setHasLiveGame}
             />
           ) : (
             editingGame && (

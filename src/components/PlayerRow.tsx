@@ -39,6 +39,7 @@ interface PlayerRowProps {
   knownPlayerNames?: string[]
   fieldErrors?: FieldErrors
   showWinnerError?: boolean
+  showOutcomeControls?: boolean
 }
 
 export function PlayerRow({
@@ -59,6 +60,7 @@ export function PlayerRow({
   knownPlayerNames,
   fieldErrors,
   showWinnerError,
+  showOutcomeControls = true,
 }: PlayerRowProps) {
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -205,7 +207,8 @@ export function PlayerRow({
           </FormField>
         </div>
 
-        <div className="hidden sm:flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto max-w-full">
+        {showOutcomeControls && (
+          <div className="hidden sm:flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto max-w-full">
           <Button
             type="button"
             variant={isWinner ? "default" : "outline"}
@@ -276,25 +279,28 @@ export function PlayerRow({
               </Button>
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile winner controls */}
-      <div className="flex items-center justify-center gap-2 sm:hidden">
-        <Button
-          type="button"
-          variant={isWinner ? "default" : "outline"}
-          className={`gap-1.5 text-sm h-10 px-3 ${
-            isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
-          }`}
-          onClick={onSetWinner}
-        >
-          <Trophy className="h-3 w-3" />
-          Winner
-        </Button>
-      </div>
+      {showOutcomeControls && (
+        <div className="flex items-center justify-center gap-2 sm:hidden">
+          <Button
+            type="button"
+            variant={isWinner ? "default" : "outline"}
+            className={`gap-1.5 text-sm h-10 px-3 ${
+              isWinner ? "" : showWinnerError ? "border-destructive text-destructive" : "text-muted-foreground"
+            }`}
+            onClick={onSetWinner}
+          >
+            <Trophy className="h-3 w-3" />
+            Winner
+          </Button>
+        </div>
+      )}
 
-      {isWinner && (
+      {showOutcomeControls && isWinner && (
         <div className="flex items-center justify-center gap-1 sm:hidden">
           <Button
             type="button"
@@ -326,7 +332,7 @@ export function PlayerRow({
         </div>
       )}
 
-      {!isWinner && showKoTurnControls && (
+      {showOutcomeControls && !isWinner && showKoTurnControls && (
         <div className="flex items-center justify-center gap-1 sm:hidden">
           <span className="text-xs text-muted-foreground uppercase tracking-wide px-1">KO</span>
           <Button

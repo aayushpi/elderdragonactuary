@@ -38,6 +38,66 @@ export interface FastManaInfo {
   cards: string[]
 }
 
+export type LiveGameActionType = "life" | "poison" | "commander-damage"
+
+export interface LiveGameAction {
+  id: string
+  type: LiveGameActionType
+  turnNumber: number
+  actingPlayerId: string
+  targetPlayerId: string
+  sourcePlayerId?: string
+  delta: number
+  createdAt: string
+}
+
+export interface LiveGameTrackedPlayer extends Player {
+  lifeTotal: number
+  poisonCounters: number
+  commanderDamageTakenByPlayerId: Record<string, number>
+  elapsedMs: number
+  isEliminated: boolean
+  eliminatedAtTurn?: number
+}
+
+export interface LiveGameSetup {
+  players: Player[]
+  startingPlayerId: string
+  bracket?: number
+}
+
+export interface LiveGameSession {
+  id: string
+  stage: "tracking" | "finalize"
+  createdAt: string
+  updatedAt: string
+  startedAt: string
+  activePlayerStartedAt: string
+  turnNumber: number
+  startingPlayerId: string
+  activePlayerId: string
+  players: LiveGameTrackedPlayer[]
+  bracket?: number
+  actions: LiveGameAction[]
+  winnerId?: string
+  winTurn?: number
+  winConditions?: string[]
+  keyWinconCards?: string[]
+  notes?: string
+}
+
+export interface LiveGameSummary {
+  startedAt: string
+  endedAt: string
+  durationMs: number
+  startingPlayerId: string
+  playerElapsedMs: Record<string, number>
+  finalLifeTotals: Record<string, number>
+  finalPoisonCounters: Record<string, number>
+  finalCommanderDamageTakenByPlayerId: Record<string, Record<string, number>>
+  actions: LiveGameAction[]
+}
+
 export interface Player {
   id: string
   isMe: boolean
@@ -54,6 +114,7 @@ export interface Player {
   seatPosition: SeatPosition
   displayName?: string
   fastMana: FastManaInfo
+  commanderDamageTakenByPlayerId?: Record<string, number>
 }
 
 export interface Game {
@@ -68,6 +129,12 @@ export interface Game {
   keyWinconCards?: string[]
   bracket?: number // 1-5, optional power level bracket
   playerNames?: Record<string, string> // map of player id → display name (set when all names provided)
+  startedAt?: string
+  endedAt?: string
+  durationMs?: number
+  startingPlayerId?: string
+  liveSummary?: LiveGameSummary
+  isLocalOnly?: boolean
 }
 
 export interface Pod {

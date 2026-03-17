@@ -4,6 +4,7 @@ import { Cell, Legend, Pie, PieChart, Sector } from "recharts"
 import { type PieSectorDataItem } from "recharts/types/polar/Pie"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { NewGameMenu } from "@/components/NewGameMenu"
 import {
   ChartContainer,
   ChartTooltip,
@@ -62,9 +63,12 @@ interface StatsPageProps {
   games: Game[]
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
+  onOpenLiveGame: (commanderName?: string) => void
+  onResumeLiveGame: () => void
+  hasLiveGame?: boolean
 }
 
-export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) {
+export function StatsPage({ games, onNavigate, onOpenLogGame, onOpenLiveGame, onResumeLiveGame, hasLiveGame = false }: StatsPageProps) {
   const stats = useStats(games)
   const podEloGroups = useMemo(() => computePodElo(games), [games])
   const commanderElo = useMemo(() => computeCommanderElo(games), [games])
@@ -106,13 +110,21 @@ export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) 
             <p className="text-muted-foreground text-sm">No games logged yet.</p>
             <p className="text-muted-foreground text-xs mt-1">Log a game to see your stats here.</p>
           </div>
-          <Button onClick={() => onOpenLogGame()} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Track a game
-            <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-              N
-            </kbd>
-          </Button>
+          <NewGameMenu
+            hasLiveGame={hasLiveGame}
+            onQuickLog={onOpenLogGame}
+            onStartLiveGame={onOpenLiveGame}
+            onResumeLiveGame={onResumeLiveGame}
+            trigger={
+              <Button className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Track a game
+                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
+                  N
+                </kbd>
+              </Button>
+            }
+          />
         </div>
       </div>
     )
