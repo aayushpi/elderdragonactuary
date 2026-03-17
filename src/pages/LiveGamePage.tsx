@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertCircle, Clock3, Play, Skull } from "lucide-react"
+import { AlertCircle, Clock3, Hourglass, Play, Skull } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -189,12 +189,62 @@ export function LiveGamePage({
 
   // Draggable Next button
   const [nextBtnPos, setNextBtnPos] = useState<{ x: number; y: number } | null>(null)
+  const [nextBtnMenuOpen, setNextBtnMenuOpen] = useState(false)
+  const [nextBtnFlipped, setNextBtnFlipped] = useState(false)
+  const [activePlayerBounceId, setActivePlayerBounceId] = useState<string | null>(null)
   const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null)
+  const nextBtnLongPressTimeoutRef = useRef<number | null>(null)
+  const nextBtnLongPressTriggeredRef = useRef(false)
+  const pendingActivePlayerBounceRef = useRef(false)
+  const activePlayerBounceTimeoutRef = useRef<number | null>(null)
+
+  function clearNextBtnLongPressTimeout() {
+    if (nextBtnLongPressTimeoutRef.current !== null) {
+      window.clearTimeout(nextBtnLongPressTimeoutRef.current)
+      nextBtnLongPressTimeoutRef.current = null
+    }
+  }
+
+  function clearActivePlayerBounceTimeout() {
+    if (activePlayerBounceTimeoutRef.current !== null) {
+      window.clearTimeout(activePlayerBounceTimeoutRef.current)
+      activePlayerBounceTimeoutRef.current = null
+    }
+  }
+
+  function getNextBtnMenuPos() {
+    const origin = nextBtnPos ?? getDefaultNextBtnPos()
+    return {
+      left: Math.min(origin.x + 76, window.innerWidth - 176),
+      top: Math.max(16, Math.min(origin.y + 8, window.innerHeight - 72)),
+    }
+  }
+
+  function openNextBtnMenu() {
+    clearNextBtnLongPressTimeout()
+    nextBtnLongPressTriggeredRef.current = true
+    setNextBtnMenuOpen(true)
+  }
+
+  function closeNextBtnMenu() {
+    clearNextBtnLongPressTimeout()
+    setNextBtnMenuOpen(false)
+  }
 
   function handleNextBtnPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     e.currentTarget.setPointerCapture(e.pointerId)
     const origin = nextBtnPos ?? getDefaultNextBtnPos()
     dragState.current = { startX: e.clientX, startY: e.clientY, originX: origin.x, originY: origin.y, moved: false }
+    nextBtnLongPressTriggeredRef.current = false
+
+    if (e.pointerType !== "mouse") {
+      clearNextBtnLongPressTimeout()
+      nextBtnLongPressTimeoutRef.current = window.setTimeout(() => {
+        if (!dragState.current?.moved) {
+          openNextBtnMenu()
+        }
+      }, 500)
+    }
   }
 
   function handleNextBtnPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
@@ -202,13 +252,34 @@ export function LiveGamePage({
     const dx = e.clientX - dragState.current.startX
     const dy = e.clientY - dragState.current.startY
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragState.current.moved = true
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      clearNextBtnLongPressTimeout()
+      closeNextBtnMenu()
+    }
     setNextBtnPos({ x: dragState.current.originX + dx, y: dragState.current.originY + dy })
   }
 
   function handleNextBtnPointerUp(_e: React.PointerEvent<HTMLButtonElement>) {
     const wasMoved = dragState.current?.moved ?? false
+    const wasLongPress = nextBtnLongPressTriggeredRef.current
     dragState.current = null
-    if (!wasMoved) handleAdvanceTurn()
+    clearNextBtnLongPressTimeout()
+    if (!wasMoved && !wasLongPress) {
+      closeNextBtnMenu()
+      handleAdvanceTurn()
+    }
+    nextBtnLongPressTriggeredRef.current = false
+  }
+
+  function handleNextBtnContextMenu(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault()
+    openNextBtnMenu()
+  }
+
+  function handleNextBtnPointerCancel() {
+    dragState.current = null
+    clearNextBtnLongPressTimeout()
+    nextBtnLongPressTriggeredRef.current = false
   }
 
   function getDefaultNextBtnPos() {
@@ -243,6 +314,44 @@ export function LiveGamePage({
     setKeyWinconCards(session.keyWinconCards ?? [])
     setBracket(session.bracket ?? null)
   }, [session])
+
+  useEffect(() => {
+    if (!session?.activePlayerId || !pendingActivePlayerBounceRef.current) return
+
+    pendingActivePlayerBounceRef.current = false
+    setActivePlayerBounceId(session.activePlayerId)
+    clearActivePlayerBounceTimeout()
+    activePlayerBounceTimeoutRef.current = window.setTimeout(() => {
+      setActivePlayerBounceId((current) => (current === session.activePlayerId ? null : current))
+      activePlayerBounceTimeoutRef.current = null
+    }, 420)
+  }, [session?.activePlayerId])
+
+  useEffect(() => () => {
+    clearNextBtnLongPressTimeout()
+    clearActivePlayerBounceTimeout()
+  }, [])
+
+  useEffect(() => {
+    if (!nextBtnMenuOpen) return
+
+    function handleWindowPointerDown() {
+      closeNextBtnMenu()
+    }
+
+    function handleWindowKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeNextBtnMenu()
+      }
+    }
+
+    window.addEventListener("pointerdown", handleWindowPointerDown)
+    window.addEventListener("keydown", handleWindowKeyDown)
+    return () => {
+      window.removeEventListener("pointerdown", handleWindowPointerDown)
+      window.removeEventListener("keydown", handleWindowKeyDown)
+    }
+  }, [nextBtnMenuOpen])
 
   const recentMyCommanders = useMemo((): RecentCommander[] => {
     const seen = new Set<string>()
@@ -558,6 +667,8 @@ export function LiveGamePage({
   }
 
   function handleAdvanceTurn() {
+    setNextBtnFlipped((prev) => !prev)
+    pendingActivePlayerBounceRef.current = true
     setSession((prev) => {
       if (!prev) return prev
       return advanceLiveGameTurn(prev)
@@ -974,7 +1085,7 @@ export function LiveGamePage({
           const isWinnerSelected = session.winnerId === player.id
           const canReturnThisTurn = player.isEliminated && player.eliminatedAtTurn === session.turnNumber
           return (
-            <Card key={player.id} className={cn("relative overflow-hidden", isActive ? "border-primary shadow-md" : "border-border", player.isEliminated ? "opacity-75" : "") }>
+            <Card key={player.id} className={cn("relative overflow-hidden", isActive ? "border-primary shadow-md" : "border-border", activePlayerBounceId === player.id && "animate-active-player-card-bounce", player.isEliminated ? "opacity-75" : "") }>
               {player.commanderImageUri && (
                 <>
                   <img
@@ -1173,17 +1284,43 @@ export function LiveGamePage({
       {/* Draggable floating Next button */}
       {(() => {
         const pos = nextBtnPos ?? getDefaultNextBtnPos()
+        const menuPos = getNextBtnMenuPos()
         return (
-          <button
-            type="button"
-            style={{ position: "fixed", left: pos.x, top: pos.y, touchAction: "none", zIndex: 50 }}
-            onPointerDown={handleNextBtnPointerDown}
-            onPointerMove={handleNextBtnPointerMove}
-            onPointerUp={handleNextBtnPointerUp}
-            className="flex h-16 w-16 select-none items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-xl ring-2 ring-background active:scale-95"
-          >
-            Next
-          </button>
+          <>
+            {nextBtnMenuOpen && (
+              <div
+                style={{ position: "fixed", left: menuPos.left, top: menuPos.top, zIndex: 55 }}
+                className="min-w-36 rounded-xl border bg-background/95 p-1.5 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-background/85"
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start text-sm"
+                  onClick={() => {
+                    closeNextBtnMenu()
+                    handleEnterFinalize()
+                  }}
+                >
+                  End game
+                </Button>
+              </div>
+            )}
+            <button
+              type="button"
+              aria-label="Advance turn"
+              title="Advance turn"
+              style={{ position: "fixed", left: pos.x, top: pos.y, touchAction: "none", zIndex: 50 }}
+              onContextMenu={handleNextBtnContextMenu}
+              onPointerDown={handleNextBtnPointerDown}
+              onPointerMove={handleNextBtnPointerMove}
+              onPointerUp={handleNextBtnPointerUp}
+              onPointerCancel={handleNextBtnPointerCancel}
+              className="group animate-next-button-entrance flex h-16 w-16 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-2 ring-background active:scale-95"
+            >
+              <Hourglass className={cn("hourglass-hover-nudge h-6 w-6 transition-transform duration-300 ease-out", nextBtnFlipped ? "rotate-180" : "rotate-0")} />
+            </button>
+          </>
         )
       })()}
     </div>
