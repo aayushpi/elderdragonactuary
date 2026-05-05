@@ -7,12 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { LivePlayer, TurnLogEntry } from "@/types/live"
+import type { LivePlayer } from "@/types/live"
 
 interface WinnerOverlayProps {
   winner: LivePlayer
   players: LivePlayer[]
-  turnLog: TurnLogEntry[]
   startedAt: number
   currentTurn: number
   onSave: () => void
@@ -32,7 +31,6 @@ function formatDuration(ms: number): string {
 export function WinnerOverlay({
   winner,
   players,
-  turnLog,
   startedAt,
   currentTurn,
   onSave,
