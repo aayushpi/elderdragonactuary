@@ -63,10 +63,18 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "avatar-pop": {
+          "0%":   { transform: "scale(1)" },
+          "25%":  { transform: "scale(1.32)" },
+          "50%":  { transform: "scale(0.88)" },
+          "75%":  { transform: "scale(1.12)" },
+          "100%": { transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "avatar-pop": "avatar-pop 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards",
       },
     },
   },

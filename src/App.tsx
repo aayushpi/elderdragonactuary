@@ -23,18 +23,27 @@ import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
+import { TrackGamePage } from "@/pages/TrackGamePage"
+import { LiveAnnouncementModal, hasSeenLiveAnnouncement } from "@/components/LiveAnnouncementModal"
 import { useGames } from "@/hooks/useGames"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
-import type { Game } from "@/types"
+import type { Game, Player } from "@/types"
 
 type GameFlowMode = "log" | "edit"
+
+interface LivePrefillResult {
+  players: Partial<Player>[]
+  winTurn: number
+  winnerId?: string
+}
 
 interface GameFlowState {
   mode: GameFlowMode
   minimized: boolean
   editGameId?: string
   prefillCommander?: string
+  prefillLiveResult?: LivePrefillResult
 }
 
 type ThemeMode = "light" | "dark" | "system"
@@ -48,6 +57,8 @@ function App() {
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
+  const [liveGamePlayers, setLiveGamePlayers] = useState<Partial<Player>[] | null>(null)
+  const [showLiveAnnouncement, setShowLiveAnnouncement] = useState(() => !hasSeenLiveAnnouncement())
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
@@ -58,6 +69,35 @@ function App() {
   const editingGame = gameFlow?.mode === "edit" && gameFlow.editGameId
     ? getGame(gameFlow.editGameId)
     : undefined
+
+  function openLiveGame(players: Partial<Player>[]) {
+    setLiveGamePlayers(players)
+    setGameFlow(null)
+  }
+
+  function closeLiveGame(result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string }) {
+    const savedPlayers = liveGamePlayers
+    setLiveGamePlayers(null)
+
+    if (result && savedPlayers) {
+      // Reopen the log-game drawer pre-populated with the live session data
+      const updatedPlayers = savedPlayers.map((p) => ({
+        ...p,
+        knockoutTurn: p.id && result.knockoutTurns[p.id] ? result.knockoutTurns[p.id] : p.knockoutTurn,
+      }))
+      setIsLogGameDirty(false)
+      setGameFlow({
+        mode: "log",
+        minimized: false,
+        prefillCommander: updatedPlayers.find((p) => p.isMe)?.commanderName,
+        prefillLiveResult: {
+          players: updatedPlayers,
+          winTurn: result.winTurn,
+          winnerId: result.winnerId,
+        },
+      })
+    }
+  }
 
   function openLogGameFlow(prefillCommander?: string) {
     setIsLogGameDirty(false)
@@ -217,7 +257,18 @@ function App() {
           })()
         }}
       />
-      {/* Live game UI removed */}
+      {/* Live game tracker overlay */}
+      {liveGamePlayers && (
+        <TrackGamePage
+          players={liveGamePlayers}
+          onExit={closeLiveGame}
+          onRematch={() => {
+            const saved = liveGamePlayers
+            setLiveGamePlayers(null)
+            setTimeout(() => setLiveGamePlayers(saved), 50)
+          }}
+        />
+      )}
       <main className="container mx-auto max-w-5xl px-4 py-6">
         {gamesLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -277,6 +328,7 @@ function App() {
         onToggleTheme={toggleTheme}
       />
       <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
+      <LiveAnnouncementModal open={showLiveAnnouncement} onClose={() => setShowLiveAnnouncement(false)} />
 
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
         <AlertDialogContent>
@@ -304,9 +356,11 @@ function App() {
           {gameFlow.mode === "log" ? (
             <LogGamePage
               prefillCommander={gameFlow.prefillCommander}
+              prefillLiveResult={gameFlow.prefillLiveResult}
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}
+              onTrackLive={openLiveGame}
             />
           ) : (
             editingGame && (
