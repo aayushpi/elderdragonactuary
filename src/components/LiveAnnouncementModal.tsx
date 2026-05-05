@@ -41,10 +41,7 @@ export function LiveAnnouncementModal({ open, onClose }: LiveAnnouncementModalPr
               Live Game Tracking is here
             </DialogTitle>
             <DialogDescription className="mt-1.5 text-sm">
-              Track a Commander game in real time — life totals, turn timer,
-              drag-to-deal damage, commander damage per player, and poison
-              counters. When the game ends, your data flows straight into
-              the log form.
+              You can now use this app to track games live. All game events created will be logged, allowing for many more interesting features in the future. Look forward to your feedback!
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -54,8 +51,7 @@ export function LiveAnnouncementModal({ open, onClose }: LiveAnnouncementModalPr
           <FlaskConical className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
           <div className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
             <span className="font-bold">Highly experimental.</span> The tracker
-            may have bugs or unexpected behaviour. Use at your own risk — always
-            double-check life totals before logging.
+            may have bugs or unexpected behaviour.
           </div>
         </div>
 
