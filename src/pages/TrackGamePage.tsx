@@ -356,7 +356,6 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
           <WinnerOverlay
             winner={winner}
             players={players}
-            turnLog={turnLog}
             startedAt={state.startedAt}
             currentTurn={currentTurn}
             onSave={handleSaveExit}
