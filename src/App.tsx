@@ -24,6 +24,7 @@ import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { TrackGamePage } from "@/pages/TrackGamePage"
+import { LiveAnnouncementModal, hasSeenLiveAnnouncement } from "@/components/LiveAnnouncementModal"
 import { useGames } from "@/hooks/useGames"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
@@ -57,6 +58,7 @@ function App() {
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
   const [liveGamePlayers, setLiveGamePlayers] = useState<Partial<Player>[] | null>(null)
+  const [showLiveAnnouncement, setShowLiveAnnouncement] = useState(() => !hasSeenLiveAnnouncement())
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
@@ -326,6 +328,7 @@ function App() {
         onToggleTheme={toggleTheme}
       />
       <ReleaseNotesModal open={showReleaseNotes} onOpenChange={setShowReleaseNotes} />
+      <LiveAnnouncementModal open={showLiveAnnouncement} onClose={() => setShowLiveAnnouncement(false)} />
 
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
         <AlertDialogContent>
