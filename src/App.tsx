@@ -21,6 +21,7 @@ import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
+import { AdminPage } from "@/pages/AdminPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { TrackGamePage } from "@/pages/TrackGamePage"
@@ -317,6 +318,7 @@ function App() {
               element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
             />
             {/* Map page removed */}
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
