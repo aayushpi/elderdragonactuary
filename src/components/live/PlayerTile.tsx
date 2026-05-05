@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils"
 import type { LivePlayer } from "@/types/live"
 
 const PLAYER_COLORS = [
-  { border: "border-blue-500", bg: "bg-blue-950/60", glow: "shadow-blue-500/40", dot: "bg-blue-400", badge: "bg-blue-500" },
-  { border: "border-red-500",  bg: "bg-red-950/60",  glow: "shadow-red-500/40",  dot: "bg-red-400",  badge: "bg-red-500" },
-  { border: "border-green-500", bg: "bg-green-950/60", glow: "shadow-green-500/40", dot: "bg-green-400", badge: "bg-green-500" },
-  { border: "border-yellow-500", bg: "bg-yellow-950/60", glow: "shadow-yellow-500/40", dot: "bg-yellow-400", badge: "bg-yellow-500" },
-  { border: "border-purple-500", bg: "bg-purple-950/60", glow: "shadow-purple-500/40", dot: "bg-purple-400", badge: "bg-purple-500" },
+  { border: "border-blue-500",   ring: "ring-blue-500",   bg: "bg-blue-950/60",   glow: "shadow-blue-500/40",   dot: "bg-blue-400",   badge: "bg-blue-500" },
+  { border: "border-red-500",    ring: "ring-red-500",    bg: "bg-red-950/60",    glow: "shadow-red-500/40",    dot: "bg-red-400",    badge: "bg-red-500" },
+  { border: "border-green-500",  ring: "ring-green-500",  bg: "bg-green-950/60",  glow: "shadow-green-500/40",  dot: "bg-green-400",  badge: "bg-green-500" },
+  { border: "border-yellow-500", ring: "ring-yellow-500", bg: "bg-yellow-950/60", glow: "shadow-yellow-500/40", dot: "bg-yellow-400", badge: "bg-yellow-500" },
+  { border: "border-purple-500", ring: "ring-purple-500", bg: "bg-purple-950/60", glow: "shadow-purple-500/40", dot: "bg-purple-400", badge: "bg-purple-500" },
 ]
 
 export function playerColor(index: number) {
@@ -126,7 +126,7 @@ export function PlayerTile({
   const hasArt = !!player.commanderImageUri
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-2xl">
+    <div className="relative w-full h-full overflow-hidden">
       {/* Full-art commander background — rotated to face the seated player */}
       {hasArt && (
         <>
@@ -145,27 +145,14 @@ export function PlayerTile({
       {/* Main rotated content */}
       <div
         className={cn(
-          "w-full h-full flex flex-col items-center justify-between p-2 rounded-2xl border-2 select-none transition-all duration-200",
-          color.border,
+          "w-full h-full flex flex-col items-center justify-end gap-3 p-2 select-none transition-all duration-200",
           hasArt ? "bg-transparent" : color.bg,
-          isActive && `shadow-lg ${color.glow}`,
+          isActive && `ring-[3px] ring-inset ${color.ring}`,
           isDragSource && "opacity-40",
           player.isEliminated && "opacity-50"
         )}
         style={{ transform: `rotate(${rotation}deg)` }}
       >
-        {/* Header: name + commander, long-press for poison */}
-        <LongPressButton
-          onPress={() => {}}
-          onLongPress={handleHeaderLongPress}
-          className="w-full text-center"
-        >
-          <p className="text-lg font-black leading-tight truncate max-w-full text-white drop-shadow-lg">{label}</p>
-          {player.commanderName && player.displayName && (
-            <p className="text-xs font-semibold leading-tight truncate max-w-full text-gray-300 uppercase tracking-wider drop-shadow">{player.commanderName}</p>
-          )}
-        </LongPressButton>
-
         {/* Avatar — key changes each time isActive becomes true, restarting the bounce */}
         <div
           key={avatarKey}
@@ -257,11 +244,23 @@ export function PlayerTile({
             <Plus className="h-4 w-4" />
           </LongPressButton>
         </div>
+
+        {/* Name — at bottom so it sits at the outer edge away from the center hub */}
+        <LongPressButton
+          onPress={() => {}}
+          onLongPress={handleHeaderLongPress}
+          className="w-full text-center"
+        >
+          <p className="text-lg font-black leading-tight truncate max-w-full text-white drop-shadow-lg">{label}</p>
+          {player.commanderName && player.displayName && (
+            <p className="text-xs font-semibold leading-tight truncate max-w-full text-gray-300 uppercase tracking-wider drop-shadow">{player.commanderName}</p>
+          )}
+        </LongPressButton>
       </div>
 
       {/* Elimination overlay (not rotated) */}
       {player.isEliminated && (
-        <div className="absolute inset-0 rounded-2xl bg-black/70 flex flex-col items-center justify-center z-10 pointer-events-none">
+        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-10 pointer-events-none">
           <Skull className="h-8 w-8 text-gray-400" />
           <p className="text-gray-400 text-xs mt-1 font-medium">
             Out T{player.eliminatedOnTurn ?? "?"}
@@ -273,7 +272,7 @@ export function PlayerTile({
       {isDragActive && !isDragSource && !player.isEliminated && (
         <div
           className={cn(
-            "absolute inset-0 rounded-2xl z-20 transition-all duration-150 pointer-events-none",
+            "absolute inset-0 z-20 transition-all duration-150 pointer-events-none",
             isDropTarget
               ? "bg-red-500/25 border-2 border-red-400 scale-[1.03]"
               : "bg-white/5 border-2 border-white/15"
@@ -283,7 +282,7 @@ export function PlayerTile({
 
       {/* Poison overlay */}
       {showPoison && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-black/80 pointer-events-auto">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 pointer-events-auto">
           <div className="flex flex-col items-center gap-2">
             <p className="text-green-400 text-xs font-bold uppercase tracking-wide">Poison</p>
             <div className="flex items-center gap-3">
