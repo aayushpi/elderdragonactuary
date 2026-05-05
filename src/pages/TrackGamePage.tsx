@@ -67,7 +67,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
     cancelDrag,
   } = useLiveGame(rawPlayers)
 
-  const { players, currentTurn, activeSeatIndex, turnStartedAt, drag, damageSheet, winnerId, turnLog } = state
+  const { players, currentTurn, activeSeatIndex, turnStartedAt, drag, damageSheet, winnerId } = state
 
   // ── Wake lock ──────────────────────────────────────────────────────────────
 
