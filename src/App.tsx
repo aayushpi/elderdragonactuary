@@ -27,6 +27,7 @@ import { TrackGamePage } from "@/pages/TrackGamePage"
 import { LiveCountPicker } from "@/components/live/LiveCountPicker"
 import { LiveAnnouncementModal, hasSeenLiveAnnouncement } from "@/components/LiveAnnouncementModal"
 import { useGames } from "@/hooks/useGames"
+import { loadProfile } from "@/lib/storage"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
 import type { Game, Player } from "@/types"
@@ -79,11 +80,13 @@ function App() {
   }
 
   function handleLiveCountSelected(count: number) {
+    const profile = loadProfile()
     const players: Partial<Player>[] = Array.from({ length: count }, (_, i) => ({
       id: crypto.randomUUID(),
       seatPosition: (i + 1) as Player["seatPosition"],
       commanderName: `Player ${i + 1}`,
       isMe: i === 0,
+      displayName: i === 0 ? profile.displayName : undefined,
     }))
     openLiveGame(players)
   }
