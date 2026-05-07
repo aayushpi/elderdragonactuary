@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils"
 import { TurnHub } from "@/components/live/TurnHub"
 import { DamageSheet } from "@/components/live/DamageSheet"
 import { WinnerOverlay } from "@/components/live/WinnerOverlay"
+import { CommanderEditModal } from "@/components/live/CommanderEditModal"
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-// 6-column × 3-row CSS grid. Row 2 (auto height) holds the Turn Hub.
-// Rotations make each tile's content face the player seated at that position.
+// 6-column × 2-row CSS grid. Rotations make each tile face the seated player.
 
 interface TileLayout {
   gridColumn: string
@@ -43,13 +43,12 @@ const LAYOUTS: Record<number, TileLayout[]> = {
   ],
 }
 
-// Movement threshold before a pointerdown turns into a drag
 const DRAG_THRESHOLD_PX = 8
 
 interface TrackGamePageProps {
   players: Partial<Player>[]
   onExit: (result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string }) => void
-  onRematch: () => void
+  onRematch: (players: Partial<Player>[]) => void
 }
 
 export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackGamePageProps) {
@@ -65,11 +64,26 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
     startDrag,
     updateDrag,
     cancelDrag,
+    updatePlayer,
+    startGame,
   } = useLiveGame(rawPlayers)
 
   const { players, currentTurn, activeSeatIndex, turnStartedAt, drag, damageSheet, winnerId } = state
 
+  const [phase, setPhase] = useState<"setup" | "active">("setup")
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false)
+
+  // ── Landscape lock ────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const ori = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }
+    ori.lock?.("landscape").catch(() => {})
+    return () => {
+      const u = screen.orientation as ScreenOrientation & { unlock?: () => void }
+      u.unlock?.()
+    }
+  }, [])
 
   // ── Wake lock ──────────────────────────────────────────────────────────────
 
@@ -82,20 +96,16 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
   }, [])
 
   // ── Drag system ────────────────────────────────────────────────────────────
-  // We use imperative window-level event listeners so pointer events are never
-  // lost to pointer capture or conditional-render timing.
 
-  // All mutable drag bookkeeping lives in a single ref — no stale-closure risk.
   const dragSession = useRef<{
     pointerId: number | null
     playerId: string | null
     startX: number
     startY: number
-    live: boolean                    // true once movement threshold crossed
+    live: boolean
     cleanupListeners: (() => void) | null
   }>({ pointerId: null, playerId: null, startX: 0, startY: 0, live: false, cleanupListeners: null })
 
-  // Stable refs to the latest action callbacks
   const startDragRef  = useRef(startDrag)
   const updateDragRef = useRef(updateDrag)
   const cancelDragRef = useRef(cancelDrag)
@@ -105,9 +115,6 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
   useEffect(() => { cancelDragRef.current = cancelDrag  }, [cancelDrag])
   useEffect(() => { openSheetRef.current  = openDamageSheet }, [openDamageSheet])
 
-  // Find the closest tile under the pointer by data-drop-target attribute.
-  // elementsFromPoint returns all elements at (x,y) front-to-back, so we scan
-  // through to find the first one tagged as a drop target.
   const findDropTarget = useCallback((x: number, y: number): string | null => {
     const els = document.elementsFromPoint(x, y)
     for (const el of els) {
@@ -122,11 +129,9 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
       const player = players.find((p) => p.id === playerId)
       if (player?.isEliminated || drag) return
 
-      // Prevent text selection / default browser drag during the gesture
       e.preventDefault()
 
       const session = dragSession.current
-      // Clean up any previous session that didn't finish properly
       session.cleanupListeners?.()
 
       session.pointerId = e.pointerId
@@ -142,13 +147,11 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
         if (!ds.live) {
           const dist = Math.hypot(ev.clientX - ds.startX, ev.clientY - ds.startY)
           if (dist < DRAG_THRESHOLD_PX) return
-          // Crossed threshold — activate drag
           ds.live = true
           startDragRef.current(ds.playerId!, ev.clientX, ev.clientY)
         }
 
         const hovered = findDropTarget(ev.clientX, ev.clientY)
-        // Don't report the source tile as a hover target
         const target = hovered === ds.playerId ? null : hovered
         updateDragRef.current(ev.clientX, ev.clientY, target)
       }
@@ -161,7 +164,6 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
         const wasLive  = ds.live
         const sourceId = ds.playerId!
 
-        // Reset session
         ds.pointerId = null
         ds.playerId  = null
         ds.live      = false
@@ -199,7 +201,6 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
     [players, drag, findDropTarget]
   )
 
-  // Cleanup listeners if the component unmounts mid-drag
   useEffect(() => {
     return () => { dragSession.current.cleanupListeners?.() }
   }, [])
@@ -208,6 +209,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
 
   const prevEliminatedIds = useRef<Set<string>>(new Set())
   useEffect(() => {
+    if (phase !== "active") return
     for (const p of players) {
       if (p.isEliminated && !prevEliminatedIds.current.has(p.id)) {
         prevEliminatedIds.current.add(p.id)
@@ -221,7 +223,19 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
         )
       }
     }
-  }, [players, currentTurn])
+  }, [players, currentTurn, phase])
+
+  // ── Setup ─────────────────────────────────────────────────────────────────
+
+  function handleStartGame() {
+    startGame()
+    setPhase("active")
+  }
+
+  function handleSaveCommander(playerId: string, updates: { commanderName: string; commanderImageUri?: string; displayName?: string }) {
+    updatePlayer(playerId, updates)
+    setEditingPlayerId(null)
+  }
 
   // ── Exit / save ───────────────────────────────────────────────────────────
 
@@ -237,18 +251,32 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
     onExit()
   }
 
+  function handleRematch() {
+    const rematchPlayers = players.map((p) => ({
+      id: p.id,
+      seatPosition: p.seatPosition,
+      displayName: p.displayName,
+      commanderName: p.commanderName,
+      commanderImageUri: p.commanderImageUri,
+      isMe: p.isMe,
+    }))
+    onRematch(rematchPlayers)
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const playerCount = Math.min(players.length, 5) as 2 | 3 | 4 | 5
   const layouts = LAYOUTS[playerCount] ?? LAYOUTS[4]
   const winner = winnerId ? players.find((p) => p.id === winnerId) : null
 
+  const editingPlayer = editingPlayerId ? players.find((p) => p.id === editingPlayerId) : null
+
   return (
     <div className="fixed inset-0 z-[60] bg-gray-950 overflow-hidden touch-none select-none">
       {/* Vignette */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.55)_100%)] pointer-events-none" />
 
-      {/* Board — two equal rows; hub floats above the inner edges */}
+      {/* Board */}
       <div
         className="w-full h-full grid"
         style={{
@@ -262,7 +290,6 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
           return (
             <div
               key={player.id}
-              // data-drop-target is always present so elementsFromPoint finds it
               data-drop-target={player.id}
               style={{ gridColumn: layout.gridColumn, gridRow: layout.gridRow }}
               className="min-w-0 min-h-0"
@@ -271,41 +298,68 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
                 player={player}
                 playerIndex={idx}
                 rotation={layout.rotation}
-                isActive={idx === activeSeatIndex && !winnerId}
-                isDragActive={!!drag}
+                isActive={phase === "active" && idx === activeSeatIndex && !winnerId}
+                isDragActive={phase === "active" && !!drag}
                 isDragSource={drag?.sourcePlayerId === player.id}
                 isDropTarget={drag?.hoveredTargetId === player.id}
                 allPlayers={players}
                 onAdjustDelta={(delta) => adjustDelta(player.id, delta)}
                 onAvatarPointerDown={(e) => handleAvatarPointerDown(e, player.id)}
                 onAdjustPoison={(delta) => adjustPoison(player.id, delta)}
+                isSetup={phase === "setup"}
+                onAvatarTap={phase === "setup" ? () => setEditingPlayerId(player.id) : undefined}
               />
             </div>
           )
         })}
       </div>
 
-      {/* Turn Hub — floats over the inner tile edges */}
-      <div className="absolute inset-0 flex items-center justify-center z-[62] pointer-events-none">
-        <div className="pointer-events-auto">
-          <TurnHub
-            currentTurn={currentTurn}
-            turnStartedAt={turnStartedAt}
-            activeSeatIndex={activeSeatIndex}
-            players={players}
-            isDragging={!!drag}
-            onEndTurn={endTurn}
-            onEndGame={() => setShowEndGameConfirm(true)}
-          />
+      {/* Setup overlay — center hub replaced by Start Game */}
+      {phase === "setup" && (
+        <div className="absolute inset-0 flex items-center justify-center z-[62] pointer-events-none">
+          <div className="pointer-events-auto flex flex-col items-center gap-3">
+            <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
+              Tap avatars to set commanders
+            </p>
+            <button
+              onClick={handleStartGame}
+              className="px-8 py-3 rounded-2xl bg-white text-gray-900 font-bold text-base shadow-2xl hover:bg-gray-100 active:scale-95 transition-all"
+            >
+              Start Game
+            </button>
+            <button
+              onClick={handleDiscard}
+              className="text-gray-500 text-xs hover:text-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Drag ghost — circular avatar follows the pointer */}
-      {drag && (() => {
-        const dragIdx   = players.findIndex((p) => p.id === drag.sourcePlayerId)
+      {/* Turn Hub — only in active phase */}
+      {phase === "active" && (
+        <div className="absolute inset-0 flex items-center justify-center z-[62] pointer-events-none">
+          <div className="pointer-events-auto">
+            <TurnHub
+              currentTurn={currentTurn}
+              turnStartedAt={turnStartedAt}
+              activeSeatIndex={activeSeatIndex}
+              players={players}
+              isDragging={!!drag}
+              onEndTurn={endTurn}
+              onEndGame={() => setShowEndGameConfirm(true)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Drag ghost */}
+      {phase === "active" && drag && (() => {
+        const dragIdx    = players.findIndex((p) => p.id === drag.sourcePlayerId)
         const dragPlayer = players[dragIdx]
-        const color     = playerColor(dragIdx)
-        const target    = drag.hoveredTargetId ? players.find((p) => p.id === drag.hoveredTargetId) : null
+        const color      = playerColor(dragIdx)
+        const target     = drag.hoveredTargetId ? players.find((p) => p.id === drag.hoveredTargetId) : null
         return (
           <div
             className="fixed pointer-events-none z-[64] flex flex-col items-center gap-1.5"
@@ -382,6 +436,17 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
         />
       )}
 
+      {/* Commander edit modal (setup only) */}
+      {editingPlayer && (
+        <CommanderEditModal
+          seatLabel={editingPlayer.displayName || editingPlayer.commanderName}
+          commanderName={editingPlayer.commanderName}
+          displayName={editingPlayer.displayName}
+          onSave={(updates) => handleSaveCommander(editingPlayer.id, updates)}
+          onCancel={() => setEditingPlayerId(null)}
+        />
+      )}
+
       {/* Winner overlay */}
       {winner && (
         <div className="animate-in fade-in duration-500">
@@ -391,7 +456,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
             startedAt={state.startedAt}
             currentTurn={currentTurn}
             onSave={handleSaveExit}
-            onRematch={onRematch}
+            onRematch={handleRematch}
           />
         </div>
       )}

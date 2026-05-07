@@ -24,6 +24,7 @@ import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { TrackGamePage } from "@/pages/TrackGamePage"
+import { LiveCountPicker } from "@/components/live/LiveCountPicker"
 import { LiveAnnouncementModal, hasSeenLiveAnnouncement } from "@/components/LiveAnnouncementModal"
 import { useGames } from "@/hooks/useGames"
 import { trackGameLogged } from '@/lib/analytics'
@@ -58,6 +59,7 @@ function App() {
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
   const [liveGamePlayers, setLiveGamePlayers] = useState<Partial<Player>[] | null>(null)
+  const [showLiveCountPicker, setShowLiveCountPicker] = useState(false)
   const [showLiveAnnouncement, setShowLiveAnnouncement] = useState(() => !hasSeenLiveAnnouncement())
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
@@ -73,6 +75,17 @@ function App() {
   function openLiveGame(players: Partial<Player>[]) {
     setLiveGamePlayers(players)
     setGameFlow(null)
+    setShowLiveCountPicker(false)
+  }
+
+  function handleLiveCountSelected(count: number) {
+    const players: Partial<Player>[] = Array.from({ length: count }, (_, i) => ({
+      id: crypto.randomUUID(),
+      seatPosition: (i + 1) as Player["seatPosition"],
+      commanderName: `Player ${i + 1}`,
+      isMe: i === 0,
+    }))
+    openLiveGame(players)
   }
 
   function closeLiveGame(result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string }) {
@@ -247,7 +260,7 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
-        
+        onStartLiveGame={() => setShowLiveCountPicker(true)}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         userEmail={user.email}
         onSignOut={() => {
@@ -262,11 +275,18 @@ function App() {
         <TrackGamePage
           players={liveGamePlayers}
           onExit={closeLiveGame}
-          onRematch={() => {
-            const saved = liveGamePlayers
+          onRematch={(rematchPlayers) => {
             setLiveGamePlayers(null)
-            setTimeout(() => setLiveGamePlayers(saved), 50)
+            setTimeout(() => setLiveGamePlayers(rematchPlayers), 50)
           }}
+        />
+      )}
+
+      {/* Live count picker */}
+      {showLiveCountPicker && !liveGamePlayers && (
+        <LiveCountPicker
+          onSelect={handleLiveCountSelected}
+          onCancel={() => setShowLiveCountPicker(false)}
         />
       )}
       <main className="container mx-auto max-w-5xl px-4 py-6">

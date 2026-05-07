@@ -1,4 +1,4 @@
-import { LayoutDashboard, ChartSpline, History, Settings, Plus, FileText, Bug, LogOut } from "lucide-react"
+import { LayoutDashboard, ChartSpline, History, Settings, Plus, FileText, Bug, LogOut, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -6,6 +6,7 @@ interface NavProps {
   currentPath: string
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
+  onStartLiveGame?: () => void
   onShowReleaseNotes: () => void
   userEmail?: string
   onSignOut?: () => void
@@ -18,7 +19,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/settings", label: "Settings", Icon: Settings },
 ]
 
-export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLiveGame, onShowReleaseNotes, userEmail, onSignOut }: NavProps) {
   function isActivePath(path: string) {
     if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(`${path}/`)
@@ -101,7 +102,14 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onShowReleaseNotes
               </button>
             ))}
           </div>
-          <div>
+          <div className="flex items-center gap-2">
+            {onStartLiveGame && (
+              <Button size="sm" variant="outline" className="gap-1.5 w-full sm:w-auto" onClick={onStartLiveGame}>
+                <Zap className="h-4 w-4" />
+                <span className="hidden sm:inline">Live Game</span>
+                <span className="sm:hidden">Live</span>
+              </Button>
+            )}
             <Button size="sm" className="gap-1.5 w-full sm:w-auto" onClick={() => onOpenLogGame?.()}>
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Track a game</span>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Minus, Plus, Skull, Swords } from "lucide-react"
+import { Minus, Plus, Skull, Swords, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LivePlayer } from "@/types/live"
 
@@ -27,6 +27,8 @@ interface PlayerTileProps {
   onAdjustDelta: (delta: number) => void
   onAvatarPointerDown: (e: React.PointerEvent) => void
   onAdjustPoison: (delta: number) => void
+  isSetup?: boolean
+  onAvatarTap?: () => void
 }
 
 const LONG_PRESS_MS = 500
@@ -88,6 +90,8 @@ export function PlayerTile({
   onAdjustDelta,
   onAvatarPointerDown,
   onAdjustPoison,
+  isSetup = false,
+  onAvatarTap,
 }: PlayerTileProps) {
   const color = playerColor(playerIndex)
   const [showPoison, setShowPoison] = useState(false)
@@ -157,13 +161,15 @@ export function PlayerTile({
         <div
           key={avatarKey}
           className={cn(
-            "relative rounded-full overflow-hidden border-2 cursor-grab touch-none shrink-0",
+            "relative rounded-full overflow-hidden border-2 shrink-0",
             color.border,
-            isActive && "ring-2 ring-white/50 live-avatar-bounce",
-            isDragActive && !isDragSource && "ring-2 ring-white/30"
+            isSetup ? "cursor-pointer touch-none" : "cursor-grab touch-none",
+            !isSetup && isActive && "ring-2 ring-white/50 live-avatar-bounce",
+            !isSetup && isDragActive && !isDragSource && "ring-2 ring-white/30"
           )}
           style={{ width: "min(14vmin, 72px)", height: "min(14vmin, 72px)" }}
-          onPointerDown={onAvatarPointerDown}
+          onPointerDown={isSetup ? undefined : onAvatarPointerDown}
+          onClick={isSetup ? onAvatarTap : undefined}
           data-player-id={player.id}
         >
           {player.commanderImageUri ? (
@@ -181,14 +187,21 @@ export function PlayerTile({
             </div>
           )}
 
+          {/* Edit hint in setup mode */}
+          {isSetup && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+              <Pencil className="h-4 w-4 text-white/80" />
+            </div>
+          )}
+
           {/* Poison counter badge */}
-          {player.poisonCounters > 0 && (
+          {!isSetup && player.poisonCounters > 0 && (
             <div className="absolute -top-1 -right-1 bg-green-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
               {player.poisonCounters}
             </div>
           )}
 
-          {isActive && (
+          {!isSetup && isActive && (
             <div className="absolute inset-0 rounded-full ring-4 ring-white/30 animate-pulse pointer-events-none" />
           )}
         </div>
@@ -227,23 +240,25 @@ export function PlayerTile({
           </div>
         )}
 
-        {/* Plus / minus */}
-        <div className="flex items-center gap-3">
-          <LongPressButton
-            onPress={() => onAdjustDelta(-1)}
-            onLongPress={() => onAdjustDelta(-10)}
-            className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white hover:bg-black/70"
-          >
-            <Minus className="h-4 w-4" />
-          </LongPressButton>
-          <LongPressButton
-            onPress={() => onAdjustDelta(1)}
-            onLongPress={() => onAdjustDelta(10)}
-            className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white hover:bg-black/70"
-          >
-            <Plus className="h-4 w-4" />
-          </LongPressButton>
-        </div>
+        {/* Plus / minus — hidden in setup mode */}
+        {!isSetup && (
+          <div className="flex items-center gap-3">
+            <LongPressButton
+              onPress={() => onAdjustDelta(-1)}
+              onLongPress={() => onAdjustDelta(-10)}
+              className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white hover:bg-black/70"
+            >
+              <Minus className="h-4 w-4" />
+            </LongPressButton>
+            <LongPressButton
+              onPress={() => onAdjustDelta(1)}
+              onLongPress={() => onAdjustDelta(10)}
+              className="w-10 h-10 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white hover:bg-black/70"
+            >
+              <Plus className="h-4 w-4" />
+            </LongPressButton>
+          </div>
+        )}
 
         {/* Name — at bottom so it sits at the outer edge away from the center hub */}
         <LongPressButton

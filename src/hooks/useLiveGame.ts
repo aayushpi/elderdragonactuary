@@ -63,6 +63,8 @@ type Action =
   | { type: "START_DRAG"; playerId: string; x: number; y: number }
   | { type: "UPDATE_DRAG"; x: number; y: number; hoveredTargetId: string | null }
   | { type: "CANCEL_DRAG" }
+  | { type: "UPDATE_PLAYER"; playerId: string; updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName">> }
+  | { type: "START_GAME" }
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
 
@@ -197,6 +199,16 @@ function reducer(state: LiveGameState, action: Action): LiveGameState {
     case "CANCEL_DRAG":
       return { ...state, drag: null }
 
+    case "UPDATE_PLAYER": {
+      const players = state.players.map((p) =>
+        p.id === action.playerId ? { ...p, ...action.updates } : p
+      )
+      return { ...state, players }
+    }
+
+    case "START_GAME":
+      return { ...state, startedAt: Date.now(), turnStartedAt: Date.now() }
+
     default:
       return state
   }
@@ -302,6 +314,17 @@ export function useLiveGame(rawPlayers: Partial<Player>[]) {
     dispatch({ type: "CANCEL_DRAG" })
   }, [])
 
+  const updatePlayer = useCallback((
+    playerId: string,
+    updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName">>
+  ) => {
+    dispatch({ type: "UPDATE_PLAYER", playerId, updates })
+  }, [])
+
+  const startGame = useCallback(() => {
+    dispatch({ type: "START_GAME" })
+  }, [])
+
   return {
     state,
     adjustDelta,
@@ -315,5 +338,7 @@ export function useLiveGame(rawPlayers: Partial<Player>[]) {
     startDrag,
     updateDrag,
     cancelDrag,
+    updatePlayer,
+    startGame,
   }
 }
