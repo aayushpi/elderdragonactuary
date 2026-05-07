@@ -11,9 +11,10 @@ interface TurnHubProps {
   players: LivePlayer[]
   isDragging: boolean
   onEndTurn: () => void
+  onEndGame: () => void
 }
 
-export function TurnHub({ currentTurn, turnStartedAt, activeSeatIndex, players, isDragging, onEndTurn }: TurnHubProps) {
+export function TurnHub({ currentTurn, turnStartedAt, activeSeatIndex, players, isDragging, onEndTurn, onEndGame }: TurnHubProps) {
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export function TurnHub({ currentTurn, turnStartedAt, activeSeatIndex, players, 
         <p className={cn("font-mono text-xl font-bold tabular-nums", timerColor)}>{timerStr}</p>
       </div>
 
-      {/* End Turn button */}
+      {/* End Turn + End Game buttons */}
       <button
         onClick={onEndTurn}
         disabled={isDragging}
@@ -79,6 +80,12 @@ export function TurnHub({ currentTurn, turnStartedAt, activeSeatIndex, players, 
       >
         End Turn
         <ChevronRight className="h-4 w-4" />
+      </button>
+      <button
+        onClick={onEndGame}
+        className="w-full flex items-center justify-center py-1.5 rounded-xl text-xs font-semibold text-gray-400 border border-white/10 hover:text-white hover:border-white/25 active:scale-95 transition-all duration-150"
+      >
+        End Game
       </button>
     </div>
   )

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useCallback } from "react"
-import { X } from "lucide-react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import { toast } from "sonner"
 import type { Player } from "@/types"
 import { useLiveGame } from "@/hooks/useLiveGame"
-import { PlayerTile } from "@/components/live/PlayerTile"
+import { PlayerTile, playerColor } from "@/components/live/PlayerTile"
+import { cn } from "@/lib/utils"
 import { TurnHub } from "@/components/live/TurnHub"
 import { DamageSheet } from "@/components/live/DamageSheet"
 import { WinnerOverlay } from "@/components/live/WinnerOverlay"
@@ -68,6 +68,8 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
   } = useLiveGame(rawPlayers)
 
   const { players, currentTurn, activeSeatIndex, turnStartedAt, drag, damageSheet, winnerId } = state
+
+  const [showEndGameConfirm, setShowEndGameConfirm] = useState(false)
 
   // ── Wake lock ──────────────────────────────────────────────────────────────
 
@@ -232,7 +234,6 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
   }
 
   function handleDiscard() {
-    if (!confirm("Discard this game session?")) return
     onExit()
   }
 
@@ -247,20 +248,9 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
       {/* Vignette */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.55)_100%)] pointer-events-none" />
 
-      {/* Exit button */}
-      {!winnerId && (
-        <button
-          onClick={handleDiscard}
-          className="absolute top-3 right-3 z-[65] flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-gray-400 text-xs hover:text-white transition-colors"
-        >
-          <X className="h-3.5 w-3.5" />
-          End game
-        </button>
-      )}
-
-      {/* Board — two equal rows, tiles fill all screen space */}
+      {/* Board — two equal rows; hub floats above the inner edges */}
       <div
-        className="w-full h-full grid gap-1.5 p-1.5"
+        className="w-full h-full grid"
         style={{
           gridTemplateColumns: "repeat(6, 1fr)",
           gridTemplateRows: "1fr 1fr",
@@ -295,7 +285,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
         })}
       </div>
 
-      {/* Turn Hub — floating over the tile intersection */}
+      {/* Turn Hub — floats over the inner tile edges */}
       <div className="absolute inset-0 flex items-center justify-center z-[62] pointer-events-none">
         <div className="pointer-events-auto">
           <TurnHub
@@ -305,27 +295,69 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
             players={players}
             isDragging={!!drag}
             onEndTurn={endTurn}
+            onEndGame={() => setShowEndGameConfirm(true)}
           />
         </div>
       </div>
 
-      {/* Drag ghost — follows the pointer */}
-      {drag && (
-        <div
-          className="fixed pointer-events-none z-[64] bg-gray-900/90 border border-white/20 text-white text-xs font-semibold rounded-full px-3 py-1.5 shadow-xl"
-          style={{
-            left: drag.currentX + 14,
-            top:  drag.currentY - 20,
-          }}
-        >
-          {players.find((p) => p.id === drag.sourcePlayerId)?.commanderName ?? "?"}
-          {drag.hoveredTargetId && (
-            <span className="text-red-400 ml-1.5">
-              → {players.find((p) => p.id === drag.hoveredTargetId)?.displayName
-                ?? players.find((p) => p.id === drag.hoveredTargetId)?.commanderName
-                ?? "?"}
-            </span>
-          )}
+      {/* Drag ghost — circular avatar follows the pointer */}
+      {drag && (() => {
+        const dragIdx   = players.findIndex((p) => p.id === drag.sourcePlayerId)
+        const dragPlayer = players[dragIdx]
+        const color     = playerColor(dragIdx)
+        const target    = drag.hoveredTargetId ? players.find((p) => p.id === drag.hoveredTargetId) : null
+        return (
+          <div
+            className="fixed pointer-events-none z-[64] flex flex-col items-center gap-1.5"
+            style={{ left: drag.currentX, top: drag.currentY, transform: "translate(-50%, -50%)" }}
+          >
+            <div
+              className={cn("rounded-full overflow-hidden border-2 shadow-2xl", color.border)}
+              style={{ width: 64, height: 64 }}
+            >
+              {dragPlayer?.commanderImageUri ? (
+                <img src={dragPlayer.commanderImageUri} alt="" className="w-full h-full object-cover" draggable={false} />
+              ) : (
+                <div className={cn("w-full h-full flex items-center justify-center", color.bg)}>
+                  <span className="text-xl font-bold text-white/60">
+                    {dragPlayer?.commanderName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            {target && (
+              <div className="bg-red-900/90 text-red-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-red-500/30 whitespace-nowrap">
+                {dragPlayer?.displayName ?? dragPlayer?.commanderName} attacking → {target.displayName ?? target.commanderName}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* End Game confirmation */}
+      {showEndGameConfirm && !winnerId && (
+        <div className="absolute inset-0 z-[66] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 flex flex-col gap-3 min-w-[200px] shadow-2xl">
+            <p className="text-white font-bold text-center text-base">End Game?</p>
+            <button
+              onClick={() => { setShowEndGameConfirm(false); handleSaveExit() }}
+              className="w-full py-2.5 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 active:scale-95 transition-all"
+            >
+              Save Game
+            </button>
+            <button
+              onClick={() => { setShowEndGameConfirm(false); handleDiscard() }}
+              className="w-full py-2.5 rounded-xl bg-red-900/50 border border-red-500/30 text-red-300 font-semibold text-sm hover:bg-red-900/70 active:scale-95 transition-all"
+            >
+              Discard Game
+            </button>
+            <button
+              onClick={() => setShowEndGameConfirm(false)}
+              className="text-gray-500 text-xs text-center hover:text-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
