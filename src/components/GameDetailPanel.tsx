@@ -80,7 +80,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
     setHoveredCard(null)
   }
 
-  const winnerHasFastMana = winner?.fastMana.hasFastMana && winner.fastMana.cards.length > 0
+  const winnerHasFastMana = winner?.fastMana?.hasFastMana && (winner.fastMana?.cards?.length ?? 0) > 0
 
   return (
     <div className="space-y-4">
@@ -120,9 +120,9 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                 )}
               </div>
             </div>
-            {player.fastMana.hasFastMana && (
+            {player.fastMana?.hasFastMana && (
               <p className="text-xs text-muted-foreground ml-2">
-                Fast mana{player.fastMana.cards.length > 0 ? `: ${player.fastMana.cards.join(", ")}` : ""}
+                Fast mana{(player.fastMana?.cards?.length ?? 0) > 0 ? `: ${player.fastMana.cards.join(", ")}` : ""}
               </p>
             )}
           </div>
@@ -164,7 +164,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Winner's Fast Mana</p>
                 <div className="flex flex-wrap gap-1">
-                  {winner!.fastMana.cards.map((cardName) => (
+                  {(winner!.fastMana?.cards ?? []).map((cardName) => (
                     <div
                       key={cardName}
                       className="relative"

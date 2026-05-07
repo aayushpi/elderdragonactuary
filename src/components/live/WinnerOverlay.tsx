@@ -15,6 +15,7 @@ interface WinnerOverlayProps {
   startedAt: number
   currentTurn: number
   onSave: () => void
+  onSaveAndRematch: () => void
   onRematch: () => void
 }
 
@@ -34,6 +35,7 @@ export function WinnerOverlay({
   startedAt,
   currentTurn,
   onSave,
+  onSaveAndRematch,
   onRematch,
 }: WinnerOverlayProps) {
   const totalDurationMs = Date.now() - startedAt
@@ -86,12 +88,17 @@ export function WinnerOverlay({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-1">
-          <Button variant="outline" className="flex-1" onClick={onRematch}>
+        <div className="flex flex-col gap-2 pt-1">
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={onSave}>
+              Save Game
+            </Button>
+            <Button className="flex-1" onClick={onSaveAndRematch}>
+              Save &amp; Rematch
+            </Button>
+          </div>
+          <Button variant="outline" className="w-full" onClick={onRematch}>
             Rematch
-          </Button>
-          <Button className="flex-1" onClick={onSave}>
-            Save Game
           </Button>
         </div>
       </DialogContent>

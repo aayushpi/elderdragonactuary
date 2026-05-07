@@ -63,7 +63,7 @@ type Action =
   | { type: "START_DRAG"; playerId: string; x: number; y: number }
   | { type: "UPDATE_DRAG"; x: number; y: number; hoveredTargetId: string | null }
   | { type: "CANCEL_DRAG" }
-  | { type: "UPDATE_PLAYER"; playerId: string; updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName">> }
+  | { type: "UPDATE_PLAYER"; playerId: string; updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName" | "isMe" | "seatPosition">> }
   | { type: "START_GAME" }
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
@@ -200,9 +200,12 @@ function reducer(state: LiveGameState, action: Action): LiveGameState {
       return { ...state, drag: null }
 
     case "UPDATE_PLAYER": {
-      const players = state.players.map((p) =>
+      let players = state.players.map((p) =>
         p.id === action.playerId ? { ...p, ...action.updates } : p
       )
+      if ("seatPosition" in action.updates) {
+        players = [...players].sort((a, b) => a.seatPosition - b.seatPosition)
+      }
       return { ...state, players }
     }
 
@@ -222,7 +225,7 @@ export function initLiveGameState(rawPlayers: Partial<Player>[]): LiveGameState 
     id: p.id ?? `player-${i}`,
     seatPosition: p.seatPosition ?? ((i + 1) as LivePlayer["seatPosition"]),
     displayName: p.displayName,
-    commanderName: p.commanderName ?? "Unknown",
+    commanderName: p.commanderName ?? "",
     commanderImageUri: p.commanderImageUri,
     partnerName: p.partnerName,
     partnerImageUri: p.partnerImageUri,
@@ -316,7 +319,7 @@ export function useLiveGame(rawPlayers: Partial<Player>[]) {
 
   const updatePlayer = useCallback((
     playerId: string,
-    updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName">>
+    updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName" | "isMe" | "seatPosition">>
   ) => {
     dispatch({ type: "UPDATE_PLAYER", playerId, updates })
   }, [])

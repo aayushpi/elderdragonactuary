@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react"
-import { AlertCircle, ExternalLink, ChevronsUpDown, Swords } from "lucide-react"
+import { AlertCircle, ExternalLink, ChevronsUpDown } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -97,14 +97,14 @@ interface LivePrefillResult {
 
 interface LogGamePageProps {
   onSave: (game: Game) => void
+  onSaveAndRematch?: (game: Game) => void
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
   prefillCommander?: string
   prefillLiveResult?: LivePrefillResult
-  onTrackLive?: (players: Partial<Player>[]) => void
 }
 
-export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander, prefillLiveResult, onTrackLive }: LogGamePageProps) {
+export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange, prefillCommander, prefillLiveResult }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -337,7 +337,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
     updatePlayer(index, { knockoutTurn: parsed })
   }
 
-  function handleSubmit() {
+  function handleSubmit(saveCallback: (game: Game) => void = onSave) {
     if (!validate()) return
     const winningTurn = parseInt(winTurn, 10)
     const finalizedPlayers = players.map((player) => {
@@ -359,7 +359,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
       keyWinconCards: keyWinconCards.length > 0 ? keyWinconCards : undefined,
       bracket: bracket ?? undefined,
     }
-    // Build playerNames map when all players have explicit display names
     const names = finalizedPlayers.map((p) => p.displayName?.trim() ?? "")
     const allNamed = names.every((n) => n.length > 0)
     if (allNamed) {
@@ -371,7 +370,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
       })
       game.playerNames = playerNamesMap
     }
-    onSave(game)
+    saveCallback(game)
   }
 
   const totalPlayers = playerCount ?? 0
@@ -505,25 +504,9 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       {/* Player count */}
       <div className="space-y-2">
-        <h2 className={`text-sm font-semibold uppercase tracking-wide ${errors.playerCount ? "text-destructive" : "text-muted-foreground"}`}>
-          How many players?
-        </h2>
-        <div className="flex gap-2">
-          {[2, 3, 4, 5, 6].map((n) => (
-            <Button
-              key={n}
-              type="button"
-              variant={playerCount === n ? "default" : "outline"}
-              className={`flex-1 ${errors.playerCount && playerCount !== n ? "border-destructive" : ""}`}
-              onClick={() => initPlayers(n)}
-            >
-              {n}
-            </Button>
-          ))}
-        </div>
         {pods.length > 0 && (
-          <div className="mt-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
+          <div>
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Select a pod</label>
             <div className="mt-1">
               <Popover open={podsOpen} onOpenChange={setPodsOpen}>
                 <PopoverTrigger asChild>
@@ -622,6 +605,22 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
             </div>
           </div>
         )}
+        <h2 className={`text-sm font-semibold uppercase tracking-wide ${errors.playerCount ? "text-destructive" : "text-muted-foreground"}`}>
+          {pods.length > 0 ? "Or, how many players?" : "How many players?"}
+        </h2>
+        <div className="flex gap-2">
+          {[2, 3, 4, 5, 6].map((n) => (
+            <Button
+              key={n}
+              type="button"
+              variant={playerCount === n ? "default" : "outline"}
+              className={`flex-1 ${errors.playerCount && playerCount !== n ? "border-destructive" : ""}`}
+              onClick={() => initPlayers(n)}
+            >
+              {n}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Bracket Selector */}
@@ -721,28 +720,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
             </div>
           </div>
 
-          {/* Track Game Live */}
-          {onTrackLive && (
-            <>
-              <Separator />
-              <div className="space-y-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full gap-2 border-dashed"
-                  disabled={!playerCount}
-                  onClick={() => onTrackLive(players)}
-                >
-                  <Swords className="h-4 w-4" />
-                  Track Game Live
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  (Experimental! Use at your own risk)
-                </p>
-              </div>
-            </>
-          )}
-
           {/* Key Wincon Cards */}
           <Separator />
           <div className="space-y-3">
@@ -822,9 +799,14 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
           <Button variant="outline" className="flex-1" onClick={onCancel}>
             Cancel
           </Button>
-          <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0}>
+          <Button className="flex-1" onClick={() => handleSubmit(onSave)} disabled={players.length === 0}>
             Save Game
           </Button>
+          {onSaveAndRematch && prefillLiveResult && (
+            <Button className="flex-1" onClick={() => handleSubmit(onSaveAndRematch)} disabled={players.length === 0}>
+              Save &amp; Rematch
+            </Button>
+          )}
         </div>
       </div>
     </div>

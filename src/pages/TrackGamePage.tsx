@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react"
 import { toast } from "sonner"
-import type { Player } from "@/types"
+import type { Player, RecentCommander, SeatPosition } from "@/types"
 import { useLiveGame } from "@/hooks/useLiveGame"
 import { PlayerTile, playerColor } from "@/components/live/PlayerTile"
 import { cn } from "@/lib/utils"
@@ -45,13 +45,24 @@ const LAYOUTS: Record<number, TileLayout[]> = {
 
 const DRAG_THRESHOLD_PX = 8
 
-interface TrackGamePageProps {
+interface ExitResult {
+  winTurn: number
+  knockoutTurns: Record<string, number>
+  winnerId?: string
   players: Partial<Player>[]
-  onExit: (result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string }) => void
-  onRematch: (players: Partial<Player>[]) => void
 }
 
-export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackGamePageProps) {
+interface TrackGamePageProps {
+  players: Partial<Player>[]
+  onExit: (result?: ExitResult) => void
+  onRematch: (players: Partial<Player>[]) => void
+  onSaveAndRematch: (result: ExitResult, rematchPlayers: Partial<Player>[]) => void
+  knownPlayerNames: string[]
+  recentMyCommanders: RecentCommander[]
+  myDisplayName?: string
+}
+
+export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAndRematch, knownPlayerNames, recentMyCommanders, myDisplayName }: TrackGamePageProps) {
   const {
     state,
     adjustDelta,
@@ -73,6 +84,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
   const [phase, setPhase] = useState<"setup" | "active">("setup")
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false)
+  const [pickingWinnerForRematch, setPickingWinnerForRematch] = useState(false)
 
   // ── Landscape lock ────────────────────────────────────────────────────────
 
@@ -232,27 +244,60 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
     setPhase("active")
   }
 
-  function handleSaveCommander(playerId: string, updates: { commanderName: string; commanderImageUri?: string; displayName?: string }) {
+  function applyPlayerUpdates(playerId: string, updates: { commanderName: string; commanderImageUri?: string; displayName?: string; isMe: boolean; seatPosition: SeatPosition }) {
+    if (updates.isMe) {
+      for (const p of players) {
+        if (p.id !== playerId && p.isMe) updatePlayer(p.id, { isMe: false })
+      }
+    }
+    const current = players.find((p) => p.id === playerId)
+    if (current && updates.seatPosition !== current.seatPosition) {
+      const displaced = players.find((p) => p.id !== playerId && p.seatPosition === updates.seatPosition)
+      if (displaced) updatePlayer(displaced.id, { seatPosition: current.seatPosition })
+    }
     updatePlayer(playerId, updates)
+  }
+
+  function handleSaveCommander(playerId: string, updates: { commanderName: string; commanderImageUri?: string; displayName?: string; isMe: boolean; seatPosition: SeatPosition }) {
+    applyPlayerUpdates(playerId, updates)
     setEditingPlayerId(null)
+  }
+
+  function handleSaveAndNavigate(playerId: string, updates: { commanderName: string; commanderImageUri?: string; displayName?: string; isMe: boolean; seatPosition: SeatPosition }, direction: "prev" | "next") {
+    applyPlayerUpdates(playerId, updates)
+    const idx = players.findIndex((p) => p.id === playerId)
+    const nextIdx = direction === "prev" ? idx - 1 : idx + 1
+    const nextPlayer = players[nextIdx]
+    setEditingPlayerId(nextPlayer?.id ?? null)
   }
 
   // ── Exit / save ───────────────────────────────────────────────────────────
 
   function handleSaveExit() {
+    onExit(buildExitResult())
+  }
+
+  function buildExitResult(winnerIdOverride?: string) {
     const knockoutTurns: Record<string, number> = {}
-    for (const p of players) {
+    const mappedPlayers: Partial<Player>[] = players.map((p) => {
       if (p.eliminatedOnTurn !== undefined) knockoutTurns[p.id] = p.eliminatedOnTurn
-    }
-    onExit({ winTurn: currentTurn, knockoutTurns, winnerId: winnerId ?? undefined })
+      return {
+        id: p.id,
+        seatPosition: p.seatPosition,
+        displayName: p.displayName,
+        commanderName: p.commanderName,
+        commanderImageUri: p.commanderImageUri,
+        partnerName: p.partnerName,
+        partnerImageUri: p.partnerImageUri,
+        isMe: p.isMe,
+        knockoutTurn: p.eliminatedOnTurn,
+      }
+    })
+    return { winTurn: currentTurn, knockoutTurns, winnerId: winnerIdOverride ?? winnerId ?? undefined, players: mappedPlayers }
   }
 
-  function handleDiscard() {
-    onExit()
-  }
-
-  function handleRematch() {
-    const rematchPlayers = players.map((p) => ({
+  function buildRematchPlayers(): Partial<Player>[] {
+    return players.map((p) => ({
       id: p.id,
       seatPosition: p.seatPosition,
       displayName: p.displayName,
@@ -260,7 +305,18 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
       commanderImageUri: p.commanderImageUri,
       isMe: p.isMe,
     }))
-    onRematch(rematchPlayers)
+  }
+
+  function handleDiscard() {
+    onExit()
+  }
+
+  function handleSaveAndRematchAction() {
+    onSaveAndRematch(buildExitResult(), buildRematchPlayers())
+  }
+
+  function handleRematch() {
+    onRematch(buildRematchPlayers())
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -348,7 +404,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
               players={players}
               isDragging={!!drag}
               onEndTurn={endTurn}
-              onEndGame={() => setShowEndGameConfirm(true)}
+              onEndGame={() => { setPickingWinnerForRematch(false); setShowEndGameConfirm(true) }}
             />
           </div>
         </div>
@@ -391,26 +447,67 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
       {/* End Game confirmation */}
       {showEndGameConfirm && !winnerId && (
         <div className="absolute inset-0 z-[66] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 flex flex-col gap-3 min-w-[200px] shadow-2xl">
-            <p className="text-white font-bold text-center text-base">End Game?</p>
-            <button
-              onClick={() => { setShowEndGameConfirm(false); handleSaveExit() }}
-              className="w-full py-2.5 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 active:scale-95 transition-all"
-            >
-              Save Game
-            </button>
-            <button
-              onClick={() => { setShowEndGameConfirm(false); handleDiscard() }}
-              className="w-full py-2.5 rounded-xl bg-red-900/50 border border-red-500/30 text-red-300 font-semibold text-sm hover:bg-red-900/70 active:scale-95 transition-all"
-            >
-              Discard Game
-            </button>
-            <button
-              onClick={() => setShowEndGameConfirm(false)}
-              className="text-gray-500 text-xs text-center hover:text-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
+          <div className="bg-background border border-border rounded-2xl p-5 flex flex-col gap-3 w-72 shadow-2xl">
+            {pickingWinnerForRematch ? (
+              <>
+                <p className="text-foreground font-bold text-center text-base">Who won?</p>
+                <div className="flex flex-col gap-2">
+                  {players.filter((p) => !p.isEliminated).map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setShowEndGameConfirm(false)
+                        setPickingWinnerForRematch(false)
+                        onSaveAndRematch(buildExitResult(p.id), buildRematchPlayers())
+                      }}
+                      className="w-full h-10 rounded-xl bg-foreground text-background font-bold text-sm hover:opacity-90 active:scale-95 transition-all truncate px-3"
+                    >
+                      {p.displayName || p.commanderName || `Seat ${p.seatPosition}`}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setPickingWinnerForRematch(false)}
+                  className="text-muted-foreground text-xs text-center hover:text-foreground transition-colors"
+                >
+                  Back
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-foreground font-bold text-center text-base">End Game?</p>
+                <button
+                  onClick={() => { setShowEndGameConfirm(false); handleSaveExit() }}
+                  className="w-full h-10 rounded-xl bg-foreground text-background font-bold text-sm hover:opacity-90 active:scale-95 transition-all"
+                >
+                  Save Game
+                </button>
+                <button
+                  onClick={() => setPickingWinnerForRematch(true)}
+                  className="w-full h-10 rounded-xl bg-foreground text-background font-bold text-sm hover:opacity-90 active:scale-95 transition-all"
+                >
+                  Save &amp; Rematch
+                </button>
+                <button
+                  onClick={() => { setShowEndGameConfirm(false); handleRematch() }}
+                  className="w-full h-10 rounded-xl border border-border text-foreground font-semibold text-sm hover:bg-muted active:scale-95 transition-all"
+                >
+                  Rematch
+                </button>
+                <button
+                  onClick={() => { setShowEndGameConfirm(false); handleDiscard() }}
+                  className="w-full h-10 rounded-xl border border-destructive/40 text-destructive font-semibold text-sm hover:bg-destructive/10 active:scale-95 transition-all"
+                >
+                  Discard Game
+                </button>
+                <button
+                  onClick={() => setShowEndGameConfirm(false)}
+                  className="text-muted-foreground text-xs text-center hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -437,15 +534,29 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
       )}
 
       {/* Commander edit modal (setup only) */}
-      {editingPlayer && (
-        <CommanderEditModal
-          seatLabel={editingPlayer.displayName || editingPlayer.commanderName}
-          commanderName={editingPlayer.commanderName}
-          displayName={editingPlayer.displayName}
-          onSave={(updates) => handleSaveCommander(editingPlayer.id, updates)}
-          onCancel={() => setEditingPlayerId(null)}
-        />
-      )}
+      {editingPlayer && (() => {
+        const editingPlayerIdx = players.findIndex((p) => p.id === editingPlayer.id)
+        return (
+          <CommanderEditModal
+            key={editingPlayer.id}
+            seatLabel={`Player ${editingPlayerIdx + 1}`}
+            commanderName={editingPlayer.commanderName}
+            commanderImageUri={editingPlayer.commanderImageUri}
+            displayName={editingPlayer.displayName}
+            seatPosition={editingPlayer.seatPosition}
+            totalSeats={players.length}
+            knownPlayerNames={knownPlayerNames}
+            recentMyCommanders={recentMyCommanders}
+            myDisplayName={myDisplayName}
+            hasPrev={editingPlayerIdx > 0}
+            hasNext={editingPlayerIdx < players.length - 1}
+            onSave={(updates) => handleSaveCommander(editingPlayer.id, updates)}
+            onSaveAndPrev={(updates) => handleSaveAndNavigate(editingPlayer.id, updates, "prev")}
+            onSaveAndNext={(updates) => handleSaveAndNavigate(editingPlayer.id, updates, "next")}
+            onCancel={() => setEditingPlayerId(null)}
+          />
+        )
+      })()}
 
       {/* Winner overlay */}
       {winner && (
@@ -456,6 +567,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch }: TrackG
             startedAt={state.startedAt}
             currentTurn={currentTurn}
             onSave={handleSaveExit}
+            onSaveAndRematch={handleSaveAndRematchAction}
             onRematch={handleRematch}
           />
         </div>

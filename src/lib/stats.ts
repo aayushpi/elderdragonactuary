@@ -30,7 +30,7 @@ export function computeStats(games: Game[]): ComputedStats {
   const overall = winRate(overallWins, myGames.length)
 
   // With fast mana (I had fast mana)
-  const withFmGames = myGames.filter((g) => getMe(g)?.fastMana.hasFastMana)
+  const withFmGames = myGames.filter((g) => getMe(g)?.fastMana?.hasFastMana)
   const withFmWins = withFmGames.filter((g) => {
     const me = getMe(g)
     return me && g.winnerId === me.id
@@ -39,7 +39,7 @@ export function computeStats(games: Game[]): ComputedStats {
 
   // Against fast mana (at least one opponent had fast mana)
   const vsGames = myGames.filter((g) =>
-    g.players.some((p) => !p.isMe && p.fastMana.hasFastMana)
+    g.players.some((p) => !p.isMe && p.fastMana?.hasFastMana)
   )
   const vsWins = vsGames.filter((g) => {
     const me = getMe(g)
@@ -104,8 +104,8 @@ export function computeStats(games: Game[]): ComputedStats {
     }
     entry.games++
     if (iWon) { entry.wins++; entry.winTurnSum += game.winTurn }
-    if (me.fastMana.hasFastMana) { entry.withFmGames++; if (iWon) entry.withFmWins++ }
-    if (game.players.some((p) => !p.isMe && p.fastMana.hasFastMana)) { entry.vsFmGames++; if (iWon) entry.vsFmWins++ }
+    if (me.fastMana?.hasFastMana) { entry.withFmGames++; if (iWon) entry.withFmWins++ }
+    if (game.players.some((p) => !p.isMe && p.fastMana?.hasFastMana)) { entry.vsFmGames++; if (iWon) entry.vsFmWins++ }
     commanderMap.set(name, entry)
   }
 

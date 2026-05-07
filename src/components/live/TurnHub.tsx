@@ -72,7 +72,7 @@ export function TurnHub({ currentTurn, turnStartedAt, activeSeatIndex, players, 
         onClick={onEndTurn}
         disabled={isDragging}
         className={cn(
-          "w-full flex items-center justify-center gap-1 py-2 rounded-xl font-bold text-sm transition-all duration-150",
+          "w-full h-9 flex items-center justify-center gap-1 rounded-xl font-bold text-sm transition-all duration-150",
           isDragging
             ? "bg-gray-700 text-gray-500 cursor-not-allowed"
             : "bg-white text-gray-900 hover:bg-gray-100 active:scale-95 shadow-md"
@@ -83,7 +83,7 @@ export function TurnHub({ currentTurn, turnStartedAt, activeSeatIndex, players, 
       </button>
       <button
         onClick={onEndGame}
-        className="w-full flex items-center justify-center py-1.5 rounded-xl text-xs font-semibold text-gray-400 border border-white/10 hover:text-white hover:border-white/25 active:scale-95 transition-all duration-150"
+        className="w-full h-9 flex items-center justify-center rounded-xl text-xs font-semibold text-gray-400 border border-white/10 hover:text-white hover:border-white/25 active:scale-95 transition-all duration-150"
       >
         End Game
       </button>

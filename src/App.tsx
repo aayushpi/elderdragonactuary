@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
@@ -30,7 +30,7 @@ import { useGames } from "@/hooks/useGames"
 import { loadProfile } from "@/lib/storage"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
-import type { Game, Player } from "@/types"
+import type { Game, Player, RecentCommander } from "@/types"
 
 type GameFlowMode = "log" | "edit"
 
@@ -67,6 +67,51 @@ function App() {
   const location = useLocation()
   const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
 
+  const recentMyCommanders = useMemo((): RecentCommander[] => {
+    const seen = new Set<string>()
+    const result: RecentCommander[] = []
+    for (const game of games) {
+      const me = game.players.find((p) => p.isMe)
+      if (!me || seen.has(me.commanderName)) continue
+      seen.add(me.commanderName)
+      result.push({
+        name: me.commanderName,
+        manaCost: me.commanderManaCost,
+        imageUri: me.commanderImageUri,
+        typeLine: me.commanderTypeLine,
+        colorIdentity: me.commanderColorIdentity,
+      })
+    }
+    return result
+  }, [games])
+
+  const knownPlayerNames = useMemo((): string[] => {
+    const names = new Set<string>()
+    for (const g of games) {
+      for (const p of g.players) {
+        if (!p.isMe && p.displayName?.trim()) names.add(p.displayName.trim())
+      }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [games])
+
+  const livePods = useMemo(() => {
+    const map = new Map<string, { id: string; opponents: string[]; label: string; totalPlayers: number }>()
+    for (const g of games) {
+      const names = g.players.map((p) => p.displayName?.trim()).filter(Boolean) as string[]
+      if (names.length !== g.players.length || names.length === 0) continue
+      const key = [...names].sort((a, b) => a.localeCompare(b)).join("|||")
+      if (!map.has(key)) {
+        const opponents = g.players
+          .filter((p) => !p.isMe)
+          .map((p) => p.displayName!.trim())
+          .sort((a, b) => a.localeCompare(b))
+        map.set(key, { id: key, opponents, label: opponents.join(", "), totalPlayers: g.players.length })
+      }
+    }
+    return Array.from(map.values())
+  }, [games])
+
   const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
   const editingGame = gameFlow?.mode === "edit" && gameFlow.editGameId
@@ -80,39 +125,87 @@ function App() {
   }
 
   function handleLiveCountSelected(count: number) {
-    const profile = loadProfile()
     const players: Partial<Player>[] = Array.from({ length: count }, (_, i) => ({
       id: crypto.randomUUID(),
       seatPosition: (i + 1) as Player["seatPosition"],
-      commanderName: `Player ${i + 1}`,
-      isMe: i === 0,
-      displayName: i === 0 ? profile.displayName : undefined,
+      isMe: false,
     }))
     openLiveGame(players)
   }
 
-  function closeLiveGame(result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string }) {
-    const savedPlayers = liveGamePlayers
+  function handleSelectPod(pod: { id: string; opponents: string[]; label: string; totalPlayers: number }) {
+    const profile = loadProfile()
+    const mePlayer: Partial<Player> = {
+      id: crypto.randomUUID(),
+      isMe: true,
+      displayName: profile.displayName || undefined,
+      seatPosition: 1,
+    }
+    const opponentPlayers: Partial<Player>[] = pod.opponents.map((name, i) => ({
+      id: crypto.randomUUID(),
+      isMe: false,
+      displayName: name,
+      seatPosition: (i + 2) as Player["seatPosition"],
+    }))
+    openLiveGame([mePlayer, ...opponentPlayers])
+  }
+
+  function closeLiveGame(result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string; players: Partial<Player>[] }) {
     setLiveGamePlayers(null)
 
-    if (result && savedPlayers) {
-      // Reopen the log-game drawer pre-populated with the live session data
-      const updatedPlayers = savedPlayers.map((p) => ({
-        ...p,
-        knockoutTurn: p.id && result.knockoutTurns[p.id] ? result.knockoutTurns[p.id] : p.knockoutTurn,
-      }))
+    if (result) {
       setIsLogGameDirty(false)
       setGameFlow({
         mode: "log",
         minimized: false,
-        prefillCommander: updatedPlayers.find((p) => p.isMe)?.commanderName,
+        prefillCommander: result.players.find((p) => p.isMe)?.commanderName,
         prefillLiveResult: {
-          players: updatedPlayers,
+          players: result.players,
           winTurn: result.winTurn,
           winnerId: result.winnerId,
         },
       })
     }
+  }
+
+  function handleSaveAndRematch(
+    result: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string; players: Partial<Player>[] },
+    rematchPlayers: Partial<Player>[]
+  ) {
+    if (!result.winnerId) return
+    const finalPlayers = result.players.map((p) => ({
+      id: p.id ?? crypto.randomUUID(),
+      isMe: p.isMe ?? false,
+      commanderName: p.commanderName ?? "",
+      commanderImageUri: p.commanderImageUri,
+      commanderColorIdentity: p.commanderColorIdentity,
+      commanderManaCost: p.commanderManaCost,
+      commanderTypeLine: p.commanderTypeLine,
+      partnerName: p.partnerName,
+      partnerImageUri: p.partnerImageUri,
+      displayName: p.displayName,
+      seatPosition: (p.seatPosition ?? 1) as Player["seatPosition"],
+      fastMana: p.fastMana ?? { hasFastMana: false, cards: [] },
+      knockoutTurn: p.id === result.winnerId ? undefined : p.knockoutTurn,
+    }))
+    const game: Game = {
+      id: crypto.randomUUID(),
+      playedAt: new Date().toISOString(),
+      players: finalPlayers,
+      winnerId: result.winnerId,
+      winTurn: result.winTurn,
+    }
+    void (async () => {
+      try {
+        await addGame(game)
+        try { trackGameLogged(game) } catch { void 0 }
+        setLiveGamePlayers(null)
+        toast.success("Game logged!")
+        setTimeout(() => setLiveGamePlayers(rematchPlayers), 50)
+      } catch {
+        // Errors are surfaced in useGames
+      }
+    })()
   }
 
   function openLogGameFlow(prefillCommander?: string) {
@@ -168,6 +261,28 @@ function App() {
         try { trackGameLogged(game) } catch { void 0 }
         closeGameFlow(true)
         toast.success("Game logged!")
+      } catch {
+        // Errors are surfaced in useGames
+      }
+    })()
+  }
+
+  function handleSaveGameAndRematch(game: Game) {
+    void (async () => {
+      try {
+        await addGame(game)
+        try { trackGameLogged(game) } catch { void 0 }
+        const rematchPlayers: Partial<Player>[] = game.players.map((p) => ({
+          id: crypto.randomUUID(),
+          seatPosition: p.seatPosition,
+          displayName: p.displayName,
+          commanderName: p.commanderName,
+          commanderImageUri: p.commanderImageUri,
+          isMe: p.isMe,
+        }))
+        closeGameFlow(true)
+        toast.success("Game logged!")
+        setTimeout(() => setLiveGamePlayers(rematchPlayers), 50)
       } catch {
         // Errors are surfaced in useGames
       }
@@ -282,6 +397,10 @@ function App() {
             setLiveGamePlayers(null)
             setTimeout(() => setLiveGamePlayers(rematchPlayers), 50)
           }}
+          onSaveAndRematch={handleSaveAndRematch}
+          knownPlayerNames={knownPlayerNames}
+          recentMyCommanders={recentMyCommanders}
+          myDisplayName={loadProfile().displayName}
         />
       )}
 
@@ -290,6 +409,8 @@ function App() {
         <LiveCountPicker
           onSelect={handleLiveCountSelected}
           onCancel={() => setShowLiveCountPicker(false)}
+          pods={livePods}
+          onSelectPod={handleSelectPod}
         />
       )}
       <main className="container mx-auto max-w-5xl px-4 py-6">
@@ -381,9 +502,9 @@ function App() {
               prefillCommander={gameFlow.prefillCommander}
               prefillLiveResult={gameFlow.prefillLiveResult}
               onSave={handleSaveGame}
+              onSaveAndRematch={gameFlow.prefillLiveResult ? handleSaveGameAndRematch : undefined}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}
-              onTrackLive={openLiveGame}
             />
           ) : (
             editingGame && (

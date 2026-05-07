@@ -104,7 +104,7 @@ export function PlayerTile({
     if (isActive) setAvatarKey((k) => k + 1)
   }, [isActive])
 
-  const label = player.displayName || player.commanderName
+  const label = player.displayName || player.commanderName || `Seat ${player.seatPosition}`
 
   const lifeColor =
     player.lifeTotal <= 5
@@ -182,7 +182,7 @@ export function PlayerTile({
           ) : (
             <div className={cn("w-full h-full flex items-center justify-center", color.bg)}>
               <span className="text-2xl font-bold text-white/60">
-                {player.commanderName.charAt(0).toUpperCase()}
+                {(player.commanderName || `${player.seatPosition}`).charAt(0).toUpperCase()}
               </span>
             </div>
           )}
