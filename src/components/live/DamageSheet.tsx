@@ -81,7 +81,7 @@ export function DamageSheet({ sheet, players, onApply, onCancel, onUpdateAmount,
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onCancel() }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[90svh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Damage to <span className="text-destructive">{targetLabel}</span>
@@ -92,11 +92,11 @@ export function DamageSheet({ sheet, players, onApply, onCancel, onUpdateAmount,
         <Separator />
 
         {/* Amount picker */}
-        <div className="flex items-center justify-center gap-6 py-2">
+        <div className="flex items-center justify-center gap-6 py-1">
           <AmountButton onPress={() => adjust(-1)} onLongPress={() => adjust(-5)}>
             <Minus className="h-4 w-4" />
           </AmountButton>
-          <span className="text-6xl font-black tabular-nums min-w-[3ch] text-center leading-none">
+          <span className="text-5xl font-black tabular-nums min-w-[3ch] text-center leading-none">
             {sheet.amount}
           </span>
           <AmountButton onPress={() => adjust(1)} onLongPress={() => adjust(5)}>
@@ -114,7 +114,7 @@ export function DamageSheet({ sheet, players, onApply, onCancel, onUpdateAmount,
         <button
           onClick={() => onUpdateType(isCommander ? "regular" : "commander")}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-3 rounded-lg border text-left transition-colors",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-colors",
             isCommander
               ? "bg-accent border-primary"
               : "bg-background border-input hover:bg-accent"
@@ -151,7 +151,7 @@ export function DamageSheet({ sheet, players, onApply, onCancel, onUpdateAmount,
         <button
           onClick={() => onUpdateLifelink(!sheet.lifelink)}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-3 rounded-lg border text-left transition-colors",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-colors",
             sheet.lifelink
               ? "bg-accent border-primary"
               : "bg-background border-input hover:bg-accent"
