@@ -34,18 +34,11 @@ import type { Game, Player, RecentCommander } from "@/types"
 
 type GameFlowMode = "log" | "edit"
 
-interface LivePrefillResult {
-  players: Partial<Player>[]
-  winTurn: number
-  winnerId?: string
-}
-
 interface GameFlowState {
   mode: GameFlowMode
   minimized: boolean
   editGameId?: string
   prefillCommander?: string
-  prefillLiveResult?: LivePrefillResult
 }
 
 type ThemeMode = "light" | "dark" | "system"
@@ -150,22 +143,8 @@ function App() {
     openLiveGame([mePlayer, ...opponentPlayers])
   }
 
-  function closeLiveGame(result?: { winTurn: number; knockoutTurns: Record<string, number>; winnerId?: string; players: Partial<Player>[] }) {
+  function closeLiveGame() {
     setLiveGamePlayers(null)
-
-    if (result) {
-      setIsLogGameDirty(false)
-      setGameFlow({
-        mode: "log",
-        minimized: false,
-        prefillCommander: result.players.find((p) => p.isMe)?.commanderName,
-        prefillLiveResult: {
-          players: result.players,
-          winTurn: result.winTurn,
-          winnerId: result.winnerId,
-        },
-      })
-    }
   }
 
   function handleSaveAndRematch(
@@ -261,28 +240,6 @@ function App() {
         try { trackGameLogged(game) } catch { void 0 }
         closeGameFlow(true)
         toast.success("Game logged!")
-      } catch {
-        // Errors are surfaced in useGames
-      }
-    })()
-  }
-
-  function handleSaveGameAndRematch(game: Game) {
-    void (async () => {
-      try {
-        await addGame(game)
-        try { trackGameLogged(game) } catch { void 0 }
-        const rematchPlayers: Partial<Player>[] = game.players.map((p) => ({
-          id: crypto.randomUUID(),
-          seatPosition: p.seatPosition,
-          displayName: p.displayName,
-          commanderName: p.commanderName,
-          commanderImageUri: p.commanderImageUri,
-          isMe: p.isMe,
-        }))
-        closeGameFlow(true)
-        toast.success("Game logged!")
-        setTimeout(() => setLiveGamePlayers(rematchPlayers), 50)
       } catch {
         // Errors are surfaced in useGames
       }
@@ -500,9 +457,7 @@ function App() {
           {gameFlow.mode === "log" ? (
             <LogGamePage
               prefillCommander={gameFlow.prefillCommander}
-              prefillLiveResult={gameFlow.prefillLiveResult}
               onSave={handleSaveGame}
-              onSaveAndRematch={gameFlow.prefillLiveResult ? handleSaveGameAndRematch : undefined}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}
             />

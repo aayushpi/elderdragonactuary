@@ -76,6 +76,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
     updateDrag,
     cancelDrag,
     updatePlayer,
+    swapSeats,
     startGame,
   } = useLiveGame(rawPlayers)
 
@@ -83,6 +84,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
 
   const [phase, setPhase] = useState<"setup" | "active">("setup")
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
+  const [setupDrag, setSetupDrag] = useState<{ sourceId: string; hoveredId: string | null } | null>(null)
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false)
   const [pickingWinnerForRematch, setPickingWinnerForRematch] = useState(false)
 
@@ -216,6 +218,74 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
   useEffect(() => {
     return () => { dragSession.current.cleanupListeners?.() }
   }, [])
+
+  // ── Setup drag (seat swap) ─────────────────────────────────────────────────
+
+  const handleSetupTilePointerDown = useCallback(
+    (e: React.PointerEvent, playerId: string) => {
+      if (dragSession.current.pointerId !== null) return
+
+      const session = dragSession.current
+      session.cleanup?.()
+      session.pointerId = e.pointerId
+      session.playerId = playerId
+      session.startX = e.clientX
+      session.startY = e.clientY
+      session.live = false
+
+      function onMove(ev: PointerEvent) {
+        if (ev.pointerId !== dragSession.current.pointerId) return
+        const ds = dragSession.current
+        if (!ds.live) {
+          if (Math.hypot(ev.clientX - ds.startX, ev.clientY - ds.startY) < DRAG_THRESHOLD_PX) return
+          ds.live = true
+          setSetupDrag({ sourceId: playerId, hoveredId: null })
+        }
+        const hovered = findDropTarget(ev.clientX, ev.clientY)
+        setSetupDrag({ sourceId: playerId, hoveredId: hovered !== playerId ? hovered : null })
+      }
+
+      function onUp(ev: PointerEvent) {
+        if (ev.pointerId !== dragSession.current.pointerId) return
+        const ds = dragSession.current
+        const wasLive = ds.live
+        const sourceId = ds.playerId!
+        cleanup()
+        ds.pointerId = null
+        ds.playerId = null
+        ds.live = false
+        setSetupDrag(null)
+        if (!wasLive) return
+        const targetId = findDropTarget(ev.clientX, ev.clientY)
+        if (targetId && targetId !== sourceId) {
+          const src = players.find((p) => p.id === sourceId)
+          const tgt = players.find((p) => p.id === targetId)
+          if (src && tgt) swapSeats(src.seatPosition, tgt.seatPosition)
+        }
+      }
+
+      function onCancel() {
+        cleanup()
+        dragSession.current.pointerId = null
+        dragSession.current.playerId = null
+        dragSession.current.live = false
+        setSetupDrag(null)
+      }
+
+      function cleanup() {
+        window.removeEventListener("pointermove", onMove)
+        window.removeEventListener("pointerup", onUp)
+        window.removeEventListener("pointercancel", onCancel)
+        dragSession.current.cleanupListeners = null
+      }
+
+      session.cleanupListeners = cleanup
+      window.addEventListener("pointermove", onMove, { passive: true })
+      window.addEventListener("pointerup", onUp)
+      window.addEventListener("pointercancel", onCancel)
+    },
+    [players, swapSeats, findDropTarget]
+  )
 
   // ── Elimination toasts ────────────────────────────────────────────────────
 
@@ -355,15 +425,16 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
                 playerIndex={idx}
                 rotation={layout.rotation}
                 isActive={phase === "active" && idx === activeSeatIndex && !winnerId}
-                isDragActive={phase === "active" && !!drag}
-                isDragSource={drag?.sourcePlayerId === player.id}
-                isDropTarget={drag?.hoveredTargetId === player.id}
+                isDragActive={phase === "setup" ? !!setupDrag : (phase === "active" && !!drag)}
+                isDragSource={phase === "setup" ? setupDrag?.sourceId === player.id : drag?.sourcePlayerId === player.id}
+                isDropTarget={phase === "setup" ? setupDrag?.hoveredId === player.id : drag?.hoveredTargetId === player.id}
                 allPlayers={players}
                 onAdjustDelta={(delta) => adjustDelta(player.id, delta)}
                 onAvatarPointerDown={(e) => handleAvatarPointerDown(e, player.id)}
                 onAdjustPoison={(delta) => adjustPoison(player.id, delta)}
                 isSetup={phase === "setup"}
                 onAvatarTap={phase === "setup" ? () => setEditingPlayerId(player.id) : undefined}
+                onTilePointerDown={phase === "setup" ? (e) => handleSetupTilePointerDown(e, player.id) : undefined}
               />
             </div>
           )
@@ -374,8 +445,8 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
       {phase === "setup" && (
         <div className="absolute inset-0 flex items-center justify-center z-[62] pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center gap-3">
-            <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
-              Tap avatars to set commanders
+            <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold text-center">
+              Tap to set commanders · Drag to swap seats
             </p>
             <button
               onClick={handleStartGame}

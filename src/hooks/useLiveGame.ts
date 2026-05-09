@@ -1,5 +1,5 @@
 import { useReducer, useRef, useCallback } from "react"
-import type { Player } from "@/types"
+import type { Player, SeatPosition } from "@/types"
 import type {
   LiveGameState,
   LivePlayer,
@@ -64,6 +64,7 @@ type Action =
   | { type: "UPDATE_DRAG"; x: number; y: number; hoveredTargetId: string | null }
   | { type: "CANCEL_DRAG" }
   | { type: "UPDATE_PLAYER"; playerId: string; updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName" | "isMe" | "seatPosition">> }
+  | { type: "SWAP_SEATS"; slotA: SeatPosition; slotB: SeatPosition }
   | { type: "START_GAME" }
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
@@ -209,6 +210,17 @@ function reducer(state: LiveGameState, action: Action): LiveGameState {
       return { ...state, players }
     }
 
+    case "SWAP_SEATS": {
+      const players = state.players
+        .map((p) => {
+          if (p.seatPosition === action.slotA) return { ...p, seatPosition: action.slotB }
+          if (p.seatPosition === action.slotB) return { ...p, seatPosition: action.slotA }
+          return p
+        })
+        .sort((a, b) => a.seatPosition - b.seatPosition)
+      return { ...state, players }
+    }
+
     case "START_GAME":
       return { ...state, startedAt: Date.now(), turnStartedAt: Date.now() }
 
@@ -324,6 +336,10 @@ export function useLiveGame(rawPlayers: Partial<Player>[]) {
     dispatch({ type: "UPDATE_PLAYER", playerId, updates })
   }, [])
 
+  const swapSeats = useCallback((slotA: SeatPosition, slotB: SeatPosition) => {
+    dispatch({ type: "SWAP_SEATS", slotA, slotB })
+  }, [])
+
   const startGame = useCallback(() => {
     dispatch({ type: "START_GAME" })
   }, [])
@@ -342,6 +358,7 @@ export function useLiveGame(rawPlayers: Partial<Player>[]) {
     updateDrag,
     cancelDrag,
     updatePlayer,
+    swapSeats,
     startGame,
   }
 }

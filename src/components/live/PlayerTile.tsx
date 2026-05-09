@@ -29,6 +29,7 @@ interface PlayerTileProps {
   onAdjustPoison: (delta: number) => void
   isSetup?: boolean
   onAvatarTap?: () => void
+  onTilePointerDown?: (e: React.PointerEvent) => void
 }
 
 const LONG_PRESS_MS = 500
@@ -92,6 +93,7 @@ export function PlayerTile({
   onAdjustPoison,
   isSetup = false,
   onAvatarTap,
+  onTilePointerDown,
 }: PlayerTileProps) {
   const color = playerColor(playerIndex)
   const [showPoison, setShowPoison] = useState(false)
@@ -130,7 +132,10 @@ export function PlayerTile({
   const hasArt = !!player.commanderImageUri
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div
+      className={cn("relative w-full h-full overflow-hidden", isSetup && onTilePointerDown && "cursor-grab active:cursor-grabbing")}
+      onPointerDown={isSetup ? onTilePointerDown : undefined}
+    >
       {/* Full-art commander background — rotated to face the seated player */}
       {hasArt && (
         <>
@@ -289,7 +294,9 @@ export function PlayerTile({
           className={cn(
             "absolute inset-0 z-20 transition-all duration-150 pointer-events-none",
             isDropTarget
-              ? "bg-red-500/25 border-2 border-red-400 scale-[1.03]"
+              ? isSetup
+                ? "bg-blue-500/30 border-2 border-blue-400 scale-[1.03]"
+                : "bg-red-500/25 border-2 border-red-400 scale-[1.03]"
               : "bg-white/5 border-2 border-white/15"
           )}
         />

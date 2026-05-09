@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { AlertCircle, ExternalLink, ChevronsUpDown } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
@@ -8,7 +8,9 @@ import { Command, CommandList, CommandItem, CommandInput } from "@/components/ui
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
+import { SeatGrid } from "@/components/SeatGrid"
 import { CardSearch } from "@/components/CardSearch"
+import { swapSeats, autoAssignSeats, getMirroredSeatOrder } from "@/lib/seats"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
@@ -25,7 +27,7 @@ function makePlayer(isMe: boolean): Partial<Player> {
     isMe,
     commanderName: "",
     fastMana: { hasFastMana: false, cards: [] },
-    // seatPosition intentionally omitted — user selects via SeatPicker
+    // seatPosition assigned by autoAssignSeats after player count is chosen
   }
 }
 
@@ -56,55 +58,16 @@ const WIN_CONDITION_CATEGORIES = [
   "Poison or Infect"
 ] as const
 
-function getMirroredSeatOrder(totalPlayers: number): number[] {
-  if (totalPlayers < 1) return []
-
-  if (totalPlayers === 5) {
-    return [1, 2, 3, 5, 4]
-  }
-
-  if (totalPlayers === 6) {
-    return [1, 2, 3, 6, 5, 4]
-  }
-
-  const rightEnd = Math.floor(totalPlayers / 2) + 1
-  const leftSeats = [1]
-  const rightSeats: number[] = []
-
-  for (let seat = totalPlayers; seat >= rightEnd + 1; seat--) {
-    leftSeats.push(seat)
-  }
-  for (let seat = 2; seat <= rightEnd; seat++) {
-    rightSeats.push(seat)
-  }
-
-  const mirrored: number[] = []
-  const rows = Math.max(leftSeats.length, rightSeats.length)
-  for (let i = 0; i < rows; i++) {
-    if (leftSeats[i] !== undefined) mirrored.push(leftSeats[i])
-    if (rightSeats[i] !== undefined) mirrored.push(rightSeats[i])
-  }
-  return mirrored
-}
-
 const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false, koTiming: false }
-
-interface LivePrefillResult {
-  players: Partial<Player>[]
-  winTurn: number
-  winnerId?: string
-}
 
 interface LogGamePageProps {
   onSave: (game: Game) => void
-  onSaveAndRematch?: (game: Game) => void
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
   prefillCommander?: string
-  prefillLiveResult?: LivePrefillResult
 }
 
-export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange, prefillCommander, prefillLiveResult }: LogGamePageProps) {
+export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -154,7 +117,6 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
   const [podsOpen, setPodsOpen] = useState(false)
   const [winnerId, setWinnerId] = useState<string | null>(null)
   const [winTurn, setWinTurn] = useState("")
-  const liveResultApplied = useRef(false)
   const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState("")
   const [winConditions, setWinConditions] = useState<string[]>([])
@@ -234,6 +196,7 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
       return next
     })
 
+    newPlayers = autoAssignSeats(newPlayers)
     setPlayerCount(total)
     setPlayers(newPlayers)
     setErrors(EMPTY_ERRORS)
@@ -268,11 +231,8 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
     }
   }
 
-  function takenSeats(excludeIndex: number): SeatPosition[] {
-    return players
-      .filter((_, i) => i !== excludeIndex)
-      .map((p) => p.seatPosition)
-      .filter((s): s is SeatPosition => s !== undefined)
+  function handleSwap(slotA: SeatPosition, slotB: SeatPosition) {
+    setPlayers((prev) => swapSeats(prev, slotA, slotB))
   }
 
   function validate(): boolean {
@@ -337,7 +297,8 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
     updatePlayer(index, { knockoutTurn: parsed })
   }
 
-  function handleSubmit(saveCallback: (game: Game) => void = onSave) {
+  function handleSubmit() {
+    const saveCallback = onSave
     if (!validate()) return
     const winningTurn = parseInt(winTurn, 10)
     const finalizedPlayers = players.map((player) => {
@@ -485,17 +446,6 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
     return () => onDirtyChange?.(false)
   }, [hasInProgressData, onDirtyChange])
 
-  // Apply live session result once when the drawer opens pre-populated
-  useEffect(() => {
-    if (!prefillLiveResult || liveResultApplied.current) return
-    liveResultApplied.current = true
-    const { players: livePlayers, winTurn: liveWinTurn, winnerId: liveWinnerId } = prefillLiveResult
-    setPlayerCount(livePlayers.length)
-    setPlayers(livePlayers as Partial<Player>[])
-    setWinTurn(String(liveWinTurn))
-    if (liveWinnerId) setWinnerId(liveWinnerId)
-  }, [prefillLiveResult])
-
   const formErrorMessage = errors.koTiming
     ? "Winning turn can't be after all opponents are knocked out"
     : "Please fill in all highlighted fields."
@@ -567,7 +517,7 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
                               knockoutTurn: existing?.knockoutTurn,
                             }
                           })
-                          const newPlayers = [mePlayer, ...opponentPlayers]
+                          const newPlayers = autoAssignSeats([mePlayer, ...opponentPlayers])
                           setPlayerCount(total)
                           setPlayers(newPlayers)
                           // If we applied a pod onto an empty players array but have a prefill commander,
@@ -683,6 +633,14 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Players
             </h2>
+            {players.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Seat order (turn order)
+                </label>
+                <SeatGrid players={players} onSwap={handleSwap} />
+              </div>
+            )}
             <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : playerGridColumns === 3 ? "grid-cols-3" : "grid-cols-2")}>
             {playerGridEntries.map((entry, gridIndex) => {
                 if (!entry) {
@@ -696,8 +654,6 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
                     player={player}
                     isMe={player.isMe ?? false}
                     playerOrder={playerOrder}
-                    takenSeats={takenSeats(originalIndex)}
-                    totalPlayers={totalPlayers}
                     isWinner={player.id === winnerId}
                     showKoTurnControls={!!winnerId}
                     winTurn={player.id === winnerId ? winTurn : ""}
@@ -799,14 +755,9 @@ export function LogGamePage({ onSave, onSaveAndRematch, onCancel, onDirtyChange,
           <Button variant="outline" className="flex-1" onClick={onCancel}>
             Cancel
           </Button>
-          <Button className="flex-1" onClick={() => handleSubmit(onSave)} disabled={players.length === 0}>
+          <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0}>
             Save Game
           </Button>
-          {onSaveAndRematch && prefillLiveResult && (
-            <Button className="flex-1" onClick={() => handleSubmit(onSaveAndRematch)} disabled={players.length === 0}>
-              Save &amp; Rematch
-            </Button>
-          )}
         </div>
       </div>
     </div>

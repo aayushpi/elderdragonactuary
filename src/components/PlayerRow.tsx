@@ -8,12 +8,10 @@ import { FormField } from "@/components/ui/form-field"
 import { InputGroup, InputGroupText } from "@/components/ui/input-group"
 import { CommanderSearch } from "@/components/CommanderSearch"
 import { extractCardData } from "@/lib/shared"
-// CommanderCard removed: using low-opacity background image instead
 import { CardSearch } from "@/components/CardSearch"
-import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
 import { resolveArtCrop } from "@/lib/scryfall"
-import type { Player, RecentCommander, SeatPosition, ScryfallCard } from "@/types"
+import type { Player, RecentCommander, ScryfallCard } from "@/types"
 
 interface FieldErrors {
   commanderName?: boolean
@@ -25,8 +23,6 @@ interface PlayerRowProps {
   player: Partial<Player>
   isMe: boolean
   playerOrder: number
-  takenSeats: SeatPosition[]
-  totalPlayers: number
   isWinner: boolean
   showKoTurnControls: boolean
   winTurn: string
@@ -45,8 +41,6 @@ export function PlayerRow({
   player,
   isMe,
   playerOrder,
-  takenSeats,
-  totalPlayers,
   isWinner,
   showKoTurnControls,
   winTurn,
@@ -409,20 +403,6 @@ export function PlayerRow({
             />
           </div>
         )}
-      </div>
-
-      <Separator />
-
-      {/* Seat */}
-      <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground uppercase tracking-wide">Seat (turn order)</label>
-        <SeatPicker
-          value={player.seatPosition ?? null}
-          onChange={(seat) => onChange({ seatPosition: seat ?? undefined })}
-          takenSeats={takenSeats}
-          totalPlayers={totalPlayers}
-          hasError={fieldErrors?.seatPosition}
-        />
       </div>
 
       <Separator />
