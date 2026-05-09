@@ -25,8 +25,8 @@ const LAYOUTS: Record<number, TileLayout[]> = {
   ],
   3: [
     { gridColumn: "2 / 6", gridRow: "2", rotation: 0 },
-    { gridColumn: "1 / 4", gridRow: "1", rotation: 180 },
     { gridColumn: "4 / 7", gridRow: "1", rotation: 180 },
+    { gridColumn: "1 / 4", gridRow: "1", rotation: 180 },
   ],
   4: [
     { gridColumn: "1 / 4", gridRow: "2", rotation: 0 },
@@ -40,6 +40,14 @@ const LAYOUTS: Record<number, TileLayout[]> = {
     { gridColumn: "4 / 7", gridRow: "1", rotation: 180 },
     { gridColumn: "1 / 4", gridRow: "1", rotation: 180 },
     { gridColumn: "1 / 3", gridRow: "2", rotation: 0 },
+  ],
+  6: [
+    { gridColumn: "1 / 3", gridRow: "2", rotation: 0 },
+    { gridColumn: "3 / 5", gridRow: "2", rotation: 0 },
+    { gridColumn: "5 / 7", gridRow: "2", rotation: 0 },
+    { gridColumn: "5 / 7", gridRow: "1", rotation: 180 },
+    { gridColumn: "3 / 5", gridRow: "1", rotation: 180 },
+    { gridColumn: "1 / 3", gridRow: "1", rotation: 180 },
   ],
 }
 
@@ -84,9 +92,11 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
 
   const [phase, setPhase] = useState<"setup" | "active">("setup")
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
-  const [setupDrag, setSetupDrag] = useState<{ sourceId: string; hoveredId: string | null } | null>(null)
+  const [setupDrag, setSetupDrag] = useState<{ sourceId: string; hoveredId: string | null; currentX: number; currentY: number } | null>(null)
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false)
   const [pickingWinnerForRematch, setPickingWinnerForRematch] = useState(false)
+  const [showStartModal, setShowStartModal] = useState(false)
+  const [rolls, setRolls] = useState<Record<string, number>>({})
 
   // ── Landscape lock ────────────────────────────────────────────────────────
 
@@ -239,10 +249,9 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
         if (!ds.live) {
           if (Math.hypot(ev.clientX - ds.startX, ev.clientY - ds.startY) < DRAG_THRESHOLD_PX) return
           ds.live = true
-          setSetupDrag({ sourceId: playerId, hoveredId: null })
         }
         const hovered = findDropTarget(ev.clientX, ev.clientY)
-        setSetupDrag({ sourceId: playerId, hoveredId: hovered !== playerId ? hovered : null })
+        setSetupDrag({ sourceId: playerId, hoveredId: hovered !== playerId ? hovered : null, currentX: ev.clientX, currentY: ev.clientY })
       }
 
       function onUp(ev: PointerEvent) {
@@ -307,11 +316,24 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
     }
   }, [players, currentTurn, phase])
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function playerName(p: typeof players[0]) {
+    return p.displayName || (p.isMe ? myDisplayName : null) || p.commanderName || `Seat ${p.seatPosition}`
+  }
+
   // ── Setup ─────────────────────────────────────────────────────────────────
 
-  function handleStartGame() {
-    startGame()
+  function handleStartGame(startingIndex: number) {
+    startGame(startingIndex)
     setPhase("active")
+    setShowStartModal(false)
+  }
+
+  function rollAllDice() {
+    const newRolls: Record<string, number> = {}
+    for (const p of players) newRolls[p.id] = Math.floor(Math.random() * 20) + 1
+    setRolls(newRolls)
   }
 
   function applyPlayerUpdates(playerId: string, updates: { commanderName: string; commanderImageUri?: string; displayName?: string; isMe: boolean; seatPosition: SeatPosition }) {
@@ -391,7 +413,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const playerCount = Math.min(players.length, 5) as 2 | 3 | 4 | 5
+  const playerCount = Math.min(players.length, 6) as 2 | 3 | 4 | 5 | 6
   const layouts = LAYOUTS[playerCount] ?? LAYOUTS[4]
   const winner = winnerId ? players.find((p) => p.id === winnerId) : null
 
@@ -449,7 +471,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
               Tap to set commanders · Drag to swap seats
             </p>
             <button
-              onClick={handleStartGame}
+              onClick={() => { setRolls({}); setShowStartModal(true) }}
               className="px-8 py-3 rounded-2xl bg-white text-gray-900 font-bold text-base shadow-2xl hover:bg-gray-100 active:scale-95 transition-all"
             >
               Start Game
@@ -463,6 +485,89 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
           </div>
         </div>
       )}
+
+      {/* Who goes first modal */}
+      {showStartModal && (() => {
+        const allRolled = players.length > 0 && players.every((p) => rolls[p.id] !== undefined)
+        const maxRoll = allRolled ? Math.max(...players.map((p) => rolls[p.id])) : 0
+        const tiedPlayers = allRolled ? players.filter((p) => rolls[p.id] === maxRoll) : []
+        const hasTie = tiedPlayers.length > 1
+        const highRollPlayer = !hasTie && tiedPlayers[0]
+        const highRollIdx = highRollPlayer ? players.findIndex((p) => p.id === highRollPlayer.id) : -1
+        return (
+          <div className="absolute inset-0 z-[65] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl p-5 flex flex-col gap-4 w-80 shadow-2xl max-h-[85vh] overflow-y-auto">
+              <p className="text-white font-bold text-center text-lg">Who goes first?</p>
+
+              {/* Roll section */}
+              <div className="flex flex-col gap-3">
+                <p className="text-gray-400 text-[10px] uppercase tracking-widest text-center font-semibold">High roll starts</p>
+                {players.map((p, idx) => {
+                  const color = playerColor(idx)
+                  const roll = rolls[p.id]
+                  const isWinner = allRolled && !hasTie && p.id === highRollPlayer?.id
+                  return (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <span className={cn("w-2 h-2 rounded-full shrink-0", color.dot)} />
+                      <span className="text-sm text-white truncate flex-1">{playerName(p)}</span>
+                      <span className={cn("text-sm font-black tabular-nums w-7 text-right", isWinner ? "text-yellow-300" : roll !== undefined ? "text-white" : "text-gray-600")}>
+                        {roll ?? "—"}
+                      </span>
+                    </div>
+                  )
+                })}
+                <button
+                  onClick={rollAllDice}
+                  className="w-full py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm active:scale-95 transition-all"
+                >
+                  🎲 Roll
+                </button>
+                {allRolled && hasTie && (
+                  <p className="text-yellow-400 text-xs text-center font-semibold">Tie! Roll again.</p>
+                )}
+                {allRolled && !hasTie && highRollIdx >= 0 && (
+                  <button
+                    onClick={() => handleStartGame(highRollIdx)}
+                    className="w-full py-2.5 rounded-xl bg-yellow-500 text-gray-900 font-bold text-sm hover:bg-yellow-400 active:scale-95 transition-all"
+                  >
+                    ⚡ Start with {playerName(highRollPlayer!)}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-gray-700" />
+                <span className="text-gray-500 text-xs">or choose</span>
+                <div className="flex-1 h-px bg-gray-700" />
+              </div>
+
+              {/* Manual pick */}
+              <div className="flex flex-col gap-2">
+                {players.map((p, idx) => {
+                  const color = playerColor(idx)
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => handleStartGame(idx)}
+                      className={cn("w-full py-2 px-3 rounded-xl border font-semibold text-sm text-left flex items-center gap-2 hover:bg-gray-800 active:scale-95 transition-all text-white", color.border)}
+                    >
+                      <span className={cn("w-2 h-2 rounded-full shrink-0", color.dot)} />
+                      {playerName(p)}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <button
+                onClick={() => setShowStartModal(false)}
+                className="text-gray-500 text-xs text-center hover:text-gray-300 transition-colors"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Turn Hub — only in active phase */}
       {phase === "active" && (
@@ -508,7 +613,42 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
             </div>
             {target && (
               <div className="bg-red-900/90 text-red-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-red-500/30 whitespace-nowrap">
-                {dragPlayer?.displayName ?? dragPlayer?.commanderName} attacking → {target.displayName ?? target.commanderName}
+                {dragPlayer && playerName(dragPlayer)} attacking → {target && playerName(target)}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Setup drag ghost */}
+      {phase === "setup" && setupDrag && (() => {
+        const srcIdx    = players.findIndex((p) => p.id === setupDrag.sourceId)
+        const srcPlayer = players[srcIdx]
+        const color     = playerColor(srcIdx)
+        const target    = setupDrag.hoveredId ? players.find((p) => p.id === setupDrag.hoveredId) : null
+        const name      = srcPlayer ? playerName(srcPlayer) : `Seat ?`
+        return (
+          <div
+            className="fixed pointer-events-none z-[64] flex flex-col items-center gap-1.5"
+            style={{ left: setupDrag.currentX, top: setupDrag.currentY, transform: "translate(-50%, -50%)" }}
+          >
+            <div
+              className={cn("rounded-full overflow-hidden border-2 shadow-2xl", color.border)}
+              style={{ width: 64, height: 64 }}
+            >
+              {srcPlayer?.commanderImageUri ? (
+                <img src={srcPlayer.commanderImageUri} alt="" className="w-full h-full object-cover" draggable={false} />
+              ) : (
+                <div className={cn("w-full h-full flex items-center justify-center", color.bg)}>
+                  <span className="text-xl font-bold text-white/60">
+                    {(srcPlayer?.commanderName || `${srcPlayer?.seatPosition}`).charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            {target && (
+              <div className="bg-blue-900/90 text-blue-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-500/30 whitespace-nowrap">
+                Moving {name} to Seat {target.seatPosition}
               </div>
             )}
           </div>

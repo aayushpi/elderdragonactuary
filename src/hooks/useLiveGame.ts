@@ -35,10 +35,10 @@ function detectWinner(players: LivePlayer[]): string | null {
 
 function nextAliveIndex(players: LivePlayer[], from: number): number {
   const n = players.length
-  let idx = (from + 1) % n
+  let idx = (from - 1 + n) % n
   for (let i = 0; i < n; i++) {
     if (!players[idx].isEliminated) return idx
-    idx = (idx + 1) % n
+    idx = (idx - 1 + n) % n
   }
   return from
 }
@@ -65,7 +65,7 @@ type Action =
   | { type: "CANCEL_DRAG" }
   | { type: "UPDATE_PLAYER"; playerId: string; updates: Partial<Pick<LivePlayer, "commanderName" | "commanderImageUri" | "displayName" | "isMe" | "seatPosition">> }
   | { type: "SWAP_SEATS"; slotA: SeatPosition; slotB: SeatPosition }
-  | { type: "START_GAME" }
+  | { type: "START_GAME"; startingIndex: number }
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ function reducer(state: LiveGameState, action: Action): LiveGameState {
       }
 
       const nextIdx = nextAliveIndex(players, state.activeSeatIndex)
-      const wrapped = nextIdx <= state.activeSeatIndex
+      const wrapped = nextIdx >= state.activeSeatIndex
       const newTurn = wrapped ? state.currentTurn + 1 : state.currentTurn
       const winnerId = detectWinner(players) ?? state.winnerId
 
@@ -222,7 +222,7 @@ function reducer(state: LiveGameState, action: Action): LiveGameState {
     }
 
     case "START_GAME":
-      return { ...state, startedAt: Date.now(), turnStartedAt: Date.now() }
+      return { ...state, startedAt: Date.now(), turnStartedAt: Date.now(), activeSeatIndex: action.startingIndex }
 
     default:
       return state
@@ -340,8 +340,8 @@ export function useLiveGame(rawPlayers: Partial<Player>[]) {
     dispatch({ type: "SWAP_SEATS", slotA, slotB })
   }, [])
 
-  const startGame = useCallback(() => {
-    dispatch({ type: "START_GAME" })
+  const startGame = useCallback((startingIndex: number) => {
+    dispatch({ type: "START_GAME", startingIndex })
   }, [])
 
   return {

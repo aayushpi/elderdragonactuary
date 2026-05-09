@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Minus, Plus, Skull, Swords, Pencil } from "lucide-react"
+import { Minus, Plus, Skull, Swords, Pencil, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LivePlayer } from "@/types/live"
 
@@ -276,6 +276,15 @@ export function PlayerTile({
             <p className="text-xs font-semibold leading-tight truncate max-w-full text-gray-300 uppercase tracking-wider drop-shadow">{player.commanderName}</p>
           )}
         </LongPressButton>
+
+        {/* Drag-to-swap affordance — setup mode only */}
+        {isSetup && !player.isEliminated && (
+          <div className="flex items-center gap-0.5 opacity-40 pointer-events-none">
+            <GripVertical className="h-3 w-3 text-gray-300" />
+            <span className="text-[9px] text-gray-300 uppercase tracking-wide font-semibold">Drag to swap</span>
+            <GripVertical className="h-3 w-3 text-gray-300" />
+          </div>
+        )}
       </div>
 
       {/* Elimination overlay (not rotated) */}
