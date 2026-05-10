@@ -152,13 +152,6 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
     }
   }
 
-  function takenSeats(excludeIndex: number): SeatPosition[] {
-    return players
-      .filter((_, i) => i !== excludeIndex)
-      .map((p) => p.seatPosition)
-      .filter((s): s is SeatPosition => s !== undefined)
-  }
-
   function validate(): boolean {
     const seatCounts = new Map<number, number>()
     players.forEach((p) => {
@@ -374,8 +367,6 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
                 player={player}
                 isMe={player.isMe ?? false}
                 playerOrder={playerOrder}
-                takenSeats={takenSeats(originalIndex)}
-                totalPlayers={totalPlayers}
                 isWinner={player.id === winnerId}
                 showKoTurnControls={!!winnerId}
                 winTurn={player.id === winnerId ? winTurn : ""}

@@ -236,7 +236,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
       if (dragSession.current.pointerId !== null) return
 
       const session = dragSession.current
-      session.cleanup?.()
+      session.cleanupListeners?.()
       session.pointerId = e.pointerId
       session.playerId = playerId
       session.startX = e.clientX
@@ -492,7 +492,7 @@ export function TrackGamePage({ players: rawPlayers, onExit, onRematch, onSaveAn
         const maxRoll = allRolled ? Math.max(...players.map((p) => rolls[p.id])) : 0
         const tiedPlayers = allRolled ? players.filter((p) => rolls[p.id] === maxRoll) : []
         const hasTie = tiedPlayers.length > 1
-        const highRollPlayer = !hasTie && tiedPlayers[0]
+        const highRollPlayer = !hasTie ? tiedPlayers[0] : undefined
         const highRollIdx = highRollPlayer ? players.findIndex((p) => p.id === highRollPlayer.id) : -1
         return (
           <div className="absolute inset-0 z-[65] flex items-center justify-center bg-black/70 backdrop-blur-sm">
