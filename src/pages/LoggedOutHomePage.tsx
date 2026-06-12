@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { ArrowRight, Sun, Moon } from "lucide-react"
 import { AuthForm } from "@/components/AuthForm"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { Wordmark } from "@/components/modern/primitives"
 
 interface LoggedOutHomePageProps {
@@ -23,7 +22,6 @@ export function LoggedOutHomePage({
   onToggleDark,
 }: LoggedOutHomePageProps) {
   const [signInOpen, setSignInOpen] = useState(defaultSignInOpen)
-  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false)
 
   useEffect(() => {
     setSignInOpen(defaultSignInOpen)
@@ -81,12 +79,6 @@ export function LoggedOutHomePage({
             >
               Get started <ArrowRight className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => setReleaseNotesOpen(true)}
-              className="inline-flex items-center justify-center h-11 px-6 text-[15px] rounded-md font-medium border border-input bg-transparent text-foreground hover:bg-muted transition-colors"
-            >
-              Release notes
-            </button>
           </div>
         </div>
 
@@ -107,8 +99,6 @@ export function LoggedOutHomePage({
           <AuthForm onSignedIn={() => setSignInOpen(false)} />
         </DialogContent>
       </Dialog>
-
-      <ReleaseNotesModal open={releaseNotesOpen} onOpenChange={setReleaseNotesOpen} />
     </div>
   )
 }

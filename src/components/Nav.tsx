@@ -8,7 +8,6 @@ interface NavProps {
   onOpenLogGame: (commanderName?: string) => void
   dark: boolean
   onToggleDark: () => void
-  onShowReleaseNotes: () => void
   userEmail?: string
   onSignOut?: () => void
 }

@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from "react"
-import { AlertCircle, ExternalLink, ChevronsUpDown, Swords } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import { AlertCircle, ExternalLink, ChevronsUpDown } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -90,22 +90,14 @@ function getMirroredSeatOrder(totalPlayers: number): number[] {
 
 const EMPTY_ERRORS: FormErrors = { playerCount: false, players: [], noWinner: false, winTurn: false, koTiming: false }
 
-interface LivePrefillResult {
-  players: Partial<Player>[]
-  winTurn: number
-  winnerId?: string
-}
-
 interface LogGamePageProps {
   onSave: (game: Game) => void
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
   prefillCommander?: string
-  prefillLiveResult?: LivePrefillResult
-  onTrackLive?: (players: Partial<Player>[]) => void
 }
 
-export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander, prefillLiveResult, onTrackLive }: LogGamePageProps) {
+export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -146,7 +138,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
   const [podsOpen, setPodsOpen] = useState(false)
   const [winnerId, setWinnerId] = useState<string | null>(null)
   const [winTurn, setWinTurn] = useState("")
-  const liveResultApplied = useRef(false)
   const [clearedKoTurnPlayerIds, setClearedKoTurnPlayerIds] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState("")
   const [winConditions, setWinConditions] = useState<string[]>([])
@@ -546,17 +537,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
     return () => onDirtyChange?.(false)
   }, [hasInProgressData, onDirtyChange])
 
-  // Apply live session result once when the drawer opens pre-populated
-  useEffect(() => {
-    if (!prefillLiveResult || liveResultApplied.current) return
-    liveResultApplied.current = true
-    const { players: livePlayers, winTurn: liveWinTurn, winnerId: liveWinnerId } = prefillLiveResult
-    setPlayerCount(livePlayers.length)
-    setPlayers(livePlayers as Partial<Player>[])
-    setWinTurn(String(liveWinTurn))
-    if (liveWinnerId) setWinnerId(liveWinnerId)
-  }, [prefillLiveResult])
-
   const formErrorMessage = errors.koTiming
     ? "Winning turn can't be after all opponents are knocked out"
     : "Please fill in all highlighted fields."
@@ -711,28 +691,6 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
               })}
             </div>
           </div>
-
-          {/* Track Game Live */}
-          {onTrackLive && (
-            <>
-              <Separator />
-              <div className="space-y-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full gap-2 border-dashed"
-                  disabled={!playerCount}
-                  onClick={() => onTrackLive(players)}
-                >
-                  <Swords className="h-4 w-4" />
-                  Track Game Live
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  (Experimental! Use at your own risk)
-                </p>
-              </div>
-            </>
-          )}
 
           {/* Key Wincon Cards */}
           <Separator />

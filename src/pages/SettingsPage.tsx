@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Download, Upload, Trash2, FileText, Loader2, LogOut, Megaphone } from "lucide-react"
+import { Download, Upload, Trash2, FileText, Loader2, LogOut } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
 import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
@@ -106,7 +106,6 @@ interface SettingsPageProps {
   accent: AccentName
   onSetAccent: (accent: AccentName) => void
   userEmail?: string
-  onShowReleaseNotes: () => void
   onSignOut?: () => void
 }
 
@@ -119,7 +118,6 @@ export function SettingsPage({
   accent,
   onSetAccent,
   userEmail,
-  onShowReleaseNotes,
   onSignOut,
 }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -338,10 +336,6 @@ export function SettingsPage({
           </button>
           <button onClick={() => setShareOpen(true)} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
             Share invite
-          </button>
-          <button onClick={onShowReleaseNotes} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
-            <Megaphone className="h-3.5 w-3.5" />
-            Release notes
           </button>
           {onSignOut && (
             <button onClick={onSignOut} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
