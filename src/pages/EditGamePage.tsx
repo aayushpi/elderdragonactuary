@@ -5,10 +5,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
 import { CardSearch } from "@/components/CardSearch"
+import { buildPlayerShortlists } from "@/lib/shortlist"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
-import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import type { Game, Player, SeatPosition } from "@/types"
 import { createPodIfMissing, saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
 interface PlayerFieldErrors {
@@ -90,23 +91,7 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
     return () => mediaQuery.removeEventListener("change", updateMobileState)
   }, [])
 
-  const recentMyCommanders = useMemo((): RecentCommander[] => {
-    const seen = new Set<string>()
-    const result: RecentCommander[] = []
-    for (const g of games) {
-      const me = g.players.find((p) => p.isMe)
-      if (!me || seen.has(me.commanderName) || !me.commanderManaCost) continue
-      seen.add(me.commanderName)
-      result.push({
-        name: me.commanderName,
-        manaCost: me.commanderManaCost,
-        imageUri: me.commanderImageUri,
-        typeLine: me.commanderTypeLine,
-        colorIdentity: me.commanderColorIdentity,
-      })
-    }
-    return result
-  }, [games])
+  const { myShortlist, opponentShortlists } = useMemo(() => buildPlayerShortlists(games), [games])
 
   // Derive unique opponent names from game history for autocomplete
   const knownPlayerNames = useMemo((): string[] => {
@@ -384,7 +369,15 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
                 onWinTurnChange={setWinTurn}
                 onKoTurnChange={(turn) => handleKoTurnChange(originalIndex, turn)}
                 onChange={(updated) => updatePlayer(originalIndex, updated)}
-                recentCommanders={player.isMe ? recentMyCommanders : undefined}
+                shortlist={
+                  player.isMe
+                    ? myShortlist
+                    : player.displayName?.trim()
+                      ? opponentShortlists.get(player.displayName.trim().toLowerCase())
+                      : undefined
+                }
+                pickerLabel={player.isMe ? "You" : player.displayName?.trim() || undefined}
+                seatLabel={player.seatPosition ? `Seat ${player.seatPosition}` : `Seat ${playerOrder}`}
                 knownPlayerNames={knownPlayerNames}
                 fieldErrors={{
                   commanderName: errors.players[originalIndex]?.commanderName,

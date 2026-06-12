@@ -1,48 +1,54 @@
-import { useState, useEffect, useMemo } from "react"
-import { Plus, ArrowRight, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react"
-import { Cell, Legend, Pie, PieChart, Sector } from "recharts"
-import { type PieSectorDataItem } from "recharts/types/polar/Pie"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  type ChartConfig,
-} from "@/components/ui/chart"
-import { ManaCost } from "@/components/ManaCost"
-import { StatCard } from "@/components/StatCard"
-import { WinRateBar } from "@/components/WinRateBar"
-import { WinStreakCard } from "@/components/WinStreakCard"
-import { TopWinConditionsCard } from "@/components/TopWinConditionsCard"
-import { CommanderStatCard } from "@/components/CommanderStatCard"
+import { useEffect, useMemo, useState } from "react"
+import { Plus, ArrowUpDown } from "lucide-react"
 import { EloCard } from "@/components/EloCard"
-import { useStats } from "@/hooks/useStats"
-import { computePodElo, computeCommanderElo } from "@/lib/stats"
-import type { CommanderStat, Game } from "@/types"
+import { CommanderStatCard } from "@/components/CommanderStatCard"
+import { BracketPie } from "@/components/stats/BracketPie"
+import { ManaCost } from "@/components/ManaCost"
+import { computeStats, computePodElo, computeCommanderElo } from "@/lib/stats"
+import { CARD, SECTION_LABEL, WrBar } from "@/components/modern/primitives"
+import { cn } from "@/lib/utils"
+import type { CommanderStat, Game, WinRateStat } from "@/types"
 
-const SEAT_ORDINALS: Record<number, string> = {
-  1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th",
+interface StatsPageProps {
+  games: Game[]
+  onNavigate: (path: string) => void
+  onOpenLogGame: (commanderName?: string) => void
 }
 
-const bracketChartConfig = {
-  wins: {
-    label: "Wins",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig
+const RANGES = ["All time", "This year", "Last 90 days"] as const
+type Range = (typeof RANGES)[number]
+
+const STAT_LABEL = "font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+const SEAT_ORDINALS: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th" }
 
 type CommanderSort = "win-rate" | "win-turn" | "total-wins"
 type SortDirection = "asc" | "desc"
 
-function colorIdentityToManaCost(colors: string[]): string {
-  if (colors.length === 0) return "{C}"
-  return colors.map((color) => `{${color}}`).join("")
+function inRange(playedAt: string, range: Range): boolean {
+  if (range === "All time") return true
+  const d = new Date(playedAt)
+  const now = new Date()
+  if (range === "This year") return d.getFullYear() === now.getFullYear()
+  return now.getTime() - d.getTime() <= 90 * 24 * 60 * 60 * 1000
 }
 
-function sortCommanders(commanders: CommanderStat[], sort: CommanderSort, direction: SortDirection): CommanderStat[] {
+function fmtRate(stat: WinRateStat): { val: string; sub: string } {
+  if (stat.games === 0) return { val: "—", sub: "no games" }
+  return { val: `${Math.round(stat.rate * 100)}%`, sub: `${stat.wins} wins / ${stat.games} games` }
+}
+
+function colorIdentityToManaCost(colors: string[]): string {
+  if (colors.length === 0) return "{C}"
+  return colors.map((c) => `{${c}}`).join("")
+}
+
+function sortCommanders(
+  commanders: CommanderStat[],
+  sort: CommanderSort,
+  direction: SortDirection
+): CommanderStat[] {
   return [...commanders].sort((a, b) => {
     let comparison = 0
-
     if (sort === "win-turn") {
       if (a.averageWinTurn === null && b.averageWinTurn === null) comparison = 0
       else if (a.averageWinTurn === null) comparison = 1
@@ -53,380 +59,460 @@ function sortCommanders(commanders: CommanderStat[], sort: CommanderSort, direct
     } else {
       comparison = a.rate - b.rate || a.games - b.games
     }
-
     return direction === "asc" ? comparison : -comparison
   })
 }
 
-interface StatsPageProps {
-  games: Game[]
-  onNavigate: (path: string) => void
-  onOpenLogGame: (commanderName?: string) => void
+/** Leading streak from "me"'s most-recent results, plus the last 10 W/L. */
+function recentForm(games: Game[]): { count: number; type: "win" | "loss" | null; recent: { id: string; win: boolean }[] } {
+  const recent = games
+    .slice(0, 10)
+    .map((g) => {
+      const me = g.players.find((p) => p.isMe)
+      if (!me) return null
+      return { id: g.id, win: g.winnerId === me.id }
+    })
+    .filter((r): r is { id: string; win: boolean } => r !== null)
+
+  let count = 0
+  let type: "win" | "loss" | null = null
+  for (const r of recent) {
+    if (type === null) {
+      type = r.win ? "win" : "loss"
+      count = 1
+    } else if ((r.win && type === "win") || (!r.win && type === "loss")) {
+      count++
+    } else break
+  }
+  return { count, type, recent }
 }
 
-export function StatsPage({ games, onNavigate, onOpenLogGame }: StatsPageProps) {
-  const stats = useStats(games)
-  const podEloGroups = useMemo(() => computePodElo(games), [games])
-  const commanderElo = useMemo(() => computeCommanderElo(games), [games])
-  useEffect(() => {
-    import('@/lib/analytics').then((mod) => {
-      try { mod.trackViewStats({ stats_view: 'overall', games_played: stats.gamesPlayed }) } catch { void 0 }
-    })
-  }, [stats.gamesPlayed])
-  const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [selectedBracketLabel, setSelectedBracketLabel] = useState("")
-  const [commanderExpanded, setCommanderExpanded] = useState(true)
+function monthlyTrend(games: Game[]): { label: string; games: number; wins: number }[] {
+  const buckets = new Map<string, { games: number; wins: number }>()
+  for (const g of games) {
+    const me = g.players.find((p) => p.isMe)
+    if (!me) continue
+    const d = new Date(g.playedAt)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    const b = buckets.get(key) ?? { games: 0, wins: 0 }
+    b.games += 1
+    if (g.winnerId === me.id) b.wins += 1
+    buckets.set(key, b)
+  }
+  const out: { label: string; games: number; wins: number }[] = []
+  const now = new Date()
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    const b = buckets.get(key) ?? { games: 0, wins: 0 }
+    out.push({ label: d.toLocaleDateString(undefined, { month: "short" }), ...b })
+  }
+  return out
+}
 
-  // derived data and bracket selection must be computed before any early return
-  const sortedCommanders = sortCommanders(stats.byCommander, commanderSort, sortDirection)
-  const bracketChartData = stats.byBracket.map((entry) => ({
-    bracketLabel: `Bracket ${entry.bracket}`,
-    games: entry.games,
-    wins: entry.wins,
-  }))
-  const mostPlayedBracket = stats.byBracket.reduce(
-    (best, entry) => (entry.games > best.games ? entry : best),
-    stats.byBracket[0] ?? { bracket: 1, wins: 0, games: 0 }
+function podSizeBreakdown(games: Game[]): { label: string; rate: number; games: number }[] {
+  const buckets = new Map<number, { wins: number; games: number }>()
+  for (const g of games) {
+    const me = g.players.find((p) => p.isMe)
+    if (!me) continue
+    const size = g.players.length
+    const b = buckets.get(size) ?? { wins: 0, games: 0 }
+    b.games += 1
+    if (g.winnerId === me.id) b.wins += 1
+    buckets.set(size, b)
+  }
+  return [...buckets.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([size, b]) => ({ label: `${size} players`, rate: b.games ? b.wins / b.games : 0, games: b.games }))
+}
+
+function RangeChips({ value, onChange }: { value: Range; onChange: (r: Range) => void }) {
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      {RANGES.map((r) => (
+        <button
+          key={r}
+          onClick={() => onChange(r)}
+          className={cn(
+            "h-8 px-3 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-colors",
+            value === r
+              ? "bg-foreground text-background"
+              : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+          )}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
   )
-  const defaultBracketLabel = `Bracket ${mostPlayedBracket.bracket}`
+}
 
-  useEffect(() => {
-    const selectedExists = bracketChartData.some((entry) => entry.bracketLabel === selectedBracketLabel)
-    if (!selectedBracketLabel || !selectedExists) {
-      setSelectedBracketLabel(defaultBracketLabel)
-    }
-  }, [defaultBracketLabel, selectedBracketLabel, bracketChartData])
+function StatBox({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>{label}</div>
+      <div className="mt-2 text-[28px] font-bold leading-none tracking-tight tabular">{value}</div>
+      {sub && <div className="mt-1.5 text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  )
+}
 
-  if (stats.gamesPlayed === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-lg border border-dashed border-border p-12 text-center space-y-4">
-          <div>
-            <p className="text-muted-foreground text-sm">No games logged yet.</p>
-            <p className="text-muted-foreground text-xs mt-1">Log a game to see your stats here.</p>
+function WinStreakCard({ games }: { games: Game[] }) {
+  const { count, type, recent } = recentForm(games)
+  if (recent.length === 0) return null
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>
+        {count} {type === "loss" ? "loss" : "win"} streak
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {recent.map((r) => (
+          <span
+            key={r.id}
+            className={cn(
+              "grid h-6 w-6 place-items-center rounded-full text-[11px] font-semibold ring-1",
+              r.win
+                ? "bg-emerald-500/15 text-emerald-600 ring-emerald-500/40 dark:text-emerald-400"
+                : "bg-rose-500/15 text-rose-600 ring-rose-500/40 dark:text-rose-400"
+            )}
+          >
+            {r.win ? "W" : "L"}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TopWaysCard({ conditions }: { conditions: { condition: string; count: number }[] }) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>Top ways to win</div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {conditions.map((wc) => (
+          <span
+            key={wc.condition}
+            className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium"
+          >
+            {wc.condition}
+            <span className="ml-1 text-muted-foreground">× {wc.count}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StartingTurnCard({ rows }: { rows: { seat: number; stat: WinRateStat }[] }) {
+  return (
+    <div className="space-y-3">
+      <div className={SECTION_LABEL}>Win rate by starting turn</div>
+      <div className={CARD + " p-4 sm:p-5 space-y-4"}>
+        {rows.map(({ seat, stat }) => (
+          <div key={seat}>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{SEAT_ORDINALS[seat]} to play</span>
+              <span className="font-mono text-xs text-muted-foreground tabular">
+                {Math.round(stat.rate * 100)}% ({stat.wins}/{stat.games})
+              </span>
+            </div>
+            <div className="mt-2">
+              <WrBar rate={stat.rate} />
+            </div>
           </div>
-          <Button onClick={() => onOpenLogGame()} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Track a game
-            <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-              N
-            </kbd>
-          </Button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ColorBox({
+  label,
+  colors,
+  value,
+  sub,
+}: {
+  label: string
+  colors: string[] | null
+  value: string
+  sub?: string
+}) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>{label}</div>
+      {colors ? (
+        <>
+          <div className="mt-2.5">
+            <ManaCost cost={colorIdentityToManaCost(colors)} size="sm" />
+          </div>
+          <div className="mt-2 text-[22px] font-bold leading-none tabular">{value}</div>
+          {sub && <div className="mt-1.5 text-xs text-muted-foreground">{sub}</div>}
+        </>
+      ) : (
+        <div className="mt-2 text-[22px] font-bold leading-none">—</div>
+      )}
+    </div>
+  )
+}
+
+function TrendChart({ data }: { data: { label: string; games: number; wins: number }[] }) {
+  const MAX = 0.7
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className="flex items-center justify-between gap-3">
+        <div className={SECTION_LABEL}>Win rate by month</div>
+        <div className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">— — 25% baseline</div>
+      </div>
+      <div className="relative mt-5 h-40">
+        <div
+          className="absolute inset-x-0 border-t border-dashed border-border"
+          style={{ bottom: `${(0.25 / MAX) * 100}%` }}
+        />
+        <div className="absolute inset-0 flex items-end gap-1.5 sm:gap-2.5">
+          {data.map((m, i) => {
+            const wr = m.games ? m.wins / m.games : 0
+            return (
+              <div
+                key={i}
+                className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
+                title={`${m.label}: ${m.wins} wins / ${m.games} games`}
+              >
+                <div
+                  className="w-full rounded-t-sm bg-primary/80 hover:bg-primary transition-colors"
+                  style={{ height: `${Math.min(100, (wr / MAX) * 100)}%` }}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
-    )
-  }
+      <div className="mt-2 flex gap-1.5 sm:gap-2.5">
+        {data.map((m, i) => (
+          <div
+            key={i}
+            className="flex-1 text-center font-mono text-[9px] sm:text-[10px] uppercase text-muted-foreground"
+          >
+            {m.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-  const avgTurnDisplay =
-    stats.averageWinTurn !== null
-      ? stats.averageWinTurn.toFixed(1)
-      : "—"
+function BreakdownCard({
+  title,
+  rows,
+}: {
+  title: string
+  rows: { label: string; rate: number; games: number }[]
+}) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={SECTION_LABEL}>{title}</div>
+      <div className="mt-4 space-y-3">
+        {rows.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No data yet.</p>
+        ) : (
+          rows.map((r) => (
+            <div key={r.label} className="flex items-center gap-3">
+              <div className="w-20 shrink-0 text-xs text-muted-foreground">{r.label}</div>
+              <div className="flex-1">
+                <WrBar rate={r.rate} />
+              </div>
+              <div className="w-10 shrink-0 text-right font-mono text-xs font-medium tabular">
+                {Math.round(r.rate * 100)}%
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
 
-  // Only show seats that have at least 1 game
-  const activeSeatEntries = (
-    [
+export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
+  const [range, setRange] = useState<Range>("All time")
+  const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+
+  const filtered = useMemo(() => games.filter((g) => inRange(g.playedAt, range)), [games, range])
+  const stats = useMemo(() => computeStats(filtered), [filtered])
+  const trend = useMemo(() => monthlyTrend(filtered), [filtered])
+  const podSizes = useMemo(() => podSizeBreakdown(filtered), [filtered])
+  const podEloGroups = useMemo(() => computePodElo(games), [games])
+  const commanderElo = useMemo(() => computeCommanderElo(games), [games])
+
+  useEffect(() => {
+    import("@/lib/analytics").then((mod) => {
+      try {
+        mod.trackViewStats({ stats_view: "overall", games_played: stats.gamesPlayed })
+      } catch {
+        void 0
+      }
+    })
+  }, [stats.gamesPlayed])
+
+  const seatRows = useMemo(() => {
+    const entries: [number, WinRateStat][] = [
       [1, stats.bySeat.seat1],
       [2, stats.bySeat.seat2],
       [3, stats.bySeat.seat3],
       [4, stats.bySeat.seat4],
       [5, stats.bySeat.seat5],
       [6, stats.bySeat.seat6],
-    ] as [number, (typeof stats.bySeat.seat1)][]
-  ).filter(([, stat]) => stat.games > 0)
+    ]
+    return entries.filter(([, s]) => s.games > 0).map(([seat, stat]) => ({ seat, stat }))
+  }, [stats.bySeat])
 
-  const selectedBracket = bracketChartData.find((entry) => entry.bracketLabel === selectedBracketLabel)
+  const sortedCommanders = useMemo(
+    () => sortCommanders(stats.byCommander, commanderSort, sortDirection),
+    [stats.byCommander, commanderSort, sortDirection]
+  )
+
+  const hasBracketData = stats.byBracket.some((b) => b.games > 0)
+  const hasColorData =
+    stats.mostPlayedCommanderColorIdentity ||
+    stats.mostSuccessfulCommanderColorIdentity ||
+    stats.archnemesisCommanderColorIdentity
+
+  if (games.length === 0) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
+        <div className={CARD + " p-12 text-center"}>
+          <p className="text-sm font-medium">No games logged yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">Log a game to see your stats here.</p>
+          <button
+            onClick={() => onOpenLogGame()}
+            className="mt-5 inline-flex items-center justify-center gap-2 h-11 px-6 text-[15px] rounded-md font-medium bg-primary text-primary-foreground hover:opacity-90 active:opacity-80 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Track a game
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const avgTurn = stats.averageWinTurn !== null ? stats.averageWinTurn.toFixed(1) : "—"
+  const overall = fmtRate(stats.overall)
+  const withFm = fmtRate(stats.withFastMana)
+  const vsFm = fmtRate(stats.againstFastMana)
 
   return (
-    <div className="space-y-6">
-      {/* Games logged card */}
-      <div className="rounded-lg border bg-card px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Games Logged</p>
-          <p className="text-2xl font-bold mt-0.5">{stats.gamesPlayed}</p>
-        </div>
-        <button
-          onClick={() => onNavigate("/history")}
-          className="flex items-center gap-1 text-sm text-primary hover:underline"
-        >
-          Game History
-          <ArrowRight className="h-3.5 w-3.5" />
-        </button>
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
+        <RangeChips value={range} onChange={setRange} />
       </div>
 
-      {/* Top stat grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Win Rate" stat={stats.overall} />
-        <StatCard label="Avg Win Turn" value={avgTurnDisplay} description="when you win" />
-        <StatCard label="With Fast Mana" stat={stats.withFastMana} />
-        <StatCard label="vs Fast Mana" stat={stats.againstFastMana} />
+      {/* Headline stats */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <StatBox label="Win rate" value={overall.val} sub={overall.sub} />
+        <StatBox label="Avg win turn" value={avgTurn} sub="when you win" />
+        <StatBox label="With fast mana" value={withFm.val} sub={withFm.sub} />
+        <StatBox label="Vs fast mana" value={vsFm.val} sub={vsFm.sub} />
       </div>
 
-      {/* Win streak and top win conditions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <WinStreakCard games={games} />
-        <TopWinConditionsCard topWinConditions={stats.topWinConditions} />
+      {/* Streak + ways to win */}
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+        <WinStreakCard games={filtered} />
+        {stats.topWinConditions.length > 0 && <TopWaysCard conditions={stats.topWinConditions} />}
       </div>
 
-      {/* Win rate by starting turn */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Win rate by starting turn
-        </h2>
-        {activeSeatEntries.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">No seat data yet.</p>
-        ) : (
-          activeSeatEntries.map(([seat, stat]) => (
-            <WinRateBar
-              key={seat}
-              label={`${SEAT_ORDINALS[seat]} to play`}
-              stat={stat}
+      {seatRows.length > 0 && <StartingTurnCard rows={seatRows} />}
+
+      {hasBracketData && <BracketPie byBracket={stats.byBracket} />}
+
+      {/* Commander colors */}
+      {hasColorData && (
+        <div className="space-y-3">
+          <div className={SECTION_LABEL}>Commander colors</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            <ColorBox
+              label="Most played"
+              colors={stats.mostPlayedCommanderColorIdentity?.colors ?? null}
+              value={
+                stats.mostPlayedCommanderColorIdentity
+                  ? `${stats.mostPlayedCommanderColorIdentity.games} game${stats.mostPlayedCommanderColorIdentity.games !== 1 ? "s" : ""}`
+                  : "—"
+              }
             />
-          ))
-        )}
-      </div>
-
-      {/* Win rate by bracket */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Win rate by bracket
-        </h2>
-        <Card className="w-full md:w-1/2">
-          <CardContent className="pt-4">
-            <div className="mb-2 flex items-center gap-2">
-              <select
-                value={selectedBracketLabel}
-                onChange={(e) => setSelectedBracketLabel(e.target.value)}
-                className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground cursor-pointer"
-              >
-                {bracketChartData.map((entry) => (
-                  <option key={entry.bracketLabel} value={entry.bracketLabel}>
-                    {entry.bracketLabel}
-                  </option>
-                ))}
-              </select>
-              {selectedBracket && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedBracket.wins} wins / {selectedBracket.games} games
-                </p>
-              )}
-            </div>
-            <ChartContainer config={bracketChartConfig} className="rounded-md bg-muted/20 p-2">
-              <PieChart accessibilityLayer>
-                  <defs>
-                    <pattern id="pattern-bracket-1" patternUnits="userSpaceOnUse" width="8" height="8">
-                      <rect width="8" height="8" fill="hsl(var(--bracket-1))" />
-                      <path d="M0 0L8 8" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
-                    </pattern>
-                    <pattern id="pattern-bracket-2" patternUnits="userSpaceOnUse" width="8" height="8">
-                      <rect width="8" height="8" fill="hsl(var(--bracket-2))" />
-                      <path d="M0 4H8" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
-                    </pattern>
-                    <pattern id="pattern-bracket-3" patternUnits="userSpaceOnUse" width="8" height="8">
-                      <rect width="8" height="8" fill="hsl(var(--bracket-3))" />
-                      <path d="M4 0V8" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
-                    </pattern>
-                    <pattern id="pattern-bracket-4" patternUnits="userSpaceOnUse" width="8" height="8">
-                      <rect width="8" height="8" fill="hsl(var(--bracket-4))" />
-                      <circle cx="2" cy="2" r="1" fill="hsl(var(--background) / 0.45)" />
-                      <circle cx="6" cy="6" r="1" fill="hsl(var(--background) / 0.45)" />
-                    </pattern>
-                    <pattern id="pattern-bracket-5" patternUnits="userSpaceOnUse" width="8" height="8">
-                      <rect width="8" height="8" fill="hsl(var(--bracket-5))" />
-                      <path d="M0 8L8 0" stroke="hsl(var(--background) / 0.45)" strokeWidth="1" />
-                    </pattern>
-                  </defs>
-                  <ChartTooltip
-                    cursor={false}
-                    content={({ active, payload }) => {
-                      const item = payload?.[0]?.payload as { bracketLabel: string; wins: number; games: number } | undefined
-                      if (!active || !item) return null
-
-                      return (
-                        <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-sm">
-                          <span className="font-medium text-foreground">
-                            {item.bracketLabel}: {item.wins} wins from {item.games} total games
-                          </span>
-                        </div>
-                      )
-                    }}
-                  />
-                  <Pie
-                    data={bracketChartData}
-                    dataKey="wins"
-                    nameKey="bracketLabel"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius="85%"
-                    label={false}
-                    style={{ cursor: "pointer" }}
-                    onClick={(sliceData) => {
-                      const label = (sliceData as { bracketLabel?: string })?.bracketLabel
-                      if (label) setSelectedBracketLabel(label)
-                    }}
-                    shape={(props: PieSectorDataItem & { payload?: { bracketLabel?: string } }) => {
-                      const { outerRadius = 0, payload, ...rest } = props
-                      const isActive = payload?.bracketLabel === selectedBracketLabel
-
-                      if (!isActive) {
-                        return <Sector {...props} />
-                      }
-
-                      return (
-                        <g>
-                          <Sector {...rest} outerRadius={outerRadius + 8} />
-                          <Sector
-                            {...rest}
-                            outerRadius={outerRadius + 18}
-                            innerRadius={outerRadius + 11}
-                          />
-                        </g>
-                      )
-                    }}
-                  >
-                    {bracketChartData.map((entry, index) => (
-                      <Cell
-                        key={entry.bracketLabel}
-                        fill={`url(#pattern-bracket-${index + 1})`}
-                        opacity={entry.bracketLabel === selectedBracketLabel ? 1 : 0.45}
-                        stroke="hsl(var(--border))"
-                        strokeWidth={1}
-                      />
-                    ))}
-                  </Pie>
-                  <Legend
-                    verticalAlign="bottom"
-                    align="center"
-                    layout="horizontal"
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}
-                  />
-              </PieChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Stats about your commander colors */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Commander colors
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Most played</p>
-              {stats.mostPlayedCommanderColorIdentity ? (
-                <>
-                  <div className="mt-2">
-                    <ManaCost cost={colorIdentityToManaCost(stats.mostPlayedCommanderColorIdentity.colors)} size="sm" />
-                  </div>
-                  <p className="text-2xl font-bold mt-1 leading-none">{stats.mostPlayedCommanderColorIdentity.games} game{stats.mostPlayedCommanderColorIdentity.games !== 1 ? "s" : ""}</p>
-
-                </>
-              ) : (
-                <p className="text-2xl font-bold mt-1 leading-none">—</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Most successful</p>
-              {stats.mostSuccessfulCommanderColorIdentity ? (
-                <>
-                  <div className="mt-2">
-                    <ManaCost cost={colorIdentityToManaCost(stats.mostSuccessfulCommanderColorIdentity.colors)} size="sm" />
-                  </div>
-                  <p className="text-2xl font-bold mt-1 leading-none">
-                    {Math.round(stats.mostSuccessfulCommanderColorIdentity.winRate * 100)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {stats.mostSuccessfulCommanderColorIdentity.wins} wins / {stats.mostSuccessfulCommanderColorIdentity.games} games
-                  </p>
-                </>
-              ) : (
-                <p className="text-2xl font-bold mt-1 leading-none">—</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Archnemesis colors</p>
-              {stats.archnemesisCommanderColorIdentity ? (
-                <>
-                  <div className="mt-2">
-                    <ManaCost cost={colorIdentityToManaCost(stats.archnemesisCommanderColorIdentity.colors)} size="sm" />
-                  </div>
-                  <p className="text-2xl font-bold mt-1 leading-none">
-                    {Math.round(stats.archnemesisCommanderColorIdentity.lossRate * 100)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {stats.archnemesisCommanderColorIdentity.games - stats.archnemesisCommanderColorIdentity.wins} losses / {stats.archnemesisCommanderColorIdentity.games} games
-                  </p>
-                </>
-              ) : (
-                <p className="text-2xl font-bold mt-1 leading-none">—</p>
-              )}
-            </CardContent>
-          </Card>
+            <ColorBox
+              label="Most successful"
+              colors={stats.mostSuccessfulCommanderColorIdentity?.colors ?? null}
+              value={
+                stats.mostSuccessfulCommanderColorIdentity
+                  ? `${Math.round(stats.mostSuccessfulCommanderColorIdentity.winRate * 100)}%`
+                  : "—"
+              }
+              sub={
+                stats.mostSuccessfulCommanderColorIdentity
+                  ? `${stats.mostSuccessfulCommanderColorIdentity.wins} wins / ${stats.mostSuccessfulCommanderColorIdentity.games} games`
+                  : undefined
+              }
+            />
+            <ColorBox
+              label="Archnemesis colors"
+              colors={stats.archnemesisCommanderColorIdentity?.colors ?? null}
+              value={
+                stats.archnemesisCommanderColorIdentity
+                  ? `${Math.round(stats.archnemesisCommanderColorIdentity.lossRate * 100)}%`
+                  : "—"
+              }
+              sub={
+                stats.archnemesisCommanderColorIdentity
+                  ? `${stats.archnemesisCommanderColorIdentity.games - stats.archnemesisCommanderColorIdentity.wins} losses / ${stats.archnemesisCommanderColorIdentity.games} games`
+                  : undefined
+              }
+            />
+          </div>
         </div>
-      </div>
-
-      {/* ELO */}
-      {(podEloGroups.length > 0 || commanderElo.length > 0) && (
-        <EloCard podEloGroups={podEloGroups} commanders={commanderElo} />
       )}
+
+      <TrendChart data={trend} />
+
+      <BreakdownCard title="By pod size" rows={podSizes} />
 
       {/* Commander performance */}
       {stats.byCommander.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setCommanderExpanded(!commanderExpanded)}
-              className="flex items-center gap-2 text-left"
-            >
-              {commanderExpanded ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Commander performance
-              </h2>
-            </button>
-            {commanderExpanded && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Sort by</span>
-                <select
-                  value={commanderSort}
-                  onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
-                  className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground cursor-pointer"
-                >
-                  <option value="win-rate">Win rate</option>
-                  <option value="win-turn">Winning turn</option>
-                  <option value="total-wins">Total wins</option>
-                </select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
-                >
-                  <ArrowUpDown className="h-3 w-3" />
-                  {sortDirection === "asc" ? "Asc" : "Desc"}
-                </Button>
-              </div>
-            )}
-          </div>
-          {commanderExpanded && (
-            <div className="space-y-3">
-              {sortedCommanders.map((c, i) => (
-                <CommanderStatCard key={c.name} stat={c} rank={i + 1} />
-              ))}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className={SECTION_LABEL}>Commander performance</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Sort by</span>
+              <select
+                value={commanderSort}
+                onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
+                className="h-8 cursor-pointer rounded-md border border-input bg-card px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="win-rate">Win rate</option>
+                <option value="win-turn">Winning turn</option>
+                <option value="total-wins">Total wins</option>
+              </select>
+              <button
+                onClick={() => setSortDirection((p) => (p === "asc" ? "desc" : "asc"))}
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-input bg-card px-2 text-xs hover:bg-muted transition-colors"
+              >
+                <ArrowUpDown className="h-3 w-3" />
+                {sortDirection === "asc" ? "Asc" : "Desc"}
+              </button>
             </div>
-          )}
+          </div>
+          <div className="space-y-3">
+            {sortedCommanders.map((c, i) => (
+              <CommanderStatCard key={c.name} stat={c} rank={i + 1} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ELO — computed across all games, regardless of range */}
+      {(podEloGroups.length > 0 || commanderElo.length > 0) && (
+        <div className="space-y-3">
+          <h2 className={SECTION_LABEL}>ELO ratings</h2>
+          <EloCard podEloGroups={podEloGroups} commanders={commanderElo} />
         </div>
       )}
     </div>

@@ -1,12 +1,11 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from "react"
-import { Plus, ArrowRight, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { GameHistoryRow } from "@/components/GameHistoryRow"
+import { useMemo, useState, useEffect } from "react"
+import { Plus, ArrowRight } from "lucide-react"
 import { useStats } from "@/hooks/useStats"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { Game } from "@/types"
+import { CARD, SECTION_LABEL, Pips } from "@/components/modern/primitives"
+import { GameRow } from "@/components/modern/GameRow"
+import { CommanderSearch } from "@/components/CommanderSearch"
+import type { Game, MtgColor } from "@/types"
 
 interface DashboardPageProps {
   games: Game[]
@@ -15,212 +14,242 @@ interface DashboardPageProps {
   onEditGame: (id: string) => void
 }
 
-export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: DashboardPageProps) {
-  const stats = useStats(games)
+const SEAT_ORDINAL: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th" }
 
-  const recentGames = useMemo(() => {
-    return [...games]
-      .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
-      .slice(0, 5)
-  }, [games])
-
-  const topCommanders = useMemo(() => {
-    return [...stats.byCommander]
-      .sort((a, b) => b.games - a.games)
-  }, [stats.byCommander])
-
-  // early empty state mirrors StatsPage so users still see a call to action
-
-
-  // render helper for favorite commander cards
-  function FavoriteCommanderCard({ name }: { name: string }) {
-    const [artUri, setArtUri] = useState<string | undefined>()
-
-    useEffect(() => {
-      let cancelled = false
-      async function load() {
-        try {
-          const card = await fetchCardByName(name)
-          const crop = resolveArtCrop(card)
-          if (!cancelled) setArtUri(crop ?? undefined)
-        } catch {
-          if (!cancelled) setArtUri(undefined)
-        }
-      }
-      load()
-      return () => {
-        cancelled = true
-      }
-    }, [name])
-
-    return (
-      <TooltipProvider delayDuration={200}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="rounded-lg border bg-card p-3 flex flex-col items-center">
-              <img
-                src={artUri ?? ""}
-                alt={name}
-                className="w-full h-32 rounded object-cover bg-muted"
-              />
-              <Button
-                size="sm"
-                className="mt-2 w-full gap-1.5"
-                variant="outline"
-                onClick={() => onOpenLogGame(name)}
-              >
-                <Plus className="h-4 w-4" />
-                Track game
-              </Button>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <span>{name}</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
+/** Map each commander name to the color identity seen for "me" in any game. */
+function buildColorMap(games: Game[]): Map<string, MtgColor[]> {
+  const map = new Map<string, MtgColor[]>()
+  for (const g of games) {
+    const me = g.players.find((p) => p.isMe)
+    if (me && me.commanderColorIdentity && !map.has(me.commanderName)) {
+      map.set(me.commanderName, me.commanderColorIdentity)
+    }
   }
+  return map
+}
 
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
+function StatCard({
+  label,
+  value,
+  sub,
+  highlight,
+}: {
+  label: string
+  value: string
+  sub?: string
+  highlight?: boolean
+}) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={SECTION_LABEL}>{label}</div>
+      <div
+        className={
+          "mt-2.5 text-[28px] sm:text-3xl font-semibold tracking-tight tabular truncate " +
+          (highlight ? "text-primary" : "")
+        }
+      >
+        {value}
+      </div>
+      {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  )
+}
 
-  const updateScrollButtons = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    setCanScrollLeft(el.scrollLeft > 0)
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
-  }, [])
+function FavoriteCard({
+  name,
+  colors,
+  games,
+  rate,
+  onTrack,
+}: {
+  name: string
+  colors: MtgColor[]
+  games: number
+  rate: number
+  onTrack: () => void
+}) {
+  const [artUri, setArtUri] = useState<string | undefined>()
 
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    updateScrollButtons()
-    el.addEventListener("scroll", updateScrollButtons, { passive: true })
-    const ro = new ResizeObserver(updateScrollButtons)
-    ro.observe(el)
-    return () => { el.removeEventListener("scroll", updateScrollButtons); ro.disconnect() }
-  }, [updateScrollButtons, topCommanders])
+    let cancelled = false
+    fetchCardByName(name)
+      .then((card) => {
+        if (!cancelled) setArtUri(resolveArtCrop(card) ?? undefined)
+      })
+      .catch(() => {
+        if (!cancelled) setArtUri(undefined)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [name])
 
-  const scroll = useCallback((dir: 1 | -1) => {
-    const el = scrollRef.current
-    if (!el) return
-    const card = el.querySelector<HTMLElement>("[data-carousel-card]")
-    const amount = card ? card.offsetWidth + 12 : 230 // card width + gap
-    el.scrollBy({ left: dir * amount, behavior: "smooth" })
-  }, [])
+  return (
+    <div data-carousel-card className={CARD + " flex-shrink-0 w-52 snap-start overflow-hidden"}>
+      <div className="art-ph relative h-28 w-full border-b border-border grid place-items-center overflow-hidden">
+        {artUri ? (
+          <img src={artUri} alt={name} className="h-full w-full object-cover object-center" />
+        ) : (
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            commander art
+          </span>
+        )}
+      </div>
+      <div className="p-3.5">
+        <div className="text-sm font-semibold truncate" title={name}>
+          {name}
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <Pips colors={colors} />
+          <span className="font-mono text-[11px] text-muted-foreground tabular">
+            {games}g · {Math.round(rate * 100)}%
+          </span>
+        </div>
+        <button
+          onClick={onTrack}
+          className="mt-3 inline-flex items-center justify-center gap-2 h-9 w-full text-sm rounded-md font-medium border border-input bg-transparent text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Plus className="h-4 w-4" />
+          Track game
+        </button>
+      </div>
+    </div>
+  )
+}
 
-  // early empty state mirrors StatsPage so users still see a call to action
+export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: DashboardPageProps) {
+  const stats = useStats(games)
+  const colorMap = useMemo(() => buildColorMap(games), [games])
+
+  const recentGames = useMemo(
+    () =>
+      [...games]
+        .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+        .slice(0, 6),
+    [games]
+  )
+
+  const topCommanders = useMemo(
+    () => [...stats.byCommander].sort((a, b) => b.games - a.games).slice(0, 8),
+    [stats.byCommander]
+  )
+
+  const bestSeat = useMemo(() => {
+    const entries = [
+      [1, stats.bySeat.seat1],
+      [2, stats.bySeat.seat2],
+      [3, stats.bySeat.seat3],
+      [4, stats.bySeat.seat4],
+      [5, stats.bySeat.seat5],
+      [6, stats.bySeat.seat6],
+    ] as const
+    return entries
+      .filter(([, s]) => s.games > 0)
+      .reduce<{ seat: number; rate: number } | null>((best, [seat, s]) => {
+        if (!best || s.rate > best.rate) return { seat, rate: s.rate }
+        return best
+      }, null)
+  }, [stats.bySeat])
+
+  const topCommander = topCommanders[0]
+
   if (stats.gamesPlayed === 0) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-lg border border-dashed border-border p-12 text-center space-y-4">
-          <div>
-            <p className="text-muted-foreground text-sm">No games logged yet.</p>
-            <p className="text-muted-foreground text-xs mt-1">
-              Log a game to see your stats here.
-            </p>
-          </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                Track a game
-                <kbd className="ml-0.5 text-[10px] font-mono bg-white/15 border border-white/25 px-1 py-0.5 rounded leading-none">
-                  N
-                </kbd>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent>
-              <div className="flex flex-col gap-2">
-                <Button variant="ghost" onClick={() => onOpenLogGame?.()}>Log a game</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+      <div className="space-y-8">
+        <CommanderSearch
+          value=""
+          onChange={(name) => name && onOpenLogGame(name)}
+          placeholder="Search a commander to log a game…"
+        />
+        <div className={CARD + " p-12 text-center"}>
+          <p className="text-sm font-medium">No games logged yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">Track a game to see your stats here.</p>
+          <button
+            onClick={() => onOpenLogGame()}
+            className="mt-5 inline-flex items-center justify-center gap-2 h-11 px-6 text-[15px] rounded-md font-medium bg-primary text-primary-foreground hover:opacity-90 active:opacity-80 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Track a game
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-    {/* favorite commanders */}
+    <div className="space-y-8 sm:space-y-10">
+      {/* Search */}
+      <CommanderSearch
+        value=""
+        onChange={(name) => name && onOpenLogGame(name)}
+        placeholder="Search a commander to log a game…"
+      />
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Games" value={String(stats.gamesPlayed)} sub="all-time" />
+        <StatCard
+          label="Win rate"
+          value={stats.overall.games ? `${Math.round(stats.overall.rate * 100)}%` : "—"}
+          sub={`${stats.overall.wins} of ${stats.overall.games} games`}
+          highlight
+        />
+        <StatCard
+          label="Best seat"
+          value={bestSeat ? String(bestSeat.seat) : "—"}
+          sub={bestSeat ? `${Math.round(bestSeat.rate * 100)}% ${SEAT_ORDINAL[bestSeat.seat]} to play` : "no seat data"}
+        />
+        <StatCard
+          label="Top commander"
+          value={topCommander ? topCommander.name.split(",")[0] : "—"}
+          sub={
+            topCommander
+              ? `${Math.round(topCommander.rate * 100)}% over ${topCommander.games} games`
+              : "no games"
+          }
+        />
+      </div>
+
+      {/* Favorites */}
       {topCommanders.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Your favorite commanders</h2>
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0"
-                disabled={!canScrollLeft}
-                onClick={() => scroll(-1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0"
-                disabled={!canScrollRight}
-                onClick={() => scroll(1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+        <section>
+          <h2 className={SECTION_LABEL}>Favorite commanders</h2>
+          <div className="mt-3 flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+            {topCommanders.map((c) => (
+              <FavoriteCard
+                key={c.name}
+                name={c.name}
+                colors={colorMap.get(c.name) ?? []}
+                games={c.games}
+                rate={c.rate}
+                onTrack={() => onOpenLogGame(c.name)}
+              />
+            ))}
           </div>
-          <div className="mt-2 -mx-3 px-3">
-            <div
-              ref={scrollRef}
-              className="flex gap-3 overflow-x-auto py-2 scroll-smooth"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
-            >
-              {topCommanders.map((c) => (
-                <div key={c.name} data-carousel-card className="flex-shrink-0 w-56">
-                  <FavoriteCommanderCard name={c.name} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        </section>
       )}
-       {/* recent games */}
-      <div>
+
+      {/* Recent games */}
+      <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Recent games</h2>
+          <h2 className={SECTION_LABEL}>Recent games</h2>
           <button
             onClick={() => onNavigate("/history")}
-            className="flex items-center gap-1 text-sm text-primary hover:underline"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
-            Game History
-            <ArrowRight className="h-3.5 w-3.5" />
+            Game history <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
         {recentGames.length === 0 ? (
-          <p className="text-sm text-muted-foreground mt-2">No games yet.</p>
+          <p className="mt-3 text-sm text-muted-foreground">No games yet.</p>
         ) : (
-          <div className="space-y-2 mt-2">
-            {recentGames.map((game) => (
-              <div
-                key={game.id}
-                className="rounded-lg border border-border bg-card flex items-start justify-between"
-              >
-                <div className="flex-1">
-                  <GameHistoryRow game={game} />
-                </div>
-                <div className="p-3">
-                  <Button size="sm" variant="outline" onClick={() => onEditGame(game.id)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span className="ml-2 text-sm">Edit</span>
-                  </Button>
-                </div>
-              </div>
+          <div className={CARD + " mt-3 divide-y divide-border overflow-hidden"}>
+            {recentGames.map((g) => (
+              <GameRow key={g.id} game={g} onEdit={onEditGame} />
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }

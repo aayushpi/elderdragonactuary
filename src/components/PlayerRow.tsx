@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { Trophy, UserPlus, X, Minus, Plus, HelpCircle } from "lucide-react"
+import { Trophy, UserPlus, X, Minus, Plus, HelpCircle, ChevronsUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { loadProfile } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
@@ -7,13 +8,15 @@ import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
 import { InputGroup, InputGroupText } from "@/components/ui/input-group"
 import { CommanderSearch } from "@/components/CommanderSearch"
-import { extractCardData } from "@/lib/shared"
+import { CommanderPicker, type CommanderShortlistItem } from "@/components/CommanderPicker"
+import { PlayerNamePicker } from "@/components/PlayerNamePicker"
 // CommanderCard removed: using low-opacity background image instead
-import { CardSearch } from "@/components/CardSearch"
+import { FastManaPicker } from "@/components/FastManaPicker"
+import { Badge } from "@/components/ui/badge"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
 import { resolveArtCrop } from "@/lib/scryfall"
-import type { Player, RecentCommander, SeatPosition, ScryfallCard } from "@/types"
+import type { Player, SeatPosition, ScryfallCard } from "@/types"
 
 interface FieldErrors {
   commanderName?: boolean
@@ -35,7 +38,12 @@ interface PlayerRowProps {
   onWinTurnChange: (turn: string) => void
   onKoTurnChange: (turn: string) => void
   onChange: (updated: Partial<Player>) => void
-  recentCommanders?: RecentCommander[]
+  /** This player's recent commanders (the me-player, or a known pod-mate). Drives
+   *  the one-tap CommanderPicker; empty/undefined opens straight into search. */
+  shortlist?: CommanderShortlistItem[]
+  /** Label shown above the recents list ("You" or a pod-mate's name). */
+  pickerLabel?: string
+  seatLabel?: string
   knownPlayerNames?: string[]
   fieldErrors?: FieldErrors
   showWinnerError?: boolean
@@ -55,21 +63,25 @@ export function PlayerRow({
   onWinTurnChange,
   onKoTurnChange,
   onChange,
-  recentCommanders,
+  shortlist,
+  pickerLabel,
+  seatLabel,
   knownPlayerNames,
   fieldErrors,
   showWinnerError,
 }: PlayerRowProps) {
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [namePickerOpen, setNamePickerOpen] = useState(false)
+  const [fastManaPickerOpen, setFastManaPickerOpen] = useState(false)
 
-  function handleCommanderChange(name: string, card: ScryfallCard | null) {
-    if (card) {
-      onChange({ commanderName: name, ...extractCardData(card) })
-    } else {
-      onChange({ commanderName: name, commanderImageUri: undefined, commanderColorIdentity: undefined, commanderManaCost: undefined, commanderTypeLine: undefined })
-    }
-  }
+  // Saved opponent names this player can be picked from — exclude the logged-in
+  // user's own name so it never shows up as a pickable opponent.
+  const savedOpponentNames = (() => {
+    if (isMe || !knownPlayerNames?.length) return []
+    const profileName = (loadProfile().displayName ?? "").trim()
+    return knownPlayerNames.filter((n) => n.trim() && n.trim() !== profileName)
+  })()
 
   function handlePartnerChange(name: string, card: ScryfallCard | null) {
     if (card) {
@@ -92,7 +104,9 @@ export function PlayerRow({
   function addFastManaCard(card: string) {
     const trimmed = card.trim()
     if (!trimmed) return
-    const cards = [...(player.fastMana?.cards ?? []), trimmed]
+    const existing = player.fastMana?.cards ?? []
+    if (existing.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return
+    const cards = [...existing, trimmed]
     onChange({ fastMana: { hasFastMana: true, cards } })
   }
 
@@ -145,49 +159,38 @@ export function PlayerRow({
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
           <FormField>
                 <div className="flex items-center gap-2 relative">
-                  <InputGroup className="w-40">
-                <Input
-                  value={player.displayName ?? ""}
-                      onChange={(e) => onChange({ displayName: e.target.value })}
-                  placeholder={label}
-                  className="w-full h-10 bg-transparent border-0 text-sm px-3"
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                />
-                {isMe && <InputGroupText>Me</InputGroupText>}
-              </InputGroup>
-
-                  {/* Suggestions dropdown for existing player names (non-me only) */}
-                  <div className="absolute left-0 top-full mt-1 z-50 w-40">
-                    {(() => {
-                      if (isMe || !showSuggestions || !knownPlayerNames?.length) return null
-                      const profile = loadProfile()
-                      const profileName = (profile.displayName ?? "").trim()
-                      const q = (player.displayName ?? "").trim().toLowerCase()
-                      const candidates = q
-                        ? knownPlayerNames.filter((n) => n.toLowerCase().includes(q))
-                        : knownPlayerNames
-                      const filtered = candidates.filter((n) => n.trim() && n.trim() !== profileName)
-                      if (!filtered.length) return null
-                      return (
-                        <div className="rounded-md border bg-popover p-1 shadow-md">
-                          {filtered.map((n) => (
-                            <button
-                              key={n}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                onChange({ displayName: n })
-                                setShowSuggestions(false)
-                              }}
-                              className="w-full text-left px-2 py-1 text-sm hover:bg-accent"
-                            >
-                              {n}
-                            </button>
-                          ))}
-                        </div>
-                      )
-                    })()}
-                  </div>
+                  {isMe ? (
+                    <InputGroup className="w-40">
+                      <Input
+                        value={player.displayName ?? ""}
+                        onChange={(e) => onChange({ displayName: e.target.value })}
+                        placeholder={label}
+                        className="w-full h-10 bg-transparent border-0 text-sm px-3"
+                      />
+                      <InputGroupText>Me</InputGroupText>
+                    </InputGroup>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setNamePickerOpen(true)}
+                        className="flex h-10 w-40 items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className={cn("truncate", !player.displayName && "text-muted-foreground")}>
+                          {player.displayName?.trim() || label}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                      <PlayerNamePicker
+                        open={namePickerOpen}
+                        onOpenChange={setNamePickerOpen}
+                        names={savedOpponentNames}
+                        value={player.displayName?.trim()}
+                        seatLabel={seatLabel}
+                        onPick={(name) => onChange({ displayName: name })}
+                      />
+                    </>
+                  )}
 
                   <Popover>
                 <PopoverTrigger asChild>
@@ -362,22 +365,29 @@ export function PlayerRow({
       {/* Commander */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground uppercase tracking-wide">Commander</label>
-        <CommanderSearch
-          value={player.commanderName ?? ""}
-          onChange={handleCommanderChange}
-          hasError={fieldErrors?.commanderName}
-          recentCommanders={recentCommanders}
-          onSelectRecent={(rc) => {
-            onChange({
-              commanderName: rc.name,
-              commanderImageUri: rc.imageUri,
-              commanderColorIdentity: rc.colorIdentity,
-              commanderManaCost: rc.manaCost,
-              commanderTypeLine: rc.typeLine,
-            })
-          }}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className={cn(
+            "flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            fieldErrors?.commanderName ? "border-destructive" : "border-input"
+          )}
+        >
+          <span className={cn("truncate", !player.commanderName && "text-muted-foreground")}>
+            {player.commanderName || "Pick a commander"}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <CommanderPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          seatLabel={seatLabel}
+          label={pickerLabel ?? (isMe ? "You" : "Player")}
+          value={player.commanderName}
+          items={shortlist ?? []}
+          onPick={(pick) => onChange(pick)}
         />
-       
+
         {/* Partner */}
         {player.commanderName && !showPartner && (
           <button
@@ -430,11 +440,42 @@ export function PlayerRow({
       {/* Fast mana */}
       <div className="space-y-2">
         <label className="text-xs text-muted-foreground uppercase tracking-wide">Fast Mana</label>
-        <CardSearch
+        {selectedCards.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {selectedCards.map((card) => (
+              <Badge key={card} variant="secondary" className="flex items-center gap-1">
+                {card}
+                <button
+                  type="button"
+                  onClick={() => removeFastManaCard(card)}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                  aria-label={`Remove ${card}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setFastManaPickerOpen(true)}
+          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className={cn(selectedCards.length === 0 && "text-muted-foreground")}>
+            {selectedCards.length === 0
+              ? "Add fast mana"
+              : `${selectedCards.length} card${selectedCards.length > 1 ? "s" : ""} · add more`}
+          </span>
+          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <FastManaPicker
+          open={fastManaPickerOpen}
+          onOpenChange={setFastManaPickerOpen}
+          seatLabel={seatLabel}
           selectedCards={selectedCards}
-          onAddCard={addFastManaCard}
-          onRemoveCard={removeFastManaCard}
-          placeholder="Search for fast mana cards…"
+          onAdd={addFastManaCard}
+          onRemove={removeFastManaCard}
         />
       </div>
     </div>

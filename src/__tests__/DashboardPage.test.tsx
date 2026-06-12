@@ -16,7 +16,7 @@ describe("DashboardPage", () => {
     const html = renderToStaticMarkup(
       <DashboardPage games={[]} onNavigate={() => {}} onOpenLogGame={() => {}} />
     )
-    expect(html).toContain("No games logged yet.")
+    expect(html).toContain("No games logged yet")
     expect(html).toContain("Track a game")
   })
 
@@ -43,9 +43,11 @@ describe("DashboardPage", () => {
     const trackOccurrences = (html.match(/Track game/g) || []).length
     expect(trackOccurrences).toBe(3)
 
-    // favorite commanders sorted by games played -> check alt order
-    const idxA = html.indexOf('alt="A"')
-    const idxB = html.indexOf('alt="B"')
+    // favorite commanders sorted by games played -> check name order.
+    // Commander art loads asynchronously, so favorites are identified by their
+    // title attribute (rendered server-side) rather than an <img alt>.
+    const idxA = html.indexOf('title="A"')
+    const idxB = html.indexOf('title="B"')
     expect(idxA).toBeGreaterThan(-1)
     expect(idxB).toBeGreaterThan(-1)
     expect(idxA).toBeLessThan(idxB)

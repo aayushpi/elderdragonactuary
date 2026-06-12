@@ -56,21 +56,21 @@ describe("App routing smoke tests", () => {
   it("renders dashboard page on /", () => {
     const html = renderPath("/")
     // with no games the dashboard shows the empty state message
-    expect(html).toContain("No games logged yet.")
+    expect(html).toContain("No games logged yet")
   })
 
   it("renders stats page on /stats", () => {
     const html = renderPath("/stats")
-    expect(html).toContain("No games logged yet.")
+    expect(html).toContain("No games logged yet")
   })
 
   it("renders history page on /history", () => {
     const html = renderPath("/history")
-    expect(html).toContain("No games yet.")
+    expect(html).toContain("No games match")
   })
 
   it("renders settings page on /settings", () => {
     const html = renderPath("/settings")
-    expect(html).toContain("Backup games")
+    expect(html).toContain("Export games")
   })
 })
