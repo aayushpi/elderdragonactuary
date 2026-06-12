@@ -13,35 +13,18 @@ export const SHEET_CONTENT_CLASS =
   "!left-0 !top-0 !translate-x-0 !translate-y-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 " +
   "sm:!left-[50%] sm:!top-3 sm:!translate-x-[-50%] sm:w-full sm:max-w-md sm:h-auto sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-lg sm:border"
 
-/* ====== Color-identity pips — flat, hairline, no candy ====== */
-const PIP_TONES: Record<MtgColor, string> = {
-  W: "bg-amber-200/70 dark:bg-amber-200/20 text-amber-900 dark:text-amber-200",
-  U: "bg-sky-200/70 dark:bg-sky-300/20 text-sky-900 dark:text-sky-200",
-  B: "bg-zinc-300/80 dark:bg-zinc-400/20 text-zinc-800 dark:text-zinc-300",
-  R: "bg-rose-200/70 dark:bg-rose-300/20 text-rose-900 dark:text-rose-200",
-  G: "bg-emerald-200/70 dark:bg-emerald-300/20 text-emerald-900 dark:text-emerald-200",
-}
+/* ====== Color-identity pips — official Scryfall mana symbols ====== */
+const SYMBOL_BASE = "https://svgs.scryfall.io/card-symbols"
 
 export function Pip({ color }: { color: MtgColor }) {
   return (
-    <span
-      className={
-        "inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-semibold font-mono " +
-        PIP_TONES[color]
-      }
-    >
-      {color}
-    </span>
+    <img src={`${SYMBOL_BASE}/${color}.svg`} alt={color} className="h-[18px] w-[18px] shrink-0" />
   )
 }
 
 export function Pips({ colors }: { colors: MtgColor[] }) {
   if (colors.length === 0) {
-    return (
-      <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-semibold font-mono bg-zinc-200/70 dark:bg-zinc-500/20 text-zinc-600 dark:text-zinc-300">
-        C
-      </span>
-    )
+    return <img src={`${SYMBOL_BASE}/C.svg`} alt="C" className="h-[18px] w-[18px] shrink-0" />
   }
   return (
     <span className="inline-flex items-center gap-1">
