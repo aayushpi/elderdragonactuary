@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, ArrowUpDown } from "lucide-react"
 import { EloCard } from "@/components/EloCard"
-import { TopWinConditionsCard } from "@/components/TopWinConditionsCard"
+import { CommanderStatCard } from "@/components/CommanderStatCard"
+import { BracketPie } from "@/components/stats/BracketPie"
+import { ManaCost } from "@/components/ManaCost"
 import { computeStats, computePodElo, computeCommanderElo } from "@/lib/stats"
-import { CARD, SECTION_LABEL, Pips, WrBar } from "@/components/modern/primitives"
+import { CARD, SECTION_LABEL, WrBar } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
-import type { Game, MtgColor, WinRateStat } from "@/types"
+import type { CommanderStat, Game, WinRateStat } from "@/types"
 
 interface StatsPageProps {
   games: Game[]
@@ -16,6 +18,12 @@ interface StatsPageProps {
 const RANGES = ["All time", "This year", "Last 90 days"] as const
 type Range = (typeof RANGES)[number]
 
+const STAT_LABEL = "font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+const SEAT_ORDINALS: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th" }
+
+type CommanderSort = "win-rate" | "win-turn" | "total-wins"
+type SortDirection = "asc" | "desc"
+
 function inRange(playedAt: string, range: Range): boolean {
   if (range === "All time") return true
   const d = new Date(playedAt)
@@ -24,18 +32,61 @@ function inRange(playedAt: string, range: Range): boolean {
   return now.getTime() - d.getTime() <= 90 * 24 * 60 * 60 * 1000
 }
 
-function buildColorMap(games: Game[]): Map<string, MtgColor[]> {
-  const map = new Map<string, MtgColor[]>()
-  for (const g of games) {
-    const me = g.players.find((p) => p.isMe)
-    if (me?.commanderColorIdentity && !map.has(me.commanderName)) {
-      map.set(me.commanderName, me.commanderColorIdentity)
-    }
-  }
-  return map
+function fmtRate(stat: WinRateStat): { val: string; sub: string } {
+  if (stat.games === 0) return { val: "—", sub: "no games" }
+  return { val: `${Math.round(stat.rate * 100)}%`, sub: `${stat.wins} wins / ${stat.games} games` }
 }
 
-/** Trailing 12 months of [label, games, wins] from "me"'s results. */
+function colorIdentityToManaCost(colors: string[]): string {
+  if (colors.length === 0) return "{C}"
+  return colors.map((c) => `{${c}}`).join("")
+}
+
+function sortCommanders(
+  commanders: CommanderStat[],
+  sort: CommanderSort,
+  direction: SortDirection
+): CommanderStat[] {
+  return [...commanders].sort((a, b) => {
+    let comparison = 0
+    if (sort === "win-turn") {
+      if (a.averageWinTurn === null && b.averageWinTurn === null) comparison = 0
+      else if (a.averageWinTurn === null) comparison = 1
+      else if (b.averageWinTurn === null) comparison = -1
+      else comparison = a.averageWinTurn - b.averageWinTurn
+    } else if (sort === "total-wins") {
+      comparison = a.wins - b.wins || a.games - b.games
+    } else {
+      comparison = a.rate - b.rate || a.games - b.games
+    }
+    return direction === "asc" ? comparison : -comparison
+  })
+}
+
+/** Leading streak from "me"'s most-recent results, plus the last 10 W/L. */
+function recentForm(games: Game[]): { count: number; type: "win" | "loss" | null; recent: { id: string; win: boolean }[] } {
+  const recent = games
+    .slice(0, 10)
+    .map((g) => {
+      const me = g.players.find((p) => p.isMe)
+      if (!me) return null
+      return { id: g.id, win: g.winnerId === me.id }
+    })
+    .filter((r): r is { id: string; win: boolean } => r !== null)
+
+  let count = 0
+  let type: "win" | "loss" | null = null
+  for (const r of recent) {
+    if (type === null) {
+      type = r.win ? "win" : "loss"
+      count = 1
+    } else if ((r.win && type === "win") || (!r.win && type === "loss")) {
+      count++
+    } else break
+  }
+  return { count, type, recent }
+}
+
 function monthlyTrend(games: Game[]): { label: string; games: number; wins: number }[] {
   const buckets = new Map<string, { games: number; wins: number }>()
   for (const g of games) {
@@ -92,6 +143,114 @@ function RangeChips({ value, onChange }: { value: Range; onChange: (r: Range) =>
           {r}
         </button>
       ))}
+    </div>
+  )
+}
+
+function StatBox({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>{label}</div>
+      <div className="mt-2 text-[28px] font-bold leading-none tracking-tight tabular">{value}</div>
+      {sub && <div className="mt-1.5 text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  )
+}
+
+function WinStreakCard({ games }: { games: Game[] }) {
+  const { count, type, recent } = recentForm(games)
+  if (recent.length === 0) return null
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>
+        {count} {type === "loss" ? "loss" : "win"} streak
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {recent.map((r) => (
+          <span
+            key={r.id}
+            className={cn(
+              "grid h-6 w-6 place-items-center rounded-full text-[11px] font-semibold ring-1",
+              r.win
+                ? "bg-emerald-500/15 text-emerald-600 ring-emerald-500/40 dark:text-emerald-400"
+                : "bg-rose-500/15 text-rose-600 ring-rose-500/40 dark:text-rose-400"
+            )}
+          >
+            {r.win ? "W" : "L"}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TopWaysCard({ conditions }: { conditions: { condition: string; count: number }[] }) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>Top ways to win</div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {conditions.map((wc) => (
+          <span
+            key={wc.condition}
+            className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium"
+          >
+            {wc.condition}
+            <span className="ml-1 text-muted-foreground">× {wc.count}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StartingTurnCard({ rows }: { rows: { seat: number; stat: WinRateStat }[] }) {
+  return (
+    <div className="space-y-3">
+      <div className={SECTION_LABEL}>Win rate by starting turn</div>
+      <div className={CARD + " p-4 sm:p-5 space-y-4"}>
+        {rows.map(({ seat, stat }) => (
+          <div key={seat}>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{SEAT_ORDINALS[seat]} to play</span>
+              <span className="font-mono text-xs text-muted-foreground tabular">
+                {Math.round(stat.rate * 100)}% ({stat.wins}/{stat.games})
+              </span>
+            </div>
+            <div className="mt-2">
+              <WrBar rate={stat.rate} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ColorBox({
+  label,
+  colors,
+  value,
+  sub,
+}: {
+  label: string
+  colors: string[] | null
+  value: string
+  sub?: string
+}) {
+  return (
+    <div className={CARD + " p-4 sm:p-5"}>
+      <div className={STAT_LABEL}>{label}</div>
+      {colors ? (
+        <>
+          <div className="mt-2.5">
+            <ManaCost cost={colorIdentityToManaCost(colors)} size="sm" />
+          </div>
+          <div className="mt-2 text-[22px] font-bold leading-none tabular">{value}</div>
+          {sub && <div className="mt-1.5 text-xs text-muted-foreground">{sub}</div>}
+        </>
+      ) : (
+        <div className="mt-2 text-[22px] font-bold leading-none">—</div>
+      )}
     </div>
   )
 }
@@ -174,10 +333,11 @@ function BreakdownCard({
 
 export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   const [range, setRange] = useState<Range>("All time")
+  const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
   const filtered = useMemo(() => games.filter((g) => inRange(g.playedAt, range)), [games, range])
   const stats = useMemo(() => computeStats(filtered), [filtered])
-  const colorMap = useMemo(() => buildColorMap(games), [games])
   const trend = useMemo(() => monthlyTrend(filtered), [filtered])
   const podSizes = useMemo(() => podSizeBreakdown(filtered), [filtered])
   const podEloGroups = useMemo(() => computePodElo(games), [games])
@@ -202,15 +362,19 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
       [5, stats.bySeat.seat5],
       [6, stats.bySeat.seat6],
     ]
-    return entries
-      .filter(([, s]) => s.games > 0)
-      .map(([seat, s]) => ({ label: `Seat ${seat}`, rate: s.rate, games: s.games }))
+    return entries.filter(([, s]) => s.games > 0).map(([seat, stat]) => ({ seat, stat }))
   }, [stats.bySeat])
 
-  const commanders = useMemo(
-    () => [...stats.byCommander].sort((a, b) => b.games - a.games),
-    [stats.byCommander]
+  const sortedCommanders = useMemo(
+    () => sortCommanders(stats.byCommander, commanderSort, sortDirection),
+    [stats.byCommander, commanderSort, sortDirection]
   )
+
+  const hasBracketData = stats.byBracket.some((b) => b.games > 0)
+  const hasColorData =
+    stats.mostPlayedCommanderColorIdentity ||
+    stats.mostSuccessfulCommanderColorIdentity ||
+    stats.archnemesisCommanderColorIdentity
 
   if (games.length === 0) {
     return (
@@ -231,6 +395,11 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
     )
   }
 
+  const avgTurn = stats.averageWinTurn !== null ? stats.averageWinTurn.toFixed(1) : "—"
+  const overall = fmtRate(stats.overall)
+  const withFm = fmtRate(stats.withFastMana)
+  const vsFm = fmtRate(stats.againstFastMana)
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -238,50 +407,105 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
         <RangeChips value={range} onChange={setRange} />
       </div>
 
+      {/* Headline stats */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <StatBox label="Win rate" value={overall.val} sub={overall.sub} />
+        <StatBox label="Avg win turn" value={avgTurn} sub="when you win" />
+        <StatBox label="With fast mana" value={withFm.val} sub={withFm.sub} />
+        <StatBox label="Vs fast mana" value={vsFm.val} sub={vsFm.sub} />
+      </div>
+
+      {/* Streak + ways to win */}
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+        <WinStreakCard games={filtered} />
+        {stats.topWinConditions.length > 0 && <TopWaysCard conditions={stats.topWinConditions} />}
+      </div>
+
+      {seatRows.length > 0 && <StartingTurnCard rows={seatRows} />}
+
+      {hasBracketData && <BracketPie byBracket={stats.byBracket} />}
+
+      {/* Commander colors */}
+      {hasColorData && (
+        <div className="space-y-3">
+          <div className={SECTION_LABEL}>Commander colors</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            <ColorBox
+              label="Most played"
+              colors={stats.mostPlayedCommanderColorIdentity?.colors ?? null}
+              value={
+                stats.mostPlayedCommanderColorIdentity
+                  ? `${stats.mostPlayedCommanderColorIdentity.games} game${stats.mostPlayedCommanderColorIdentity.games !== 1 ? "s" : ""}`
+                  : "—"
+              }
+            />
+            <ColorBox
+              label="Most successful"
+              colors={stats.mostSuccessfulCommanderColorIdentity?.colors ?? null}
+              value={
+                stats.mostSuccessfulCommanderColorIdentity
+                  ? `${Math.round(stats.mostSuccessfulCommanderColorIdentity.winRate * 100)}%`
+                  : "—"
+              }
+              sub={
+                stats.mostSuccessfulCommanderColorIdentity
+                  ? `${stats.mostSuccessfulCommanderColorIdentity.wins} wins / ${stats.mostSuccessfulCommanderColorIdentity.games} games`
+                  : undefined
+              }
+            />
+            <ColorBox
+              label="Archnemesis colors"
+              colors={stats.archnemesisCommanderColorIdentity?.colors ?? null}
+              value={
+                stats.archnemesisCommanderColorIdentity
+                  ? `${Math.round(stats.archnemesisCommanderColorIdentity.lossRate * 100)}%`
+                  : "—"
+              }
+              sub={
+                stats.archnemesisCommanderColorIdentity
+                  ? `${stats.archnemesisCommanderColorIdentity.games - stats.archnemesisCommanderColorIdentity.wins} losses / ${stats.archnemesisCommanderColorIdentity.games} games`
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+      )}
+
       <TrendChart data={trend} />
 
-      {/* By commander */}
-      <div className={CARD + " overflow-hidden"}>
-        <div className="px-4 sm:px-5 py-3.5 border-b border-border flex items-center justify-between">
-          <div className={SECTION_LABEL}>By commander</div>
-          <div className="font-mono text-[10px] text-muted-foreground">sorted by games</div>
-        </div>
-        <div className="divide-y divide-border">
-          {commanders.length === 0 ? (
-            <div className="px-4 sm:px-5 py-6 text-xs text-muted-foreground">No commander data in range.</div>
-          ) : (
-            commanders.map((c) => (
-              <div key={c.name} className="flex items-center gap-3 px-4 sm:px-5 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold truncate">{c.name}</div>
-                  <div className="mt-1">
-                    <Pips colors={colorMap.get(c.name) ?? []} />
-                  </div>
-                </div>
-                <div className="hidden sm:block w-36 lg:w-48 shrink-0">
-                  <WrBar rate={c.rate} />
-                </div>
-                <div className="w-20 shrink-0 text-right font-mono text-xs text-muted-foreground tabular">
-                  {c.games}g
-                </div>
-                <div className="w-12 shrink-0 text-right font-mono text-sm font-medium tabular">
-                  {Math.round(c.rate * 100)}%
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <BreakdownCard title="By pod size" rows={podSizes} />
 
-      {/* Breakdowns */}
-      <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
-        <BreakdownCard title="By seat" rows={seatRows} />
-        <BreakdownCard title="By pod size" rows={podSizes} />
-      </div>
-
-      {/* Top win conditions */}
-      {stats.topWinConditions.length > 0 && (
-        <TopWinConditionsCard topWinConditions={stats.topWinConditions} />
+      {/* Commander performance */}
+      {stats.byCommander.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className={SECTION_LABEL}>Commander performance</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Sort by</span>
+              <select
+                value={commanderSort}
+                onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
+                className="h-8 cursor-pointer rounded-md border border-input bg-card px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="win-rate">Win rate</option>
+                <option value="win-turn">Winning turn</option>
+                <option value="total-wins">Total wins</option>
+              </select>
+              <button
+                onClick={() => setSortDirection((p) => (p === "asc" ? "desc" : "asc"))}
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-input bg-card px-2 text-xs hover:bg-muted transition-colors"
+              >
+                <ArrowUpDown className="h-3 w-3" />
+                {sortDirection === "asc" ? "Asc" : "Desc"}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {sortedCommanders.map((c, i) => (
+              <CommanderStatCard key={c.name} stat={c} rank={i + 1} />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* ELO — computed across all games, regardless of range */}
