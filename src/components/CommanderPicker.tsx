@@ -246,9 +246,6 @@ export function CommanderPicker({
                 <Search className="h-4 w-4" />
                 Or search everything…
               </button>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Keyboard never opens unless you reach for search — recents cover most repeat games.
-              </p>
             </div>
           </>
         ) : (
@@ -280,10 +277,6 @@ export function CommanderPicker({
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 pb-2">
-              <span className={SECTION_LABEL}>Best matches</span>
-              <span className="font-mono text-[11px] text-muted-foreground">return picks the top hit</span>
-            </div>
 
             {/* Results band — sits above the keyboard, never under it */}
             <div className="flex-1 min-h-0 overflow-y-auto border-t border-border divide-y divide-border">
