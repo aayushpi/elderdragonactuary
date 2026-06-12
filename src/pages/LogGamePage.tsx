@@ -8,6 +8,7 @@ import { Command, CommandList, CommandItem, CommandInput } from "@/components/ui
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
+import type { CommanderShortlistItem } from "@/components/CommanderPicker"
 import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
@@ -133,6 +134,49 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
       })
     }
     return result
+  }, [games])
+
+  // Rich self-commander shortlist (games, win rate, recency) for the one-tap
+  // CommanderPicker. Ordered most-recently-played first.
+  const myShortlist = useMemo((): CommanderShortlistItem[] => {
+    interface Acc {
+      games: number
+      wins: number
+      last: string
+      colorIdentity?: MtgColor[]
+      manaCost?: string
+      imageUri?: string
+      typeLine?: string
+    }
+    const map = new Map<string, Acc>()
+    for (const game of games) {
+      const me = game.players.find((p) => p.isMe)
+      if (!me || !me.commanderName) continue
+      const acc = map.get(me.commanderName) ?? { games: 0, wins: 0, last: game.playedAt }
+      acc.games += 1
+      if (game.winnerId === me.id) acc.wins += 1
+      const isLatest = new Date(game.playedAt).getTime() >= new Date(acc.last).getTime()
+      if (isLatest || !acc.colorIdentity) {
+        if (isLatest) acc.last = game.playedAt
+        acc.colorIdentity = me.commanderColorIdentity ?? acc.colorIdentity
+        acc.manaCost = me.commanderManaCost ?? acc.manaCost
+        acc.imageUri = me.commanderImageUri ?? acc.imageUri
+        acc.typeLine = me.commanderTypeLine ?? acc.typeLine
+      }
+      map.set(me.commanderName, acc)
+    }
+    return Array.from(map.entries())
+      .map(([name, a]) => ({
+        name,
+        games: a.games,
+        winRate: a.games ? a.wins / a.games : 0,
+        lastPlayedISO: a.last,
+        colorIdentity: a.colorIdentity,
+        manaCost: a.manaCost,
+        imageUri: a.imageUri,
+        typeLine: a.typeLine,
+      }))
+      .sort((a, b) => new Date(b.lastPlayedISO).getTime() - new Date(a.lastPlayedISO).getTime())
   }, [games])
 
   // Derive unique opponent names from game history for autocomplete
@@ -708,6 +752,8 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
                     onKoTurnChange={(turn) => handleKoTurnChange(originalIndex, turn)}
                     onChange={(updated) => updatePlayer(originalIndex, updated)}
                     recentCommanders={player.isMe ? recentMyCommanders : undefined}
+                    myShortlist={player.isMe ? myShortlist : undefined}
+                    seatLabel={player.seatPosition ? `Seat ${player.seatPosition}` : `Seat ${playerOrder}`}
                     knownPlayerNames={knownPlayerNames}
                     fieldErrors={{
                       commanderName: errors.players[originalIndex]?.commanderName,
