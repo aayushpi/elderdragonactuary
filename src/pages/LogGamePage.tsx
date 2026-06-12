@@ -8,17 +8,18 @@ import { Command, CommandList, CommandItem, CommandInput } from "@/components/ui
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
-import type { CommanderShortlistItem } from "@/components/CommanderPicker"
+import { buildPlayerShortlists } from "@/lib/shortlist"
 import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
-import type { Game, Player, RecentCommander, SeatPosition } from "@/types"
+import type { Game, Player, SeatPosition } from "@/types"
 import { saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
 function generateId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
+
 
 function makePlayer(isMe: boolean): Partial<Player> {
   return {
@@ -118,66 +119,10 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
     return () => mediaQuery.removeEventListener("change", updateMobileState)
   }, [])
 
-  const recentMyCommanders = useMemo((): RecentCommander[] => {
-    const seen = new Set<string>()
-    const result: RecentCommander[] = []
-    for (const game of games) {
-      const me = game.players.find((p) => p.isMe)
-      if (!me || seen.has(me.commanderName) || !me.commanderManaCost) continue
-      seen.add(me.commanderName)
-      result.push({
-        name: me.commanderName,
-        manaCost: me.commanderManaCost,
-        imageUri: me.commanderImageUri,
-        typeLine: me.commanderTypeLine,
-        colorIdentity: me.commanderColorIdentity,
-      })
-    }
-    return result
-  }, [games])
-
-  // Rich self-commander shortlist (games, win rate, recency) for the one-tap
-  // CommanderPicker. Ordered most-recently-played first.
-  const myShortlist = useMemo((): CommanderShortlistItem[] => {
-    interface Acc {
-      games: number
-      wins: number
-      last: string
-      colorIdentity?: MtgColor[]
-      manaCost?: string
-      imageUri?: string
-      typeLine?: string
-    }
-    const map = new Map<string, Acc>()
-    for (const game of games) {
-      const me = game.players.find((p) => p.isMe)
-      if (!me || !me.commanderName) continue
-      const acc = map.get(me.commanderName) ?? { games: 0, wins: 0, last: game.playedAt }
-      acc.games += 1
-      if (game.winnerId === me.id) acc.wins += 1
-      const isLatest = new Date(game.playedAt).getTime() >= new Date(acc.last).getTime()
-      if (isLatest || !acc.colorIdentity) {
-        if (isLatest) acc.last = game.playedAt
-        acc.colorIdentity = me.commanderColorIdentity ?? acc.colorIdentity
-        acc.manaCost = me.commanderManaCost ?? acc.manaCost
-        acc.imageUri = me.commanderImageUri ?? acc.imageUri
-        acc.typeLine = me.commanderTypeLine ?? acc.typeLine
-      }
-      map.set(me.commanderName, acc)
-    }
-    return Array.from(map.entries())
-      .map(([name, a]) => ({
-        name,
-        games: a.games,
-        winRate: a.games ? a.wins / a.games : 0,
-        lastPlayedISO: a.last,
-        colorIdentity: a.colorIdentity,
-        manaCost: a.manaCost,
-        imageUri: a.imageUri,
-        typeLine: a.typeLine,
-      }))
-      .sort((a, b) => new Date(b.lastPlayedISO).getTime() - new Date(a.lastPlayedISO).getTime())
-  }, [games])
+  // One-tap commander shortlists, keyed by who's playing. The me-player and
+  // every named pod-mate we have history for get their own list — same picker
+  // UX for everyone.
+  const { myShortlist, opponentShortlists } = useMemo(() => buildPlayerShortlists(games), [games])
 
   // Derive unique opponent names from game history for autocomplete
   const knownPlayerNames = useMemo((): string[] => {
@@ -751,8 +696,14 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
                     onWinTurnChange={setWinTurn}
                     onKoTurnChange={(turn) => handleKoTurnChange(originalIndex, turn)}
                     onChange={(updated) => updatePlayer(originalIndex, updated)}
-                    recentCommanders={player.isMe ? recentMyCommanders : undefined}
-                    myShortlist={player.isMe ? myShortlist : undefined}
+                    shortlist={
+                      player.isMe
+                        ? myShortlist
+                        : player.displayName?.trim()
+                          ? opponentShortlists.get(player.displayName.trim().toLowerCase())
+                          : undefined
+                    }
+                    pickerLabel={player.isMe ? "You" : player.displayName?.trim() || undefined}
                     seatLabel={player.seatPosition ? `Seat ${player.seatPosition}` : `Seat ${playerOrder}`}
                     knownPlayerNames={knownPlayerNames}
                     fieldErrors={{

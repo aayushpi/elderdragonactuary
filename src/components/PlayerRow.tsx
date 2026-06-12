@@ -9,13 +9,12 @@ import { FormField } from "@/components/ui/form-field"
 import { InputGroup, InputGroupText } from "@/components/ui/input-group"
 import { CommanderSearch } from "@/components/CommanderSearch"
 import { CommanderPicker, type CommanderShortlistItem } from "@/components/CommanderPicker"
-import { extractCardData } from "@/lib/shared"
 // CommanderCard removed: using low-opacity background image instead
 import { CardSearch } from "@/components/CardSearch"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
 import { resolveArtCrop } from "@/lib/scryfall"
-import type { Player, RecentCommander, SeatPosition, ScryfallCard } from "@/types"
+import type { Player, SeatPosition, ScryfallCard } from "@/types"
 
 interface FieldErrors {
   commanderName?: boolean
@@ -37,10 +36,11 @@ interface PlayerRowProps {
   onWinTurnChange: (turn: string) => void
   onKoTurnChange: (turn: string) => void
   onChange: (updated: Partial<Player>) => void
-  recentCommanders?: RecentCommander[]
-  /** Rich self-commander shortlist; when provided for the me-player, opens the
-   *  one-tap CommanderPicker instead of the inline search. */
-  myShortlist?: CommanderShortlistItem[]
+  /** This player's recent commanders (the me-player, or a known pod-mate). Drives
+   *  the one-tap CommanderPicker; empty/undefined opens straight into search. */
+  shortlist?: CommanderShortlistItem[]
+  /** Label shown above the recents list ("You" or a pod-mate's name). */
+  pickerLabel?: string
   seatLabel?: string
   knownPlayerNames?: string[]
   fieldErrors?: FieldErrors
@@ -61,8 +61,8 @@ export function PlayerRow({
   onWinTurnChange,
   onKoTurnChange,
   onChange,
-  recentCommanders,
-  myShortlist,
+  shortlist,
+  pickerLabel,
   seatLabel,
   knownPlayerNames,
   fieldErrors,
@@ -71,15 +71,6 @@ export function PlayerRow({
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const usePicker = isMe && !!myShortlist && myShortlist.length > 0
-
-  function handleCommanderChange(name: string, card: ScryfallCard | null) {
-    if (card) {
-      onChange({ commanderName: name, ...extractCardData(card) })
-    } else {
-      onChange({ commanderName: name, commanderImageUri: undefined, commanderColorIdentity: undefined, commanderManaCost: undefined, commanderTypeLine: undefined })
-    }
-  }
 
   function handlePartnerChange(name: string, card: ScryfallCard | null) {
     if (card) {
@@ -372,48 +363,29 @@ export function PlayerRow({
       {/* Commander */}
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground uppercase tracking-wide">Commander</label>
-        {usePicker ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className={cn(
-                "flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                fieldErrors?.commanderName ? "border-destructive" : "border-input"
-              )}
-            >
-              <span className={cn("truncate", !player.commanderName && "text-muted-foreground")}>
-                {player.commanderName || "Pick a commander"}
-              </span>
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-            <CommanderPicker
-              open={pickerOpen}
-              onOpenChange={setPickerOpen}
-              seatLabel={seatLabel}
-              contextLabel="logging a new game"
-              value={player.commanderName}
-              sources={[{ id: "you", label: "You", items: myShortlist! }]}
-              onPick={(_sourceId, pick) => onChange(pick)}
-            />
-          </>
-        ) : (
-          <CommanderSearch
-            value={player.commanderName ?? ""}
-            onChange={handleCommanderChange}
-            hasError={fieldErrors?.commanderName}
-            recentCommanders={recentCommanders}
-            onSelectRecent={(rc) => {
-              onChange({
-                commanderName: rc.name,
-                commanderImageUri: rc.imageUri,
-                commanderColorIdentity: rc.colorIdentity,
-                commanderManaCost: rc.manaCost,
-                commanderTypeLine: rc.typeLine,
-              })
-            }}
-          />
-        )}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className={cn(
+            "flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            fieldErrors?.commanderName ? "border-destructive" : "border-input"
+          )}
+        >
+          <span className={cn("truncate", !player.commanderName && "text-muted-foreground")}>
+            {player.commanderName || "Pick a commander"}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <CommanderPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          seatLabel={seatLabel}
+          contextLabel="logging a new game"
+          label={pickerLabel ?? (isMe ? "You" : "Player")}
+          value={player.commanderName}
+          items={shortlist ?? []}
+          onPick={(pick) => onChange(pick)}
+        />
 
         {/* Partner */}
         {player.commanderName && !showPartner && (
