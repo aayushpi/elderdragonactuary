@@ -11,8 +11,8 @@ import { CommanderSearch } from "@/components/CommanderSearch"
 import { CommanderPicker, type CommanderShortlistItem } from "@/components/CommanderPicker"
 import { PlayerNamePicker } from "@/components/PlayerNamePicker"
 // CommanderCard removed: using low-opacity background image instead
-import { CardSearch } from "@/components/CardSearch"
-import { POPULAR_FAST_MANA } from "@/lib/fastMana"
+import { FastManaPicker } from "@/components/FastManaPicker"
+import { Badge } from "@/components/ui/badge"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
 import { resolveArtCrop } from "@/lib/scryfall"
@@ -73,6 +73,7 @@ export function PlayerRow({
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [namePickerOpen, setNamePickerOpen] = useState(false)
+  const [fastManaPickerOpen, setFastManaPickerOpen] = useState(false)
 
   // Saved opponent names this player can be picked from — exclude the logged-in
   // user's own name so it never shows up as a pickable opponent.
@@ -103,7 +104,9 @@ export function PlayerRow({
   function addFastManaCard(card: string) {
     const trimmed = card.trim()
     if (!trimmed) return
-    const cards = [...(player.fastMana?.cards ?? []), trimmed]
+    const existing = player.fastMana?.cards ?? []
+    if (existing.some((c) => c.toLowerCase() === trimmed.toLowerCase())) return
+    const cards = [...existing, trimmed]
     onChange({ fastMana: { hasFastMana: true, cards } })
   }
 
@@ -438,26 +441,42 @@ export function PlayerRow({
       {/* Fast mana */}
       <div className="space-y-2">
         <label className="text-xs text-muted-foreground uppercase tracking-wide">Fast Mana</label>
-        {POPULAR_FAST_MANA.some((c) => !selectedCards.includes(c)) && (
+        {selectedCards.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {POPULAR_FAST_MANA.filter((c) => !selectedCards.includes(c)).map((card) => (
-              <button
-                key={card}
-                type="button"
-                onClick={() => addFastManaCard(card)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted whitespace-nowrap"
-              >
-                <Plus className="h-3 w-3" />
+            {selectedCards.map((card) => (
+              <Badge key={card} variant="secondary" className="flex items-center gap-1">
                 {card}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => removeFastManaCard(card)}
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                  aria-label={`Remove ${card}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
             ))}
           </div>
         )}
-        <CardSearch
+        <button
+          type="button"
+          onClick={() => setFastManaPickerOpen(true)}
+          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className={cn(selectedCards.length === 0 && "text-muted-foreground")}>
+            {selectedCards.length === 0
+              ? "Add fast mana"
+              : `${selectedCards.length} card${selectedCards.length > 1 ? "s" : ""} · add more`}
+          </span>
+          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <FastManaPicker
+          open={fastManaPickerOpen}
+          onOpenChange={setFastManaPickerOpen}
+          seatLabel={seatLabel}
           selectedCards={selectedCards}
-          onAddCard={addFastManaCard}
-          onRemoveCard={removeFastManaCard}
-          placeholder="Or search for more fast mana cards…"
+          onAdd={addFastManaCard}
+          onRemove={removeFastManaCard}
         />
       </div>
     </div>

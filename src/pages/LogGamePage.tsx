@@ -123,17 +123,21 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
   // UX for everyone.
   const { myShortlist, opponentShortlists } = useMemo(() => buildPlayerShortlists(games), [games])
 
-  // Derive unique opponent names from game history for autocomplete
+  // Opponent names from game history, ordered by how often I've played with
+  // them so the most frequent pod-mates surface first in the name picker.
   const knownPlayerNames = useMemo((): string[] => {
-    const names = new Set<string>()
+    const counts = new Map<string, number>()
     for (const g of games) {
       for (const p of g.players) {
         if (!p.isMe && p.displayName?.trim()) {
-          names.add(p.displayName.trim())
+          const name = p.displayName.trim()
+          counts.set(name, (counts.get(name) ?? 0) + 1)
         }
       }
     }
-    return Array.from(names).sort((a, b) => a.localeCompare(b))
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name]) => name)
   }, [games])
 
   const [playerCount, setPlayerCount] = useState<number | null>(null)

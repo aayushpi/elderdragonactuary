@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Clock, Search, Loader2, Check, Pencil } from "lucide-react"
+import { Search, Loader2, Check, Pencil } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -73,6 +73,24 @@ function matchScore(name: string, query: string): number | null {
     score += idx
   }
   return score
+}
+
+/** Small rounded thumbnail of the commander's art, with an initial fallback. */
+function CommanderThumb({ imageUri, name }: { imageUri?: string; name: string }) {
+  if (imageUri) {
+    return (
+      <img
+        src={imageUri}
+        alt=""
+        className="h-9 w-9 shrink-0 rounded-md object-cover border border-border"
+      />
+    )
+  }
+  return (
+    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border bg-muted text-sm font-semibold text-muted-foreground">
+      {name.slice(0, 1).toUpperCase()}
+    </div>
+  )
 }
 
 export function CommanderPicker({
@@ -212,7 +230,7 @@ export function CommanderPicker({
                     onClick={() => pickItem(item)}
                     className="group flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors"
                   >
-                    <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <CommanderThumb imageUri={item.imageUri} name={item.name} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-base font-semibold">{item.name}</span>
@@ -285,6 +303,7 @@ export function CommanderPicker({
                       onClick={() => pickItem(item)}
                       className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors"
                     >
+                      <CommanderThumb imageUri={item.imageUri} name={item.name} />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-base font-semibold">{item.name}</div>
                         <div className="mt-0.5 text-xs text-muted-foreground tabular">
