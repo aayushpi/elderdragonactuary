@@ -219,7 +219,6 @@ export function CommanderPicker({
             {/* Full played list — most played first, scrollable */}
             <div className="flex items-center justify-between px-5 pb-2 pt-1">
               <span className={SECTION_LABEL}>{recentsHeading}</span>
-              <span className="font-mono text-[11px] text-muted-foreground">most played first</span>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">

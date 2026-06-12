@@ -382,7 +382,6 @@ export function PlayerRow({
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           seatLabel={seatLabel}
-          contextLabel="logging a new game"
           label={pickerLabel ?? (isMe ? "You" : "Player")}
           value={player.commanderName}
           items={shortlist ?? []}

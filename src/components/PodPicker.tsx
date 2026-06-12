@@ -36,7 +36,6 @@ export function PodPicker({ open, onOpenChange, pods, value, onPick }: PodPicker
 
         <div className="flex items-center justify-between px-5 pb-2 pt-1">
           <span className={SECTION_LABEL}>Your pods</span>
-          <span className="font-mono text-[11px] text-muted-foreground">tap to fill players</span>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
