@@ -3,13 +3,7 @@ import { toast } from "sonner"
 import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
-import {
-  isFeaturebaseEnabled,
-  openFeaturebaseFeedback,
-  openFeaturebaseChangelog,
-  openFeaturebaseRoadmap,
-  openFeaturebaseHelp,
-} from "@/lib/featurebase"
+import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
 import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
 import { CARD, SECTION_LABEL } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
@@ -357,22 +351,22 @@ export function SettingsPage({
       {isFeaturebaseEnabled() && (
         <SettingsCard title="Feedback & support">
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={openFeaturebaseFeedback} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            <a href={featurebaseUrl("feedback")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
               <MessageSquarePlus className="h-3.5 w-3.5" />
               Send feedback
-            </button>
-            <button onClick={openFeaturebaseChangelog} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            </a>
+            <a href={featurebaseUrl("changelog")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
               <Megaphone className="h-3.5 w-3.5" />
               What's new
-            </button>
-            <button onClick={openFeaturebaseRoadmap} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            </a>
+            <a href={featurebaseUrl("roadmap")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
               <Map className="h-3.5 w-3.5" />
               Roadmap
-            </button>
-            <button onClick={openFeaturebaseHelp} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            </a>
+            <a href={featurebaseUrl("help")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
               <HelpCircle className="h-3.5 w-3.5" />
               Help center
-            </button>
+            </a>
           </div>
         </SettingsCard>
       )}

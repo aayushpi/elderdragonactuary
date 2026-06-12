@@ -26,7 +26,6 @@ import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { trackGameLogged } from '@/lib/analytics'
-import { isFeaturebaseEnabled, loadFeaturebaseSdk, initFeaturebaseWidgets } from "@/lib/featurebase"
 import { useAuth } from "@/hooks/useAuth"
 import type { Game } from "@/types"
 
@@ -190,14 +189,6 @@ function App() {
     applyAccent(accent, resolvedTheme === "dark")
     localStorage.setItem("theme-mode", themeMode)
   }, [resolvedTheme, themeMode, accent])
-
-  // Featurebase widgets (feedback, changelog, help, roadmap). No-op unless
-  // VITE_FEATUREBASE_ORG is set. Re-inits on theme/auth change to stay in sync.
-  useEffect(() => {
-    if (!isFeaturebaseEnabled()) return
-    loadFeaturebaseSdk()
-    initFeaturebaseWidgets({ theme: resolvedTheme, email: user?.email })
-  }, [resolvedTheme, user?.email])
 
   if (authLoading) {
     return (
