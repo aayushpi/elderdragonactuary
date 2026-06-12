@@ -1,4 +1,5 @@
 import type { MtgColor } from "@/types"
+import { LogoMark } from "@/components/modern/LogoMark"
 
 /* ====== Shared class strings (Modern UI design language) ====== */
 export const CARD = "rounded-lg bg-card border border-border"
@@ -69,9 +70,7 @@ export function ResultBadge({ won }: { won: boolean }) {
 export function Wordmark({ compact }: { compact?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2.5 shrink-0 select-none">
-      <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground font-mono text-[11px] font-semibold tracking-tight">
-        ed
-      </span>
+      <LogoMark size={28} />
       {!compact && (
         <span className="font-semibold tracking-tight text-[15px]">Elder Dragon Actuary</span>
       )}
