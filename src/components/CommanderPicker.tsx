@@ -11,6 +11,7 @@ import { useScryfall } from "@/hooks/useScryfall"
 import { extractCardData } from "@/lib/shared"
 import { ManaCost } from "@/components/ManaCost"
 import { Pips, SECTION_LABEL } from "@/components/modern/primitives"
+import { cn } from "@/lib/utils"
 import type { MtgColor } from "@/types"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
 
@@ -107,13 +108,24 @@ export function CommanderPicker({
     }
   }, [open, mode])
 
-  // Rank the player's commanders by games played for the "#N most played" badge.
+  // Every commander this player has played, most-played first (ties broken by
+  // recency). This is the full scrollable list and the source of the rank badge.
+  const playedSorted = useMemo(
+    () =>
+      [...items].sort(
+        (a, b) =>
+          b.games - a.games ||
+          new Date(b.lastPlayedISO ?? 0).getTime() - new Date(a.lastPlayedISO ?? 0).getTime() ||
+          a.name.localeCompare(b.name)
+      ),
+    [items]
+  )
+
   const rankByName = useMemo(() => {
-    const ranked = [...items].sort((a, b) => b.games - a.games)
     const map = new Map<string, number>()
-    ranked.forEach((it, i) => map.set(it.name, i + 1))
+    playedSorted.forEach((it, i) => map.set(it.name, i + 1))
     return map
-  }, [items])
+  }, [playedSorted])
 
   const trimmed = query.trim()
 
@@ -166,7 +178,7 @@ export function CommanderPicker({
     else saveAsWritten()
   }
 
-  const recentsHeading = label === "You" ? "Your recents" : `${label}'s recents`
+  const recentsHeading = label === "You" ? "Your commanders" : `${label}'s commanders`
   const subtitle =
     mode === "search"
       ? [seatLabel, "results stay above the keyboard"].filter(Boolean).join(" · ")
@@ -175,7 +187,13 @@ export function CommanderPicker({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-md gap-0 p-0 overflow-hidden flex flex-col !top-3 !translate-y-0 max-h-[calc(100dvh-1.5rem)]"
+        className={cn(
+          "flex flex-col gap-0 p-0 overflow-hidden",
+          // Phone: full-screen sheet so it never looks like a tiny modal in a phone
+          "!left-0 !top-0 !translate-x-0 !translate-y-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0",
+          // Tablet & up: centered, top-anchored modal sheet
+          "sm:!left-[50%] sm:!top-3 sm:!translate-x-[-50%] sm:w-full sm:max-w-md sm:h-auto sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-lg sm:border"
+        )}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
@@ -187,15 +205,15 @@ export function CommanderPicker({
 
         {mode === "recents" ? (
           <>
-            {/* Recents shortlist */}
+            {/* Full played list — most played first, scrollable */}
             <div className="flex items-center justify-between px-5 pb-2 pt-1">
               <span className={SECTION_LABEL}>{recentsHeading}</span>
-              <span className="font-mono text-[11px] text-muted-foreground">one tap</span>
+              <span className="font-mono text-[11px] text-muted-foreground">most played first</span>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
               <div className="divide-y divide-border">
-                {items.slice(0, 6).map((item) => (
+                {playedSorted.map((item) => (
                   <button
                     key={item.name}
                     onClick={() => pickItem(item)}
