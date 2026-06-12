@@ -98,14 +98,6 @@ function App() {
     closeGameFlow(true)
   }
 
-  function toggleTheme() {
-    setThemeMode((prev) => {
-      if (prev === "light") return "dark"
-      if (prev === "dark") return "system"
-      return "light"
-    })
-  }
-
   function toggleDark() {
     setThemeMode(resolvedTheme === "dark" ? "light" : "dark")
   }
@@ -218,8 +210,6 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
-        dark={resolvedTheme === "dark"}
-        onToggleDark={toggleDark}
         userEmail={user.email}
         onSignOut={() => {
           void (async () => {
@@ -278,8 +268,8 @@ function App() {
                   onImport={replaceGames}
                   onClearAll={clearGames}
                   games={games}
-                  resolvedTheme={resolvedTheme}
-                  onSetDark={(d) => setThemeMode(d ? "dark" : "light")}
+                  themeMode={themeMode}
+                  onSetThemeMode={setThemeMode}
                   accent={accent}
                   onSetAccent={setAccent}
                   userEmail={user.email}
@@ -298,11 +288,7 @@ function App() {
         )}
       </main>
       <BottomTabs currentPath={location.pathname} onNavigate={navigateWithFlowMinimize} />
-      <Footer
-        themeMode={themeMode}
-        resolvedTheme={resolvedTheme}
-        onToggleTheme={toggleTheme}
-      />
+      <Footer />
 
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
         <AlertDialogContent>

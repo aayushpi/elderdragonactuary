@@ -1,4 +1,4 @@
-import { Plus, Sun, Moon } from "lucide-react"
+import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Wordmark } from "@/components/modern/primitives"
 
@@ -6,8 +6,6 @@ interface NavProps {
   currentPath: string
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
-  dark: boolean
-  onToggleDark: () => void
   userEmail?: string
   onSignOut?: () => void
 }
@@ -24,7 +22,7 @@ function isActivePath(currentPath: string, path: string) {
   return currentPath === path || currentPath.startsWith(`${path}/`)
 }
 
-export function Nav({ currentPath, onNavigate, onOpenLogGame, dark, onToggleDark }: NavProps) {
+export function Nav({ currentPath, onNavigate, onOpenLogGame }: NavProps) {
   return (
     <header className="sticky top-0 z-40 bg-background/85 backdrop-blur-md border-b border-border">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -52,13 +50,6 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, dark, onToggleDark
           </nav>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={onToggleDark}
-              title="Toggle theme"
-              className="h-9 w-9 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
             <button
               onClick={() => onOpenLogGame?.()}
               className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm rounded-md font-medium bg-primary text-primary-foreground transition-colors hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

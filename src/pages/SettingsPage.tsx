@@ -54,56 +54,14 @@ function SettingRow({
   )
 }
 
-function Stepper({
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
-}: {
-  value: number
-  onChange: (v: number) => void
-  min: number
-  max: number
-  step?: number
-}) {
-  return (
-    <div className="inline-flex items-center rounded-md border border-input overflow-hidden">
-      <button
-        onClick={() => onChange(Math.max(min, value - step))}
-        className="h-9 w-9 grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-base"
-      >
-        −
-      </button>
-      <span className="w-12 text-center font-mono text-sm font-medium tabular border-x border-input leading-9">
-        {value}
-      </span>
-      <button
-        onClick={() => onChange(Math.min(max, value + step))}
-        className="h-9 w-9 grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-base"
-      >
-        +
-      </button>
-    </div>
-  )
-}
-
-// ── Game-default persistence ──────────────────────────────────────────────────
-
-function loadNum(key: string, fallback: number): number {
-  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null
-  const n = raw ? Number(raw) : NaN
-  return Number.isFinite(n) ? n : fallback
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface SettingsPageProps {
   onImport: (json: string) => Promise<{ success: boolean; count: number; error?: string }>
   onClearAll: () => Promise<void> | void
   games: Game[]
-  resolvedTheme: "light" | "dark"
-  onSetDark: (dark: boolean) => void
+  themeMode: "light" | "dark" | "system"
+  onSetThemeMode: (mode: "light" | "dark" | "system") => void
   accent: AccentName
   onSetAccent: (accent: AccentName) => void
   userEmail?: string
@@ -114,8 +72,8 @@ export function SettingsPage({
   onImport,
   onClearAll,
   games,
-  resolvedTheme,
-  onSetDark,
+  themeMode,
+  onSetThemeMode,
   accent,
   onSetAccent,
   userEmail,
@@ -127,8 +85,6 @@ export function SettingsPage({
   const [shareOpen, setShareOpen] = useState(false)
   const [qrSrc, setQrSrc] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState<string>("")
-  const [life, setLife] = useState(() => loadNum("default-life", 40))
-  const [pod, setPod] = useState(() => loadNum("default-pod", 4))
 
   useEffect(() => {
     setPlayerName(loadProfile().displayName ?? "")
@@ -141,22 +97,6 @@ export function SettingsPage({
     window.addEventListener("profile:updated", onProfileUpdate)
     return () => window.removeEventListener("profile:updated", onProfileUpdate)
   }, [])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("default-life", String(life))
-    } catch {
-      void 0
-    }
-  }, [life])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("default-pod", String(pod))
-    } catch {
-      void 0
-    }
-  }, [pod])
 
   const isDevOrLocalhost = import.meta.env.DEV || window.location.hostname === "localhost"
 
@@ -374,14 +314,15 @@ export function SettingsPage({
       {/* Appearance */}
       <SettingsCard title="Appearance">
         <div className="divide-y divide-border [&>*]:py-3.5">
-          <SettingRow label="Mode" sub="Switch between dark and light theme.">
+          <SettingRow label="Mode" sub="System follows your device appearance.">
             <div className="inline-flex rounded-md border border-input p-0.5 gap-0.5">
-              {(["Dark", "Light"] as const).map((m) => {
-                const active = (resolvedTheme === "dark" ? "Dark" : "Light") === m
+              {(["System", "Light", "Dark"] as const).map((m) => {
+                const mode = m.toLowerCase() as "system" | "light" | "dark"
+                const active = themeMode === mode
                 return (
                   <button
                     key={m}
-                    onClick={() => onSetDark(m === "Dark")}
+                    onClick={() => onSetThemeMode(mode)}
                     className={cn(
                       "h-8 px-3.5 rounded-[8px] text-xs font-medium transition-colors",
                       active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
@@ -410,18 +351,6 @@ export function SettingsPage({
                 />
               ))}
             </div>
-          </SettingRow>
-        </div>
-      </SettingsCard>
-
-      {/* Game defaults */}
-      <SettingsCard title="Game defaults">
-        <div className="divide-y divide-border [&>*]:py-3.5">
-          <SettingRow label="Starting life" sub="Commander default is 40.">
-            <Stepper value={life} onChange={setLife} min={20} max={60} step={5} />
-          </SettingRow>
-          <SettingRow label="Default pod size" sub="Pre-filled when you track a game.">
-            <Stepper value={pod} onChange={setPod} min={2} max={6} />
           </SettingRow>
         </div>
       </SettingsCard>
