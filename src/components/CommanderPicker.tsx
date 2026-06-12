@@ -10,8 +10,7 @@ import {
 import { useScryfall } from "@/hooks/useScryfall"
 import { extractCardData } from "@/lib/shared"
 import { ManaCost } from "@/components/ManaCost"
-import { Pips, SECTION_LABEL } from "@/components/modern/primitives"
-import { cn } from "@/lib/utils"
+import { Pips, SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
 import type { MtgColor } from "@/types"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
 
@@ -187,13 +186,7 @@ export function CommanderPicker({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn(
-          "flex flex-col gap-0 p-0 overflow-hidden",
-          // Phone: full-screen sheet so it never looks like a tiny modal in a phone
-          "!left-0 !top-0 !translate-x-0 !translate-y-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0",
-          // Tablet & up: centered, top-anchored modal sheet
-          "sm:!left-[50%] sm:!top-3 sm:!translate-x-[-50%] sm:w-full sm:max-w-md sm:h-auto sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-lg sm:border"
-        )}
+        className={SHEET_CONTENT_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">

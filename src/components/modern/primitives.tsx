@@ -5,6 +5,13 @@ export const CARD = "rounded-lg bg-card border border-border"
 export const SECTION_LABEL =
   "text-[11px] font-mono font-medium uppercase tracking-[0.14em] text-muted-foreground"
 
+/* Full-screen sheet on phones, top-anchored modal on tablet+. Shared by the
+ * one-tap pickers so they all feel identical. */
+export const SHEET_CONTENT_CLASS =
+  "flex flex-col gap-0 p-0 overflow-hidden " +
+  "!left-0 !top-0 !translate-x-0 !translate-y-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 " +
+  "sm:!left-[50%] sm:!top-3 sm:!translate-x-[-50%] sm:w-full sm:max-w-md sm:h-auto sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-lg sm:border"
+
 /* ====== Color-identity pips — flat, hairline, no candy ====== */
 const PIP_TONES: Record<MtgColor, string> = {
   W: "bg-amber-200/70 dark:bg-amber-200/20 text-amber-900 dark:text-amber-200",

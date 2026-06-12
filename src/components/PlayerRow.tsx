@@ -9,8 +9,10 @@ import { FormField } from "@/components/ui/form-field"
 import { InputGroup, InputGroupText } from "@/components/ui/input-group"
 import { CommanderSearch } from "@/components/CommanderSearch"
 import { CommanderPicker, type CommanderShortlistItem } from "@/components/CommanderPicker"
+import { PlayerNamePicker } from "@/components/PlayerNamePicker"
 // CommanderCard removed: using low-opacity background image instead
 import { CardSearch } from "@/components/CardSearch"
+import { POPULAR_FAST_MANA } from "@/lib/fastMana"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
 import { resolveArtCrop } from "@/lib/scryfall"
@@ -69,8 +71,16 @@ export function PlayerRow({
   showWinnerError,
 }: PlayerRowProps) {
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [namePickerOpen, setNamePickerOpen] = useState(false)
+
+  // Saved opponent names this player can be picked from — exclude the logged-in
+  // user's own name so it never shows up as a pickable opponent.
+  const savedOpponentNames = (() => {
+    if (isMe || !knownPlayerNames?.length) return []
+    const profileName = (loadProfile().displayName ?? "").trim()
+    return knownPlayerNames.filter((n) => n.trim() && n.trim() !== profileName)
+  })()
 
   function handlePartnerChange(name: string, card: ScryfallCard | null) {
     if (card) {
@@ -146,49 +156,38 @@ export function PlayerRow({
         <div className="flex items-center justify-center gap-2 pt-0.5 sm:justify-start">
           <FormField>
                 <div className="flex items-center gap-2 relative">
-                  <InputGroup className="w-40">
-                <Input
-                  value={player.displayName ?? ""}
-                      onChange={(e) => onChange({ displayName: e.target.value })}
-                  placeholder={label}
-                  className="w-full h-10 bg-transparent border-0 text-sm px-3"
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                />
-                {isMe && <InputGroupText>Me</InputGroupText>}
-              </InputGroup>
-
-                  {/* Suggestions dropdown for existing player names (non-me only) */}
-                  <div className="absolute left-0 top-full mt-1 z-50 w-40">
-                    {(() => {
-                      if (isMe || !showSuggestions || !knownPlayerNames?.length) return null
-                      const profile = loadProfile()
-                      const profileName = (profile.displayName ?? "").trim()
-                      const q = (player.displayName ?? "").trim().toLowerCase()
-                      const candidates = q
-                        ? knownPlayerNames.filter((n) => n.toLowerCase().includes(q))
-                        : knownPlayerNames
-                      const filtered = candidates.filter((n) => n.trim() && n.trim() !== profileName)
-                      if (!filtered.length) return null
-                      return (
-                        <div className="rounded-md border bg-popover p-1 shadow-md">
-                          {filtered.map((n) => (
-                            <button
-                              key={n}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                onChange({ displayName: n })
-                                setShowSuggestions(false)
-                              }}
-                              className="w-full text-left px-2 py-1 text-sm hover:bg-accent"
-                            >
-                              {n}
-                            </button>
-                          ))}
-                        </div>
-                      )
-                    })()}
-                  </div>
+                  {isMe ? (
+                    <InputGroup className="w-40">
+                      <Input
+                        value={player.displayName ?? ""}
+                        onChange={(e) => onChange({ displayName: e.target.value })}
+                        placeholder={label}
+                        className="w-full h-10 bg-transparent border-0 text-sm px-3"
+                      />
+                      <InputGroupText>Me</InputGroupText>
+                    </InputGroup>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setNamePickerOpen(true)}
+                        className="flex h-10 w-40 items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className={cn("truncate", !player.displayName && "text-muted-foreground")}>
+                          {player.displayName?.trim() || label}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                      <PlayerNamePicker
+                        open={namePickerOpen}
+                        onOpenChange={setNamePickerOpen}
+                        names={savedOpponentNames}
+                        value={player.displayName?.trim()}
+                        seatLabel={seatLabel}
+                        onPick={(name) => onChange({ displayName: name })}
+                      />
+                    </>
+                  )}
 
                   <Popover>
                 <PopoverTrigger asChild>
@@ -439,11 +438,26 @@ export function PlayerRow({
       {/* Fast mana */}
       <div className="space-y-2">
         <label className="text-xs text-muted-foreground uppercase tracking-wide">Fast Mana</label>
+        {POPULAR_FAST_MANA.some((c) => !selectedCards.includes(c)) && (
+          <div className="flex flex-wrap gap-2">
+            {POPULAR_FAST_MANA.filter((c) => !selectedCards.includes(c)).map((card) => (
+              <button
+                key={card}
+                type="button"
+                onClick={() => addFastManaCard(card)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted whitespace-nowrap"
+              >
+                <Plus className="h-3 w-3" />
+                {card}
+              </button>
+            ))}
+          </div>
+        )}
         <CardSearch
           selectedCards={selectedCards}
           onAddCard={addFastManaCard}
           onRemoveCard={removeFastManaCard}
-          placeholder="Search for fast mana cards…"
+          placeholder="Or search for more fast mana cards…"
         />
       </div>
     </div>

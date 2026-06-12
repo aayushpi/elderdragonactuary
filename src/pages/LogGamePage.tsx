@@ -4,10 +4,9 @@ import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Command, CommandList, CommandItem, CommandInput } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
+import { PodPicker } from "@/components/PodPicker"
 import { buildPlayerShortlists } from "@/lib/shortlist"
 import { CardSearch } from "@/components/CardSearch"
 import { useGames } from "@/hooks/useGames"
@@ -247,7 +246,75 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
     return Array.from(map.values())
   }, [games])
 
-  
+  function applyPod(pod: { id: string; opponents: string[]; totalPlayers: number }) {
+    setSelectedPodId(pod.id)
+    const total = pod.totalPlayers
+    const profile = loadProfile()
+    // Player 0 = me
+    const meExisting = players[0]
+    const mePlayer: Partial<Player> = {
+      id: meExisting?.id ?? generateId(),
+      isMe: true,
+      displayName: profile.displayName || "",
+      commanderName: meExisting?.commanderName ?? (prefillCommander || undefined),
+      commanderImageUri: meExisting?.commanderImageUri,
+      commanderManaCost: meExisting?.commanderManaCost,
+      commanderTypeLine: meExisting?.commanderTypeLine,
+      commanderColorIdentity: meExisting?.commanderColorIdentity,
+      partnerName: meExisting?.partnerName,
+      partnerImageUri: meExisting?.partnerImageUri,
+      fastMana: meExisting?.fastMana ?? { hasFastMana: false, cards: [] },
+      seatPosition: meExisting?.seatPosition,
+      knockoutTurn: meExisting?.knockoutTurn,
+    }
+    // Remaining slots = opponents from pod
+    const opponentPlayers: Partial<Player>[] = pod.opponents.map((name, i) => {
+      const existing = players[i + 1]
+      return {
+        id: existing?.id ?? generateId(),
+        isMe: false,
+        displayName: name,
+        commanderName: existing?.commanderName,
+        commanderImageUri: existing?.commanderImageUri,
+        commanderManaCost: existing?.commanderManaCost,
+        commanderTypeLine: existing?.commanderTypeLine,
+        commanderColorIdentity: existing?.commanderColorIdentity,
+        partnerName: existing?.partnerName,
+        partnerImageUri: existing?.partnerImageUri,
+        fastMana: existing?.fastMana ?? { hasFastMana: false, cards: [] },
+        seatPosition: existing?.seatPosition,
+        knockoutTurn: existing?.knockoutTurn,
+      }
+    })
+    const newPlayers = [mePlayer, ...opponentPlayers]
+    setPlayerCount(total)
+    setPlayers(newPlayers)
+    // If we applied a pod onto an empty players array but have a prefill commander,
+    // fetch its card data and populate the first player's commander fields.
+    if (prefillCommander && (!players[0] || !players[0].commanderName)) {
+      fetchCardByName(prefillCommander)
+        .then((card) => {
+          const uri = resolveArtCrop(card)
+          setPlayers((prev) => {
+            const next = [...prev]
+            if (next[0]) {
+              next[0] = {
+                ...next[0],
+                commanderName: prefillCommander,
+                commanderImageUri: uri ?? undefined,
+                commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
+                commanderTypeLine: card.type_line,
+                commanderColorIdentity: card.color_identity as MtgColor[],
+              }
+            }
+            return next
+          })
+        })
+        .catch(() => {})
+    }
+    setWinnerId(null)
+    setWinTurn("")
+  }
 
   function updatePlayer(index: number, updated: Partial<Player>) {
     setPlayers((prev) => prev.map((p, i) => (i === index ? { ...p, ...updated } : p)))
@@ -514,100 +581,23 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander,
           <div className="mt-2">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
             <div className="mt-1">
-              <Popover open={podsOpen} onOpenChange={setPodsOpen}>
-                <PopoverTrigger asChild>
-                  <button className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base justify-between items-center text-left">
-                    <span className="truncate text-sm">{selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className={isMobile
-                    ? "w-[var(--radix-popover-trigger-width)] max-h-[60vh] p-0 z-50 overflow-auto rounded-md"
-                    : "w-[var(--radix-popover-trigger-width)] p-0"
-                  }
-                  align="start"
-                >
-                  <Command>
-                    <CommandInput placeholder="Filter pods…" />
-                    <CommandList>
-                      {pods.map((p) => (
-                        <CommandItem key={p.id} value={p.id} onSelect={() => {
-                          setSelectedPodId(p.id)
-                          const pod = p
-                          const total = pod.totalPlayers
-                          const profile = loadProfile()
-                          // Player 0 = me
-                          const meExisting = players[0]
-                          const mePlayer: Partial<Player> = {
-                            id: meExisting?.id ?? generateId(),
-                            isMe: true,
-                            displayName: profile.displayName || "",
-                            commanderName: meExisting?.commanderName ?? (prefillCommander || undefined),
-                            commanderImageUri: meExisting?.commanderImageUri,
-                            commanderManaCost: meExisting?.commanderManaCost,
-                            commanderTypeLine: meExisting?.commanderTypeLine,
-                            commanderColorIdentity: meExisting?.commanderColorIdentity,
-                            partnerName: meExisting?.partnerName,
-                            partnerImageUri: meExisting?.partnerImageUri,
-                            fastMana: meExisting?.fastMana ?? { hasFastMana: false, cards: [] },
-                            seatPosition: meExisting?.seatPosition,
-                            knockoutTurn: meExisting?.knockoutTurn,
-                          }
-                          // Remaining slots = opponents from pod
-                          const opponentPlayers: Partial<Player>[] = pod.opponents.map((name, i) => {
-                            const existing = players[i + 1]
-                            return {
-                              id: existing?.id ?? generateId(),
-                              isMe: false,
-                              displayName: name,
-                              commanderName: existing?.commanderName,
-                              commanderImageUri: existing?.commanderImageUri,
-                              commanderManaCost: existing?.commanderManaCost,
-                              commanderTypeLine: existing?.commanderTypeLine,
-                              commanderColorIdentity: existing?.commanderColorIdentity,
-                              partnerName: existing?.partnerName,
-                              partnerImageUri: existing?.partnerImageUri,
-                              fastMana: existing?.fastMana ?? { hasFastMana: false, cards: [] },
-                              seatPosition: existing?.seatPosition,
-                              knockoutTurn: existing?.knockoutTurn,
-                            }
-                          })
-                          const newPlayers = [mePlayer, ...opponentPlayers]
-                          setPlayerCount(total)
-                          setPlayers(newPlayers)
-                          // If we applied a pod onto an empty players array but have a prefill commander,
-                          // fetch its card data and populate the first player's commander fields.
-                          if (prefillCommander && (!players[0] || !players[0].commanderName)) {
-                            fetchCardByName(prefillCommander)
-                              .then((card) => {
-                                const uri = resolveArtCrop(card)
-                                setPlayers((prev) => {
-                                  const next = [...prev]
-                                  if (next[0]) {
-                                    next[0] = {
-                                      ...next[0],
-                                      commanderName: prefillCommander,
-                                      commanderImageUri: uri ?? undefined,
-                                      commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
-                                      commanderTypeLine: card.type_line,
-                                      commanderColorIdentity: card.color_identity as MtgColor[],
-                                    }
-                                  }
-                                  return next
-                                })
-                              })
-                              .catch(() => {})
-                          }
-                          setWinnerId(null)
-                          setWinTurn("")
-                          setPodsOpen(false)
-                        }}>{p.label}</CommandItem>
-                      ))}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <button
+                type="button"
+                onClick={() => setPodsOpen(true)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
+              >
+                <span className="truncate text-sm">
+                  {selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
+              </button>
+              <PodPicker
+                open={podsOpen}
+                onOpenChange={setPodsOpen}
+                pods={pods}
+                value={selectedPodId}
+                onPick={applyPod}
+              />
             </div>
           </div>
         )}
