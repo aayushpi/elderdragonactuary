@@ -142,3 +142,30 @@
 .live-avatar-bounce {
   animation: avatar-pop 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
+
+/* ====== Marketing homepage (logged-out) ====== */
+@keyframes eda-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes eda-tick {
+  0% {
+    color: hsl(var(--primary));
+    transform: scale(1.06);
+  }
+  100% {
+    color: inherit;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fade-up {
+    animation: eda-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    animation-delay: var(--d, 0s);
+  }
+  .life-tick {
+    animation: eda-tick 0.6s ease;
+  }
+}

@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input"
 
 interface AuthFormProps {
   onSignedIn?: () => void
+  defaultMode?: "login" | "signup"
 }
 
-export function AuthForm({ onSignedIn }: AuthFormProps) {
+export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
   const { signIn, signUp } = useAuth()
-  const [mode, setMode] = useState<"login" | "signup">("login")
+  const [mode, setMode] = useState<"login" | "signup">(defaultMode)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")

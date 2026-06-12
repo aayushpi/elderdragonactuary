@@ -1,10 +1,14 @@
-import { MessageSquarePlus, Megaphone, Map, HelpCircle } from "lucide-react"
+import { MessageSquarePlus, Megaphone, Map, HelpCircle, LogOut } from "lucide-react"
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
 
 const FOOTER_LINK =
   "flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
 
-export function Footer() {
+interface FooterProps {
+  onSignOut?: () => void
+}
+
+export function Footer({ onSignOut }: FooterProps) {
   return (
     <footer className="border-t bg-background mt-12">
       <div className="container mx-auto max-w-5xl px-4 py-6">
@@ -29,6 +33,12 @@ export function Footer() {
                   Help
                 </a>
               </>
+            )}
+            {onSignOut && (
+              <button type="button" onClick={onSignOut} className={FOOTER_LINK}>
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
             )}
           </div>
 

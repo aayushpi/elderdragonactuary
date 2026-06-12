@@ -98,10 +98,6 @@ function App() {
     closeGameFlow(true)
   }
 
-  function toggleDark() {
-    setThemeMode(resolvedTheme === "dark" ? "light" : "dark")
-  }
-
   function setAccent(next: AccentName) {
     setAccentState(next)
     saveAccent(next)
@@ -193,11 +189,8 @@ function App() {
   if (!user) {
     return (
       <Routes>
-        <Route
-          path="/"
-          element={<LoggedOutHomePage dark={resolvedTheme === "dark"} onToggleDark={toggleDark} />}
-        />
-        <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen dark={resolvedTheme === "dark"} onToggleDark={toggleDark} />} />
+        <Route path="/" element={<LoggedOutHomePage />} />
+        <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
@@ -288,7 +281,14 @@ function App() {
         )}
       </main>
       <BottomTabs currentPath={location.pathname} onNavigate={navigateWithFlowMinimize} />
-      <Footer />
+      <Footer
+        onSignOut={() => {
+          void (async () => {
+            await signOut()
+            navigate("/", { replace: true })
+          })()
+        }}
+      />
 
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
         <AlertDialogContent>
