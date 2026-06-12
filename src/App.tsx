@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Nav } from "@/components/Nav"
+import { BottomTabs } from "@/components/BottomTabs"
 import { Footer } from "@/components/Footer"
 import { GameFlowDrawer } from "@/components/GameFlowDrawer"
 import {
@@ -26,6 +27,7 @@ import { ReleaseNotesModal } from "@/pages/ReleaseNotesPage"
 import { TrackGamePage } from "@/pages/TrackGamePage"
 import { LiveAnnouncementModal, hasSeenLiveAnnouncement } from "@/components/LiveAnnouncementModal"
 import { useGames } from "@/hooks/useGames"
+import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
 import type { Game, Player } from "@/types"
@@ -57,6 +59,7 @@ function App() {
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
+  const [accent, setAccentState] = useState<AccentName>(() => loadAccent())
   const [liveGamePlayers, setLiveGamePlayers] = useState<Partial<Player>[] | null>(null)
   const [showLiveAnnouncement, setShowLiveAnnouncement] = useState(() => !hasSeenLiveAnnouncement())
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
@@ -145,6 +148,15 @@ function App() {
     })
   }
 
+  function toggleDark() {
+    setThemeMode(resolvedTheme === "dark" ? "light" : "dark")
+  }
+
+  function setAccent(next: AccentName) {
+    setAccentState(next)
+    saveAccent(next)
+  }
+
   function handleSaveGame(game: Game) {
     void (async () => {
       try {
@@ -216,8 +228,9 @@ function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", resolvedTheme === "dark")
+    applyAccent(accent, resolvedTheme === "dark")
     localStorage.setItem("theme-mode", themeMode)
-  }, [resolvedTheme, themeMode])
+  }, [resolvedTheme, themeMode, accent])
 
   if (authLoading) {
     return (
@@ -232,9 +245,9 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<LoggedOutHomePage />}
+          element={<LoggedOutHomePage dark={resolvedTheme === "dark"} onToggleDark={toggleDark} />}
         />
-        <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen />} />
+        <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen dark={resolvedTheme === "dark"} onToggleDark={toggleDark} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
@@ -247,7 +260,8 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
-        
+        dark={resolvedTheme === "dark"}
+        onToggleDark={toggleDark}
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         userEmail={user.email}
         onSignOut={() => {
@@ -269,7 +283,7 @@ function App() {
           }}
         />
       )}
-      <main className="container mx-auto max-w-5xl px-4 py-6">
+      <main className="container mx-auto max-w-5xl px-4 py-6 pb-24 md:pb-6">
         {gamesLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -314,13 +328,32 @@ function App() {
             />
             <Route
               path="/settings"
-              element={<SettingsPage onImport={replaceGames} onClearAll={clearGames} games={games} />}
+              element={
+                <SettingsPage
+                  onImport={replaceGames}
+                  onClearAll={clearGames}
+                  games={games}
+                  resolvedTheme={resolvedTheme}
+                  onSetDark={(d) => setThemeMode(d ? "dark" : "light")}
+                  accent={accent}
+                  onSetAccent={setAccent}
+                  userEmail={user.email}
+                  onShowReleaseNotes={() => setShowReleaseNotes(true)}
+                  onSignOut={() => {
+                    void (async () => {
+                      await signOut()
+                      navigate("/", { replace: true })
+                    })()
+                  }}
+                />
+              }
             />
             {/* Map page removed */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
       </main>
+      <BottomTabs currentPath={location.pathname} onNavigate={navigateWithFlowMinimize} />
       <Footer
         onShowReleaseNotes={() => setShowReleaseNotes(true)}
         themeMode={themeMode}
