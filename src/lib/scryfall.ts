@@ -62,6 +62,22 @@ export function resolveArtCrop(card: ScryfallCard): string | undefined {
   )
 }
 
+/** High-resolution card image for use as a full-bleed background (live board).
+ *  Prefers `large` (672×936) over `art_crop` (204px) to avoid blurriness on
+ *  retina / high-DPI screens. */
+export function resolveLargeArt(card: ScryfallCard): string | undefined {
+  return (
+    card.image_uris?.large
+    ?? card.card_faces?.[0]?.image_uris?.large
+    ?? card.image_uris?.png
+    ?? card.card_faces?.[0]?.image_uris?.png
+    ?? card.image_uris?.normal
+    ?? card.card_faces?.[0]?.image_uris?.normal
+    ?? card.image_uris?.art_crop
+    ?? card.card_faces?.[0]?.image_uris?.art_crop
+  )
+}
+
 export function resolvePng(card: ScryfallCard): string | undefined {
   // prefer PNG if available (full card image), otherwise fall back to art_crop or other sizes
   return (

@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, Lock, Unlock, X } from "lucide-react"
+import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
@@ -8,7 +8,7 @@ import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
 
 interface BoardChromeProps {
   game: LiveGameApi
-  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean; locked: boolean }) => ReactNode
+  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean }) => ReactNode
   centerExtra?: ReactNode
   onSave: () => void
   onRematch: () => void
@@ -50,7 +50,6 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
   seats.forEach((p, i) => (rotById[p.id] = grid.cells[i].rotate))
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
-  const [locked, setLocked] = useState(false)
   const counterRotate = useOrientationLock()
   // who-goes-first happens on the board, before the clock starts
   const [starterPicked, setStarterPicked] = useState(false)
@@ -73,7 +72,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
           const cell = grid.cells[i]
           return (
             <RingCell key={p.id} id={p.id} area={cell.area} rotate={cell.rotate}>
-              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270, locked })}
+              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270 })}
             </RingCell>
           )
         })}
@@ -97,8 +96,6 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
         <TurnControl
           game={game}
           rotate={rotById[game.activePlayer.id] ?? 0}
-          locked={locked}
-          onToggleLock={() => setLocked((l) => !l)}
         />
       )}
     </div>
@@ -168,13 +165,9 @@ function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat:
 function TurnControl({
   game,
   rotate,
-  locked,
-  onToggleLock,
 }: {
   game: LiveGameApi
   rotate: number
-  locked: boolean
-  onToggleLock: () => void
 }) {
   const clock = useTurnClock(game.turnStartedAt, game.started)
   const activeId = game.activePlayer.id
@@ -262,16 +255,6 @@ function TurnControl({
               <Flag className="h-4 w-4" />
             </button>
           )}
-          <button
-            onClick={onToggleLock}
-            aria-label={locked ? "unlock board" : "lock board"}
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full transition-colors active:scale-95",
-              locked ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          </button>
         </div>
       </div>
 

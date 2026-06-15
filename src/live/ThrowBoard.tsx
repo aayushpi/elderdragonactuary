@@ -59,7 +59,7 @@ export function ThrowBoard({
     setPending(null)
   }
 
-  function seat(p: LivePlayer, opts: { side: boolean; locked: boolean }) {
+  function seat(p: LivePlayer, opts: { side: boolean }) {
     const rt = game.runtime[p.id]
     const commanderSources = Object.entries(rt.commanderFrom)
       .filter(([, amt]) => amt > 0)
@@ -73,7 +73,6 @@ export function ThrowBoard({
         rt={rt}
         isActive={p.seatPosition === game.activeSeat}
         side={opts.side}
-        locked={opts.locked}
         dragTarget={drag?.targetId === p.id}
         preview={drag?.targetId === p.id ? "⚔" : null}
         commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
@@ -81,7 +80,7 @@ export function ThrowBoard({
         onRevive={() => game.revive(p.id)}
         onKnockout={() => game.toggleKnockout(p.id)}
         onSetCommander={() => setCmdrSeat(p)}
-        attackSlot={<AttackPill onPointerDown={(e) => { if (!opts.locked) start(p.id, e, undefined) }} />}
+        attackSlot={<AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />}
       />
     )
   }
@@ -97,7 +96,7 @@ export function ThrowBoard({
     <>
       <BoardChrome
         game={game}
-        renderSeat={(p, o) => seat(p, { side: o.side, locked: o.locked })}
+        renderSeat={(p, o) => seat(p, { side: o.side })}
         centerExtra={centerExtra}
         onSave={onSave}
         onRematch={onRematch}
