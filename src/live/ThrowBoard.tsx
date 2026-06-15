@@ -52,25 +52,34 @@ export function ThrowBoard({
 
   function apply(amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) {
     if (!pending) return
+    try { navigator.vibrate?.(opts.isPoison ? 60 : 40) } catch { /* unsupported */ }
     game.applyDamage(pending.targetId, amount, { sourceId: pending.sourceId, ...opts })
     setPending(null)
   }
 
-  function seat(p: LivePlayer, opts: { side: boolean }) {
+  function seat(p: LivePlayer, opts: { side: boolean; locked: boolean }) {
     const rt = game.runtime[p.id]
+    const commanderSources = Object.entries(rt.commanderFrom)
+      .filter(([, amt]) => amt > 0)
+      .map(([srcId, amt]) => ({
+        name: game.players.find((pl) => pl.id === srcId)?.displayName ?? "?",
+        amount: amt,
+      }))
     return (
       <SeatFrame
         player={p}
         rt={rt}
         isActive={p.seatPosition === game.activeSeat}
         side={opts.side}
+        locked={opts.locked}
         dragTarget={drag?.targetId === p.id}
         preview={drag?.targetId === p.id ? "⚔" : null}
+        commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
         onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
         onRevive={() => game.revive(p.id)}
         onKnockout={() => game.toggleKnockout(p.id)}
         onSetCommander={() => setCmdrSeat(p)}
-        attackSlot={<AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />}
+        attackSlot={<AttackPill onPointerDown={(e) => { if (!opts.locked) start(p.id, e, undefined) }} />}
       />
     )
   }
@@ -86,7 +95,7 @@ export function ThrowBoard({
     <>
       <BoardChrome
         game={game}
-        renderSeat={(p, o) => seat(p, { side: o.side })}
+        renderSeat={(p, o) => seat(p, { side: o.side, locked: o.locked })}
         centerExtra={centerExtra}
         onSave={onSave}
         onRematch={onRematch}

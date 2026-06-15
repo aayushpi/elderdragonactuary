@@ -1,13 +1,13 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown } from "lucide-react"
+import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, Lock, Unlock, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ringGrid, useTurnClock, type LiveGameApi, type LivePlayer } from "./engine"
+import { ringGrid, useTurnClock, type DamageEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
 
 interface BoardChromeProps {
   game: LiveGameApi
-  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean }) => ReactNode
+  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean; locked: boolean }) => ReactNode
   centerExtra?: ReactNode
   onSave: () => void
   onRematch: () => void
@@ -48,6 +48,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
   seats.forEach((p, i) => (rotById[p.id] = grid.cells[i].rotate))
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
+  const [locked, setLocked] = useState(false)
   // who-goes-first happens on the board, before the clock starts
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
@@ -68,7 +69,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
           const cell = grid.cells[i]
           return (
             <RingCell key={p.id} id={p.id} area={cell.area} rotate={cell.rotate}>
-              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270 })}
+              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270, locked })}
             </RingCell>
           )
         })}
@@ -89,7 +90,12 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
           }}
         />
       ) : (
-        <TurnControl game={game} rotate={rotById[game.activePlayer.id] ?? 0} />
+        <TurnControl
+          game={game}
+          rotate={rotById[game.activePlayer.id] ?? 0}
+          locked={locked}
+          onToggleLock={() => setLocked((l) => !l)}
+        />
       )}
     </div>
   )
@@ -147,11 +153,23 @@ function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat:
 /* The single turn control — Undo + Start / End turn (clock) / End game — pinned
  * to the active player's near edge, gliding (transform-only, with a bounce) to
  * the next player each turn. */
-function TurnControl({ game, rotate }: { game: LiveGameApi; rotate: number }) {
+function TurnControl({
+  game,
+  rotate,
+  locked,
+  onToggleLock,
+}: {
+  game: LiveGameApi
+  rotate: number
+  locked: boolean
+  onToggleLock: () => void
+}) {
   const clock = useTurnClock(game.turnStartedAt, game.started)
   const activeId = game.activePlayer.id
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [nonce, setNonce] = useState(0)
+  const [showLog, setShowLog] = useState(false)
+  const [showEndConfirm, setShowEndConfirm] = useState(false)
 
   useLayoutEffect(() => {
     let raf = 0
@@ -202,26 +220,139 @@ function TurnControl({ game, rotate }: { game: LiveGameApi; rotate: number }) {
   )
 
   return (
-    <div
-      className="fixed left-0 top-0 z-40 will-change-transform"
-      style={{
-        transform: `translate(${pos.x}px, ${pos.y}px) translate(-50%, -50%) rotate(${rotate}deg)`,
-        transition: "transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)",
-      }}
-    >
-      <div className="flex items-center gap-1 rounded-full border border-border bg-card/95 p-1 shadow-xl backdrop-blur">
-        <button
-          onClick={game.undoLast}
-          disabled={!game.canUndo}
-          aria-label="undo"
-          className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
-            game.canUndo ? "text-foreground active:scale-95" : "cursor-not-allowed text-muted-foreground/40"
+    <>
+      <div
+        className="fixed left-0 top-0 z-40 will-change-transform"
+        style={{
+          transform: `translate(${pos.x}px, ${pos.y}px) translate(-50%, -50%) rotate(${rotate}deg)`,
+          transition: "transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+      >
+        <div className="flex items-center gap-1 rounded-full border border-border bg-card/95 p-1 shadow-xl backdrop-blur">
+          <button
+            onClick={() => { if (game.canUndo) setShowLog(true) }}
+            disabled={!game.canUndo}
+            aria-label="undo"
+            className={cn(
+              "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
+              game.canUndo ? "text-foreground active:scale-95" : "cursor-not-allowed text-muted-foreground/40"
+            )}
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          {main}
+          {game.started && !game.canEnd && (
+            <button
+              onClick={() => setShowEndConfirm(true)}
+              aria-label="end game early"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors active:scale-95 hover:text-foreground"
+            >
+              <Flag className="h-4 w-4" />
+            </button>
           )}
-        >
-          <Undo2 className="h-4 w-4" />
-        </button>
-        {main}
+          <button
+            onClick={onToggleLock}
+            aria-label={locked ? "unlock board" : "lock board"}
+            className={cn(
+              "flex h-11 w-11 items-center justify-center rounded-full transition-colors active:scale-95",
+              locked ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {showLog && (
+        <UndoLog
+          events={game.events}
+          players={game.players}
+          onUndoTo={(i) => { game.undoToIndex(i); setShowLog(false) }}
+          onUndoLast={() => { game.undoLast(); setShowLog(false) }}
+          onClose={() => setShowLog(false)}
+        />
+      )}
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+          <div className="w-[min(84vw,20rem)] rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
+            <p className="font-semibold text-center">End game early?</p>
+            <p className="text-sm text-muted-foreground text-center">This will end the game even though there are still players alive.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowEndConfirm(false)}>Cancel</Button>
+              <Button className="flex-1" onClick={() => { setShowEndConfirm(false); game.endGame() }}>End game</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function UndoLog({
+  events,
+  players,
+  onUndoTo,
+  onUndoLast,
+  onClose,
+}: {
+  events: DamageEvent[]
+  players: LivePlayer[]
+  onUndoTo: (index: number) => void
+  onUndoLast: () => void
+  onClose: () => void
+}) {
+  const nameById = Object.fromEntries(players.map((p) => [p.id, p.displayName]))
+
+  function label(ev: DamageEvent): string {
+    const target = nameById[ev.targetId] ?? "?"
+    if (ev.sourceId) {
+      const src = nameById[ev.sourceId] ?? "?"
+      const type = ev.isCommander ? " (cmdr)" : ev.isPoison ? " (poison)" : ""
+      return `${src} → ${target}: ${ev.amount > 0 ? "+" : ""}${ev.amount}${type}`
+    }
+    return `${target}: ${ev.amount > 0 ? "-" : "+"}${Math.abs(ev.amount)} life`
+  }
+
+  const recent = [...events].reverse()
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="w-[min(88vw,22rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <span className="font-semibold text-sm">Action log</span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={onUndoLast} className="h-7 gap-1 text-xs">
+              <Undo2 className="h-3 w-3" /> Undo last
+            </Button>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="max-h-[50vh] overflow-y-auto divide-y divide-border">
+          {recent.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">No actions yet</p>
+          ) : (
+            recent.map((ev, ri) => {
+              const originalIndex = events.length - 1 - ri
+              return (
+                <button
+                  key={ev.id}
+                  onClick={() => onUndoTo(originalIndex)}
+                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center justify-between gap-2"
+                >
+                  <span className="font-mono text-xs text-muted-foreground shrink-0">T{ev.turn}</span>
+                  <span className="flex-1 truncate">{label(ev)}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">undo to here</span>
+                </button>
+              )
+            })
+          )}
+        </div>
       </div>
     </div>
   )

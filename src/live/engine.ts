@@ -98,6 +98,8 @@ export interface LiveGameApi {
   /** apply a life change; positive amount = damage dealt to target */
   applyDamage: (targetId: string, amount: number, opts?: DamageOpts) => void
   undoLast: () => void
+  /** revert all events at or after the given index */
+  undoToIndex: (index: number) => void
   /** set who goes first, before the clock starts (high roll / manual pick) */
   chooseStarter: (seat: SeatPosition) => void
   /** begin the first turn (start the clock) */
@@ -264,6 +266,30 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     })
   }, [events, players, turn])
 
+  const undoToIndex = useCallback((index: number) => {
+    const kept = events.slice(0, index)
+    let c = freshCore(players)
+    for (const ev of kept) {
+      const life = { ...c.life }
+      const cmdr = { ...c.cmdr, [ev.targetId]: { ...c.cmdr[ev.targetId] } }
+      const poison = { ...c.poison }
+      if (ev.isPoison) {
+        poison[ev.targetId] = Math.max(0, (poison[ev.targetId] ?? 0) + ev.amount)
+      } else {
+        life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
+        if (ev.isCommander && ev.sourceId) {
+          cmdr[ev.targetId][ev.sourceId] = Math.max(0, (cmdr[ev.targetId][ev.sourceId] ?? 0) + ev.amount)
+        }
+        if (ev.isLifelink && ev.sourceId && ev.amount > 0) {
+          life[ev.sourceId] = (life[ev.sourceId] ?? STARTING_LIFE) + ev.amount
+        }
+      }
+      c = { ...c, life, cmdr, poison }
+    }
+    setEvents(kept)
+    setCore({ ...c, koTurn: syncKoTurns(c, players, turn) })
+  }, [events, players, turn])
+
   const chooseStarter = useCallback((seat: SeatPosition) => setActiveSeat(seat), [])
 
   const start = useCallback(() => {
@@ -422,6 +448,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     winnerId,
     applyDamage,
     undoLast,
+    undoToIndex,
     chooseStarter,
     start,
     endTurn,

@@ -338,6 +338,10 @@ function App() {
                 game={editingGame}
                 onSave={handleUpdateGame}
                 onCancel={handleCancelGameFlow}
+                onDelete={() => {
+                  void deleteGame(editingGame.id)
+                  closeGameFlow()
+                }}
               />
             )
           )}

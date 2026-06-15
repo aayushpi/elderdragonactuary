@@ -1,4 +1,4 @@
-import { type ReactNode } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -41,6 +41,10 @@ export function DragVector<P>({ drag, label }: { drag: DragInfo<P> | null; label
 }
 
 
+function vibrate(ms: number) {
+  try { navigator.vibrate?.(ms) } catch { /* unsupported */ }
+}
+
 /* ---- Bright per-colour fills for the edge-to-edge panels ---- */
 const COLOR_HEX: Record<string, string> = {
   W: "#E2A60C",
@@ -76,6 +80,8 @@ export function SeatFrame({
   onSelfChange,
   onRevive,
   onKnockout,
+  commanderSources,
+  locked,
 }: {
   player: LivePlayer
   rt: PlayerRuntime
@@ -90,8 +96,25 @@ export function SeatFrame({
   onSelfChange: (delta: number) => void
   onRevive: () => void
   onKnockout: () => void
+  /** per-source commander damage with display names */
+  commanderSources?: Array<{ name: string; amount: number }>
+  /** when true, life buttons and KO/revive are disabled */
+  locked?: boolean
 }) {
-  const cmdrTaken = Math.max(0, ...Object.values(rt.commanderFrom), 0)
+  const prevLifeRef = useRef(rt.life)
+  const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
+
+  useEffect(() => {
+    const prev = prevLifeRef.current
+    if (rt.life !== prev) {
+      const kind = rt.life < prev ? "damage" : "heal"
+      setFlash(kind)
+      vibrate(kind === "damage" ? 40 : 20)
+      prevLifeRef.current = rt.life
+      const t = window.setTimeout(() => setFlash(null), 450)
+      return () => window.clearTimeout(t)
+    }
+  }, [rt.life])
   const art = player.commanderImageUri
   const hasCommander = !!player.commanderName?.trim()
   return (
@@ -119,7 +142,7 @@ export function SeatFrame({
       {rt.knockedOut ? (
         <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
           <Skull className="h-9 w-9" />
-          <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
+          {!locked && <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />}
         </div>
       ) : (
         <>
@@ -155,46 +178,72 @@ export function SeatFrame({
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => onSelfChange(1)}
+                onClick={() => { if (!locked) { vibrate(25); onSelfChange(1) } }}
                 aria-label="lose 1 life"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95"
+                disabled={locked}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
               >
                 <Minus className="h-5 w-5" />
               </button>
               <span
+                key={flash}
                 style={{ fontSize: "clamp(3rem, 12vmin, 7.5rem)" }}
-                className={cn("tabular-nums font-black leading-none", rt.life <= 5 && "text-red-300")}
+                className={cn(
+                  "tabular-nums font-black leading-none",
+                  rt.life <= 5 && "text-red-300",
+                  flash === "damage" && "animate-life-damage text-red-300",
+                  flash === "heal" && "animate-life-heal text-emerald-300",
+                )}
               >
                 {rt.life}
               </span>
               <button
-                onClick={() => onSelfChange(-1)}
+                onClick={() => { if (!locked) { vibrate(15); onSelfChange(-1) } }}
                 aria-label="gain 1 life"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95"
+                disabled={locked}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
               >
                 <Plus className="h-5 w-5" />
               </button>
             </div>
 
-            {(cmdrTaken > 0 || rt.poison > 0) && (
-              <div className="flex items-center gap-2 text-[clamp(0.6rem,1.9vmin,0.9rem)] font-bold">
-                {cmdrTaken > 0 && (
-                  <span className={cn(cmdrTaken >= LETHAL_COMMANDER ? "text-red-300" : "text-white/80")}>
-                    ⚔ {cmdrTaken}/{LETHAL_COMMANDER}
+            {(commanderSources && commanderSources.length > 0 ? commanderSources : null) && (
+              <div className="flex flex-col items-center gap-0.5 text-[clamp(0.55rem,1.7vmin,0.8rem)] font-bold">
+                {commanderSources!.map((s) => (
+                  <span
+                    key={s.name}
+                    className={cn(s.amount >= LETHAL_COMMANDER ? "text-red-300" : "text-white/75")}
+                  >
+                    ⚔ {s.name} {s.amount}/{LETHAL_COMMANDER}
                   </span>
-                )}
-                {rt.poison > 0 && (
-                  <span className={cn(rt.poison >= LETHAL_POISON ? "text-green-300" : "text-white/80")}>
-                    ☠ {rt.poison}/{LETHAL_POISON}
+                ))}
+              </div>
+            )}
+
+            {(!commanderSources || commanderSources.length === 0) && Object.keys(rt.commanderFrom).length > 0 && (
+              <div className="flex items-center gap-2 text-[clamp(0.6rem,1.9vmin,0.9rem)] font-bold">
+                {Object.values(rt.commanderFrom).some(v => v > 0) && (
+                  <span className={cn(Math.max(0, ...Object.values(rt.commanderFrom)) >= LETHAL_COMMANDER ? "text-red-300" : "text-white/80")}>
+                    ⚔ {Math.max(0, ...Object.values(rt.commanderFrom))}/{LETHAL_COMMANDER}
                   </span>
                 )}
               </div>
             )}
+
+            {rt.poison > 0 && (
+              <div className="text-[clamp(0.6rem,1.9vmin,0.9rem)] font-bold">
+                <span className={cn(rt.poison >= LETHAL_POISON ? "text-green-300" : "text-white/80")}>
+                  ☠ {rt.poison}/{LETHAL_POISON}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="absolute right-1 top-1 z-20">
-            <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
-          </div>
+          {!locked && (
+            <div className="absolute right-1 top-1 z-20">
+              <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
+            </div>
+          )}
         </>
       )}
 
