@@ -274,6 +274,11 @@ export function Setup({
       )}
 
       <section className="space-y-2">
+        <span className={SECTION_LABEL}>Table layout</span>
+        <TableLayoutIcon count={seats.length} />
+      </section>
+
+      <section className="space-y-2">
         <span className={SECTION_LABEL}>Who goes first?</span>
         <StarterBar seats={seats} value={starter} onChange={setStarter} />
       </section>
@@ -284,6 +289,67 @@ export function Setup({
         </Button>
       </div>
     </Shell>
+  )
+}
+
+/* ---- Table layout SVG diagrams, matching ringGrid exactly ---- */
+
+type SeatRect = { x: number; y: number; w: number; h: number; me?: boolean }
+
+const W = 120
+const H = 160
+
+const LAYOUTS: Record<number, SeatRect[]> = {
+  2: [
+    { x: 20, y: 88, w: 80, h: 52, me: true },   // bot (seat 1, you)
+    { x: 20, y: 20, w: 80, h: 52 },              // top (seat 2)
+  ],
+  3: [
+    { x: 20, y: 90, w: 80, h: 52, me: true },    // bot (seat 1)
+    { x: 8,  y: 20, w: 48, h: 60 },              // tl (seat 2)
+    { x: 64, y: 20, w: 48, h: 60 },              // tr (seat 3)
+  ],
+  4: [
+    { x: 20, y: 112, w: 80, h: 40, me: true },   // bot
+    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
+    { x: 20, y: 10,  w: 80, h: 40 },             // top
+    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+  ],
+  5: [
+    { x: 20, y: 112, w: 80, h: 40, me: true },   // bot
+    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
+    { x: 8,  y: 10,  w: 48, h: 40 },             // tl
+    { x: 64, y: 10,  w: 48, h: 40 },             // tr
+    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+  ],
+  6: [
+    { x: 8,  y: 110, w: 48, h: 42, me: true },   // bl
+    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
+    { x: 8,  y: 10,  w: 48, h: 40 },             // tl
+    { x: 64, y: 10,  w: 48, h: 40 },             // tr
+    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+    { x: 64, y: 110, w: 48, h: 42 },             // br
+  ],
+}
+
+function TableLayoutIcon({ count }: { count: number }) {
+  const seats = LAYOUTS[count] ?? LAYOUTS[4]
+  return (
+    <div className="flex justify-center py-1">
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+        {seats.map((s, i) => (
+          <rect
+            key={i}
+            x={s.x} y={s.y} width={s.w} height={s.h}
+            rx={8}
+            fill={s.me ? "hsl(var(--primary))" : "hsl(var(--muted))"}
+            stroke={s.me ? "hsl(var(--primary))" : "hsl(var(--border))"}
+            strokeWidth={1.5}
+            opacity={s.me ? 1 : 0.7}
+          />
+        ))}
+      </svg>
+    </div>
   )
 }
 
