@@ -23,6 +23,7 @@ import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
+import { LiveGamePage } from "@/pages/LiveGamePage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { trackGameLogged } from '@/lib/analytics'
@@ -116,6 +117,11 @@ function App() {
     })()
   }
 
+  async function handleSaveLiveGame(game: Game) {
+    await addGame(game)
+    try { trackGameLogged(game) } catch { void 0 }
+  }
+
   function handleUpdateGame(game: Game) {
     void (async () => {
       try {
@@ -203,6 +209,7 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
+        onStartLive={() => navigateWithFlowMinimize("/live")}
         userEmail={user.email}
         onSignOut={() => {
           void (async () => {
@@ -275,7 +282,12 @@ function App() {
                 />
               }
             />
-            {/* Map page removed */}
+            <Route
+              path="/live"
+              element={
+                <LiveGamePage games={games} onSaveGame={handleSaveLiveGame} onExit={() => navigate("/")} />
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

@@ -1,0 +1,228 @@
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { ringGrid, useTurnClock, type LiveGameApi, type LivePlayer } from "./engine"
+import { EndGameBanner } from "./shared"
+
+interface BoardChromeProps {
+  game: LiveGameApi
+  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean }) => ReactNode
+  centerExtra?: ReactNode
+  onSave: () => void
+  onRematch: () => void
+  saving?: boolean
+}
+
+/** offset of the moving control from the player's screen edge */
+const EDGE_MARGIN = 48
+
+function RingCell({ id, rotate, area, children }: { id: string; rotate: number; area: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const swap = rotate === 90 || rotate === 270
+  const inner = swap ? { width: box.h, height: box.w } : { width: box.w, height: box.h }
+  return (
+    <div ref={ref} data-seat-cell={id} className="relative overflow-hidden" style={{ gridArea: area }}>
+      <div
+        className="absolute left-1/2 top-1/2"
+        style={{ ...inner, transform: `translate(-50%, -50%) rotate(${rotate}deg)` }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: BoardChromeProps) {
+  const seats = [...game.players].sort((a, b) => a.seatPosition - b.seatPosition)
+  const grid = ringGrid(seats.length)
+  const rotById: Record<string, number> = {}
+  seats.forEach((p, i) => (rotById[p.id] = grid.cells[i].rotate))
+  const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
+
+  // who-goes-first happens on the board, before the clock starts
+  const [starterPicked, setStarterPicked] = useState(false)
+  useEffect(() => {
+    if (!game.started) setStarterPicked(false)
+  }, [game.started])
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+      <div
+        className="grid h-full w-full gap-px"
+        style={{
+          gridTemplateColumns: grid.columns,
+          gridTemplateRows: grid.rows,
+          gridTemplateAreas: grid.areas.join(" "),
+        }}
+      >
+        {seats.map((p, i) => {
+          const cell = grid.cells[i]
+          return (
+            <RingCell key={p.id} id={p.id} area={cell.area} rotate={cell.rotate}>
+              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270 })}
+            </RingCell>
+          )
+        })}
+      </div>
+
+      {game.phase === "ended" ? (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          <div className="pointer-events-auto w-[min(80vw,20rem)]">
+            <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} saving={saving} />
+          </div>
+        </div>
+      ) : !game.started && !starterPicked ? (
+        <StarterChooser
+          seats={seats}
+          onPick={(seat) => {
+            game.chooseStarter(seat)
+            setStarterPicked(true)
+          }}
+        />
+      ) : (
+        <TurnControl game={game} rotate={rotById[game.activePlayer.id] ?? 0} />
+      )}
+    </div>
+  )
+}
+
+/* Centre overlay: high-roll a D20 or tap a player to decide who starts. The
+ * winner then gets the Start control at their own edge. */
+function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat: LivePlayer["seatPosition"]) => void }) {
+  const [rollingId, setRollingId] = useState<string | null>(null)
+  const [rolling, setRolling] = useState(false)
+
+  function roll() {
+    setRolling(true)
+    let ticks = 0
+    const id = window.setInterval(() => {
+      const r = seats[Math.floor(Math.random() * seats.length)]
+      setRollingId(r.id)
+      ticks++
+      if (ticks > 14) {
+        window.clearInterval(id)
+        window.setTimeout(() => onPick(r.seatPosition), 550)
+      }
+    }, 75)
+  }
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+      <div className="pointer-events-auto flex w-[min(84vw,19rem)] flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur">
+        <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Who goes first?</span>
+        <div className="grid w-full grid-cols-2 gap-1.5">
+          {seats.map((p) => (
+            <button
+              key={p.id}
+              disabled={rolling}
+              onClick={() => onPick(p.seatPosition)}
+              className={cn(
+                "flex items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors",
+                rollingId === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border"
+              )}
+            >
+              {rollingId === p.id && <Crown className="h-3.5 w-3.5" />}
+              <span className="truncate">{p.displayName}</span>
+            </button>
+          ))}
+        </div>
+        <Button onClick={roll} disabled={rolling} size="lg" className="w-full gap-2">
+          <Dices className={cn("h-5 w-5", rolling && "animate-spin")} />
+          {rolling ? "Rolling…" : "High roll (D20)"}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/* The single turn control — Undo + Start / End turn (clock) / End game — pinned
+ * to the active player's near edge, gliding (transform-only, with a bounce) to
+ * the next player each turn. */
+function TurnControl({ game, rotate }: { game: LiveGameApi; rotate: number }) {
+  const clock = useTurnClock(game.turnStartedAt, game.started)
+  const activeId = game.activePlayer.id
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const [nonce, setNonce] = useState(0)
+
+  useLayoutEffect(() => {
+    let raf = 0
+    const measure = () => {
+      const el = document.querySelector(`[data-seat-cell="${activeId}"]`)
+      if (!el || (el as HTMLElement).getBoundingClientRect().width === 0) {
+        raf = requestAnimationFrame(measure)
+        return
+      }
+      const r = el.getBoundingClientRect()
+      const M = EDGE_MARGIN
+      const cx = r.left + r.width / 2
+      const cy = r.top + r.height / 2
+      let p: { x: number; y: number }
+      if (rotate === 180) p = { x: cx, y: r.top + M }
+      else if (rotate === 90) p = { x: r.left + M, y: cy }
+      else if (rotate === 270) p = { x: r.right - M, y: cy }
+      else p = { x: cx, y: r.bottom - M }
+      setPos(p)
+    }
+    raf = requestAnimationFrame(measure)
+    return () => cancelAnimationFrame(raf)
+  }, [activeId, rotate, nonce])
+
+  useEffect(() => {
+    const onResize = () => setNonce((n) => n + 1)
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
+
+  if (!pos) return null
+
+  const main = !game.started ? (
+    <Button onClick={game.start} className="h-12 gap-1.5 rounded-full px-5 text-base">
+      <Play className="h-4 w-4 fill-current" /> Start
+    </Button>
+  ) : game.canEnd ? (
+    <Button onClick={game.endGame} className="h-12 gap-1.5 rounded-full px-5 text-base">
+      <Flag className="h-4 w-4" /> End game
+    </Button>
+  ) : (
+    <Button onClick={game.endTurn} className="h-12 gap-2 rounded-full px-5 text-base tabular-nums">
+      <Timer className="h-4 w-4 opacity-80" />
+      {clock}
+      <span className="opacity-90">End turn</span>
+      <ChevronRight className="h-4 w-4" />
+    </Button>
+  )
+
+  return (
+    <div
+      className="fixed left-0 top-0 z-40 will-change-transform"
+      style={{
+        transform: `translate(${pos.x}px, ${pos.y}px) translate(-50%, -50%) rotate(${rotate}deg)`,
+        transition: "transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      }}
+    >
+      <div className="flex items-center gap-1 rounded-full border border-border bg-card/95 p-1 shadow-xl backdrop-blur">
+        <button
+          onClick={game.undoLast}
+          disabled={!game.canUndo}
+          aria-label="undo"
+          className={cn(
+            "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
+            game.canUndo ? "text-foreground active:scale-95" : "cursor-not-allowed text-muted-foreground/40"
+          )}
+        >
+          <Undo2 className="h-4 w-4" />
+        </button>
+        {main}
+      </div>
+    </div>
+  )
+}
