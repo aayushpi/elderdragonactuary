@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
-import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus } from "lucide-react"
+import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LETHAL_COMMANDER, LETHAL_POISON, type LivePlayer, type PlayerRuntime } from "./engine"
@@ -323,11 +323,9 @@ export function EndGameBanner({
         </Button>
       </div>
       {onDiscard && (
-        <div className="flex">
-          <Button onClick={onDiscard} variant="ghost" className="flex-1 text-muted-foreground text-sm">
-            Discard game
-          </Button>
-        </div>
+        <Button onClick={onDiscard} variant="ghost" className="w-full gap-1.5 text-muted-foreground hover:text-destructive">
+          <Trash2 className="h-3.5 w-3.5" /> Discard game
+        </Button>
       )}
     </div>
   )
