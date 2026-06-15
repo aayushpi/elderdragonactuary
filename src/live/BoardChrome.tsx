@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "re
 import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, Lock, Unlock, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ringGrid, useTurnClock, type DamageEvent, type LiveGameApi, type LivePlayer } from "./engine"
+import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
 import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
 
@@ -308,7 +308,7 @@ function UndoLog({
   onUndoLast,
   onClose,
 }: {
-  events: DamageEvent[]
+  events: GameEvent[]
   players: LivePlayer[]
   onUndoTo: (index: number) => void
   onUndoLast: () => void
@@ -316,7 +316,8 @@ function UndoLog({
 }) {
   const nameById = Object.fromEntries(players.map((p) => [p.id, p.displayName]))
 
-  function label(ev: DamageEvent): string {
+  function label(ev: GameEvent): string {
+    if (ev.kind === "turn") return `— End of turn ${ev.turn} —`
     const target = nameById[ev.targetId] ?? "?"
     if (ev.sourceId) {
       const src = nameById[ev.sourceId] ?? "?"
@@ -324,6 +325,10 @@ function UndoLog({
       return `${src} → ${target}: ${ev.amount > 0 ? "+" : ""}${ev.amount}${type}`
     }
     return `${target}: ${ev.amount > 0 ? "-" : "+"}${Math.abs(ev.amount)} life`
+  }
+
+  function turnOf(ev: GameEvent): number {
+    return ev.kind === "turn" ? ev.turn : ev.turn
   }
 
   const recent = [...events].reverse()
@@ -351,14 +356,18 @@ function UndoLog({
           ) : (
             recent.map((ev, ri) => {
               const originalIndex = events.length - 1 - ri
+              const isTurnMarker = ev.kind === "turn"
               return (
                 <button
                   key={ev.id}
                   onClick={() => onUndoTo(originalIndex)}
-                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center justify-between gap-2"
+                  className={cn(
+                    "w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center justify-between gap-2",
+                    isTurnMarker && "bg-muted/40 text-muted-foreground"
+                  )}
                 >
-                  <span className="font-mono text-xs text-muted-foreground shrink-0">T{ev.turn}</span>
-                  <span className="flex-1 truncate">{label(ev)}</span>
+                  <span className="font-mono text-xs text-muted-foreground shrink-0">T{turnOf(ev)}</span>
+                  <span className={cn("flex-1 truncate", isTurnMarker && "italic text-xs")}>{label(ev)}</span>
                   <span className="text-xs text-muted-foreground shrink-0">undo to here</span>
                 </button>
               )
