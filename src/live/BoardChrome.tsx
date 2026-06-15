@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ringGrid, useTurnClock, type DamageEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
+import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
 
 interface BoardChromeProps {
   game: LiveGameApi
@@ -49,15 +50,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
   const [locked, setLocked] = useState(false)
-  // Lock screen orientation to whatever it is when the board mounts
-  useEffect(() => {
-    const ori = screen.orientation as ScreenOrientation & { lock?: (t: string) => Promise<void> }
-    const type = ori?.type
-    if (type && ori.lock) {
-      ori.lock(type).catch(() => { /* iOS/desktop: unsupported outside fullscreen */ })
-    }
-    return () => { try { ori?.unlock?.() } catch { /* ignore */ } }
-  }, [])
+  const counterRotate = useOrientationLock()
   // who-goes-first happens on the board, before the clock starts
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
@@ -65,7 +58,8 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
   }, [game.started])
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-0 z-50 overflow-hidden" style={counterRotationStyle(counterRotate)}>
+    <div className="h-full w-full overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div
         className="grid h-full w-full gap-px"
         style={{
@@ -107,7 +101,15 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
         />
       )}
     </div>
+    </div>
   )
+}
+
+function counterRotationStyle(r: CounterRotation): React.CSSProperties {
+  if (r === 0) return {}
+  if (r === 90)  return { width: "100vh", height: "100vw", transform: "rotate(90deg) translateY(-100%)",  transformOrigin: "top left" }
+  if (r === -90) return { width: "100vh", height: "100vw", transform: "rotate(-90deg) translateX(-100%)", transformOrigin: "top left" }
+  return { transform: "rotate(180deg)", transformOrigin: "center" }
 }
 
 /* Centre overlay: high-roll a D20 or tap a player to decide who starts. The
