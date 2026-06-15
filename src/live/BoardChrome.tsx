@@ -12,6 +12,7 @@ interface BoardChromeProps {
   centerExtra?: ReactNode
   onSave: () => void
   onRematch: () => void
+  onDiscard?: () => void
   saving?: boolean
 }
 
@@ -42,7 +43,7 @@ function RingCell({ id, rotate, area, children }: { id: string; rotate: number; 
   )
 }
 
-export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: BoardChromeProps) {
+export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, saving }: BoardChromeProps) {
   const seats = [...game.players].sort((a, b) => a.seatPosition - b.seatPosition)
   const grid = ringGrid(seats.length)
   const rotById: Record<string, number> = {}
@@ -81,7 +82,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
       {game.phase === "ended" ? (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="pointer-events-auto w-[min(80vw,20rem)]">
-            <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} saving={saving} />
+            <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} onDiscard={onDiscard} saving={saving} />
           </div>
         </div>
       ) : !game.started && !starterPicked ? (

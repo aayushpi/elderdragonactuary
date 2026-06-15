@@ -297,11 +297,13 @@ export function EndGameBanner({
   winner,
   onSave,
   onRematch,
+  onDiscard,
   saving,
 }: {
   winner: LivePlayer | null
   onSave: () => void
   onRematch: () => void
+  onDiscard?: () => void
   saving?: boolean
 }) {
   return (
@@ -320,6 +322,13 @@ export function EndGameBanner({
           <RotateCcw className="h-4 w-4" /> Rematch
         </Button>
       </div>
+      {onDiscard && (
+        <div className="flex">
+          <Button onClick={onDiscard} variant="ghost" className="flex-1 text-muted-foreground text-sm">
+            Discard game
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -27,6 +27,7 @@ export function ThrowBoard({
   game,
   onSave,
   onRematch,
+  onDiscard,
   saving,
   centerExtra,
   recents = [],
@@ -35,6 +36,7 @@ export function ThrowBoard({
   game: LiveGameApi
   onSave: () => void
   onRematch: () => void
+  onDiscard?: () => void
   saving?: boolean
   centerExtra?: ReactNode
   recents?: CommanderShortlistItem[]
@@ -99,6 +101,7 @@ export function ThrowBoard({
         centerExtra={centerExtra}
         onSave={onSave}
         onRematch={onRematch}
+        onDiscard={onDiscard}
         saving={saving}
       />
       <DragVector drag={drag} />
