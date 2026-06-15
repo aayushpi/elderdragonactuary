@@ -49,6 +49,15 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
   const [locked, setLocked] = useState(false)
+  // Lock screen orientation to whatever it is when the board mounts
+  useEffect(() => {
+    const ori = screen.orientation as ScreenOrientation & { lock?: (t: string) => Promise<void> }
+    const type = ori?.type
+    if (type && ori.lock) {
+      ori.lock(type).catch(() => { /* iOS/desktop: unsupported outside fullscreen */ })
+    }
+    return () => { try { ori?.unlock?.() } catch { /* ignore */ } }
+  }, [])
   // who-goes-first happens on the board, before the clock starts
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
