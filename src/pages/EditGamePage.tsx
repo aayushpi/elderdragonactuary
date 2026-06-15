@@ -76,9 +76,10 @@ interface EditGamePageProps {
   game: Game
   onSave: (game: Game) => void
   onCancel: () => void
+  onDelete?: () => void
 }
 
-export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
+export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageProps) {
   const { games } = useGames()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -516,6 +517,17 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
           Save Changes
         </Button>
       </div>
+      {onDelete && (
+        <div className="pt-1">
+          <Button
+            variant="outline"
+            className="w-full text-destructive hover:text-destructive"
+            onClick={onDelete}
+          >
+            Delete game
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
