@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react"
-import { LogIn, UserPlus, Loader2 } from "lucide-react"
+import { LogIn, UserPlus, Loader2, Mail } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+
+type Mode = "login" | "signup" | "reset"
 
 interface AuthFormProps {
   onSignedIn?: () => void
@@ -10,8 +12,8 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
-  const { signIn, signUp } = useAuth()
-  const [mode, setMode] = useState<"login" | "signup">(defaultMode)
+  const { signIn, signUp, resetPassword } = useAuth()
+  const [mode, setMode] = useState<Mode>(defaultMode)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -24,6 +26,25 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
     e.preventDefault()
     setError(null)
     setInfo(null)
+
+    if (mode === "reset") {
+      if (!email.trim()) {
+        setError("Enter your email to reset your password.")
+        return
+      }
+      setSubmitting(true)
+      try {
+        const { error: err } = await resetPassword(email.trim())
+        if (err) {
+          setError(err)
+        } else {
+          setInfo("If an account exists for that email, a reset link is on its way.")
+        }
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
 
     if (!email.trim() || !password.trim()) {
       setError("Email and password are required.")
@@ -84,9 +105,17 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
     <div className="mx-auto w-full max-w-sm space-y-6">
       <div className="text-center space-y-1">
         <h1 className="text-2xl font-bold">
-          {mode === "login" ? "Sign in to your account" : "Create a new account"}
-                </h1>
-        
+          {mode === "login"
+            ? "Sign in to your account"
+            : mode === "signup"
+              ? "Create a new account"
+              : "Reset your password"}
+        </h1>
+        {mode === "reset" && (
+          <p className="text-sm text-muted-foreground">
+            We&apos;ll email you a link to set a new password.
+          </p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -103,18 +132,35 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium">Password</label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            disabled={submitting}
-          />
-        </div>
+        {mode !== "reset" && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-medium">Password</label>
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("reset")
+                    setError(null)
+                    setInfo(null)
+                  }}
+                  className="text-xs text-primary underline underline-offset-4 hover:text-primary/80"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              disabled={submitting}
+            />
+          </div>
+        )}
 
         {mode === "signup" && (
           <>
@@ -153,15 +199,29 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : mode === "login" ? (
             <LogIn className="h-4 w-4" />
-          ) : (
+          ) : mode === "signup" ? (
             <UserPlus className="h-4 w-4" />
+          ) : (
+            <Mail className="h-4 w-4" />
           )}
-          {mode === "login" ? "Sign In" : "Create Account"}
+          {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send reset link"}
         </Button>
       </form>
 
       <div className="text-center text-sm text-muted-foreground">
-        {mode === "login" ? (
+        {mode === "reset" ? (
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login")
+              setError(null)
+              setInfo(null)
+            }}
+            className="text-primary underline underline-offset-4 hover:text-primary/80"
+          >
+            Back to sign in
+          </button>
+        ) : mode === "login" ? (
           <>
             Don&apos;t have an account?{" "}
             <button

@@ -7,6 +7,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recovering, setRecovering] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then((res: { data: { session: Session | null } }) => {
@@ -20,6 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
+
+      // When the user arrives via a password-recovery link, Supabase signs them
+      // into a short-lived session and fires this event. Flag it so the UI can
+      // show the "set a new password" form instead of the app.
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
 
       try {
         // Emit analytics events for sign in / sign up when available
@@ -73,8 +79,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }, [])
 
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    return { error: error?.message ?? null }
+  }, [])
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (!error) setRecovering(false)
+    return { error: error?.message ?? null }
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, loading, signIn, signUp, signOut, resetPassword, updatePassword, recovering }}
+    >
       {children}
     </AuthContext.Provider>
   )

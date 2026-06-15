@@ -31,6 +31,8 @@ interface AuthStub {
   signInWithPassword: (creds: { email: string; password: string }) => Promise<{ error: { message?: string } | null }>
   signUp: (args: unknown) => Promise<{ error: { message?: string } | null }>
   signOut: () => Promise<void>
+  resetPasswordForEmail: (email: string, opts?: unknown) => Promise<{ error: { message?: string } | null }>
+  updateUser: (attrs: unknown) => Promise<{ error: { message?: string } | null }>
 }
 
 interface MinimalSupabase {
@@ -64,6 +66,8 @@ if (supabaseUrl && supabaseAnonKey) {
       signInWithPassword: async () => ({ error: { message: 'Supabase not configured' } }),
       signUp: async () => ({ error: { message: 'Supabase not configured' } }),
       signOut: async () => { /* noop */ },
+      resetPasswordForEmail: async () => ({ error: { message: 'Supabase not configured' } }),
+      updateUser: async () => ({ error: { message: 'Supabase not configured' } }),
     },
     from: () => postgrestFactory(),
     storage: { from: () => ({ upload: async () => null, download: async () => null }) },

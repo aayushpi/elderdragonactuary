@@ -23,6 +23,7 @@ import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { trackGameLogged } from '@/lib/analytics'
@@ -42,7 +43,7 @@ type ThemeMode = "light" | "dark" | "system"
 type Theme = "light" | "dark"
 
 function App() {
-  const { user, loading: authLoading, signOut } = useAuth()
+  const { user, loading: authLoading, signOut, recovering } = useAuth()
   const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
@@ -186,11 +187,18 @@ function App() {
     )
   }
 
+  // A password-recovery link signs the user into a short-lived session; force the
+  // reset form until they set a new password (regardless of the URL they land on).
+  if (recovering) {
+    return <ResetPasswordPage onDone={() => navigate("/", { replace: true })} />
+  }
+
   if (!user) {
     return (
       <Routes>
         <Route path="/" element={<LoggedOutHomePage />} />
         <Route path="/auth" element={<LoggedOutHomePage defaultSignInOpen />} />
+        <Route path="/reset-password" element={<ResetPasswordPage onDone={() => navigate("/auth", { replace: true })} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
