@@ -324,6 +324,7 @@ function App() {
           onMinimize={minimizeGameFlow}
           onRestore={restoreGameFlow}
           onClose={closeGameFlow}
+          onDelete={gameFlow.mode === "edit" && editingGame ? () => { void deleteGame(editingGame.id); closeGameFlow() } : undefined}
         >
           {gameFlow.mode === "log" ? (
             <LogGamePage

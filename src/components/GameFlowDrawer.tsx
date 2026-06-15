@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Minus, Maximize2, X } from "lucide-react"
+import { Minus, Maximize2, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -9,10 +9,11 @@ interface GameFlowDrawerProps {
   onMinimize: () => void
   onRestore: () => void
   onClose: () => void
+  onDelete?: () => void
   children: React.ReactNode
 }
 
-export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, children }: GameFlowDrawerProps) {
+export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, onDelete, children }: GameFlowDrawerProps) {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
@@ -38,6 +39,20 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
         >
           <p className="text-sm font-semibold">{title}</p>
           <div className="flex items-center gap-1">
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDelete()
+                }}
+                aria-label="Delete game"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
