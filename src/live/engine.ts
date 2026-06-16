@@ -127,6 +127,8 @@ export interface LiveGameApi {
   /** assign / change a seat's commander mid-flow (deferred "add later") */
   setCommander: (id: string, c: CommanderAssign) => void
   setDisplayName: (id: string, name: string) => void
+  /** swap two players' seat positions before the game starts */
+  swapSeats: (aId: string, bId: string) => void
 }
 
 export interface CommanderAssign {
@@ -417,6 +419,19 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     }))
   }, [])
 
+  const swapSeats = useCallback((aId: string, bId: string) => {
+    setConfig((prev) => {
+      const ps = [...prev.players]
+      const ai = ps.findIndex((p) => p.id === aId)
+      const bi = ps.findIndex((p) => p.id === bId)
+      if (ai === -1 || bi === -1) return prev
+      const aSeat = ps[ai].seatPosition
+      ps[ai] = { ...ps[ai], seatPosition: ps[bi].seatPosition }
+      ps[bi] = { ...ps[bi], seatPosition: aSeat }
+      return { ...prev, players: ps }
+    })
+  }, [])
+
   const endGame = useCallback(() => setPhase("ended"), [])
 
   const reset = useCallback(
@@ -494,6 +509,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     reset,
     setCommander,
     setDisplayName,
+    swapSeats,
   }
 }
 

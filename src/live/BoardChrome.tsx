@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, X } from "lucide-react"
+import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, X, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
@@ -91,6 +91,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
             game.chooseStarter(seat)
             setStarterPicked(true)
           }}
+          onSwap={game.swapSeats}
         />
       ) : (
         <TurnControl
@@ -112,9 +113,21 @@ function counterRotationStyle(r: CounterRotation): React.CSSProperties {
 
 /* Centre overlay: high-roll a D20 or tap a player to decide who starts. The
  * winner then gets the Start control at their own edge. */
-function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat: LivePlayer["seatPosition"]) => void }) {
+function StarterChooser({
+  seats,
+  onPick,
+  onSwap,
+}: {
+  seats: LivePlayer[]
+  onPick: (seat: LivePlayer["seatPosition"]) => void
+  onSwap: (aId: string, bId: string) => void
+}) {
   const [rollingId, setRollingId] = useState<string | null>(null)
   const [rolling, setRolling] = useState(false)
+  const draggingRef = useRef<string | null>(null)
+  const dragOverRef = useRef<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   function roll() {
     setRolling(true)
@@ -130,24 +143,71 @@ function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat:
     }, 75)
   }
 
+  function startDrag(id: string, e: React.PointerEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    draggingRef.current = id
+    dragOverRef.current = null
+    setDraggingId(id)
+    setDragOverId(null)
+    const move = (ev: PointerEvent) => {
+      const el = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest("[data-starter-row]")
+      const overId = (el as HTMLElement | null)?.getAttribute("data-starter-row") ?? null
+      const next = overId !== draggingRef.current ? overId : null
+      if (next !== dragOverRef.current) {
+        dragOverRef.current = next
+        setDragOverId(next)
+      }
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      const srcId = draggingRef.current
+      const tgtId = dragOverRef.current
+      draggingRef.current = null
+      dragOverRef.current = null
+      setDraggingId(null)
+      setDragOverId(null)
+      if (srcId && tgtId && srcId !== tgtId) onSwap(srcId, tgtId)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
+  }
+
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
       <div className="pointer-events-auto flex w-[min(84vw,19rem)] flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur">
         <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Who goes first?</span>
-        <div className="grid w-full grid-cols-2 gap-1.5">
+        <div className="w-full space-y-1.5">
           {seats.map((p) => (
-            <button
+            <div
               key={p.id}
-              disabled={rolling}
-              onClick={() => onPick(p.seatPosition)}
+              data-starter-row={p.id}
               className={cn(
-                "flex items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors",
-                rollingId === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                "flex items-center gap-1.5 rounded-lg border transition-colors",
+                draggingId === p.id ? "opacity-40 border-border" : dragOverId === p.id ? "border-primary bg-primary/5" : "border-border"
               )}
             >
-              {rollingId === p.id && <Crown className="h-3.5 w-3.5" />}
-              <span className="truncate">{p.displayName}</span>
-            </button>
+              <button
+                onPointerDown={(e) => startDrag(p.id, e)}
+                className="flex h-9 w-7 shrink-0 touch-none cursor-grab items-center justify-center rounded-l-lg text-muted-foreground active:cursor-grabbing"
+              >
+                <GripVertical className="h-3.5 w-3.5" />
+              </button>
+              <button
+                disabled={rolling}
+                onClick={() => onPick(p.seatPosition)}
+                className={cn(
+                  "flex flex-1 items-center gap-1 py-2 pr-2 text-sm font-semibold transition-colors",
+                  rollingId === p.id ? "text-primary" : ""
+                )}
+              >
+                {rollingId === p.id && <Crown className="h-3.5 w-3.5 text-primary" />}
+                <span className="truncate">{p.displayName || `Seat ${p.seatPosition}`}</span>
+              </button>
+            </div>
           ))}
         </div>
         <Button onClick={roll} disabled={rolling} size="lg" className="w-full gap-2">
