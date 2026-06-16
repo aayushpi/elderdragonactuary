@@ -11,9 +11,16 @@ export type MilestoneKind =
   | "win"
   | "streak"
   | "fast-win"
+  | "slow-burn"
   | "wincon"
   | "tough-seat"
   | "underdog"
+  | "nemesis"
+  | "new-rival"
+  | "comeback"
+  | "color-pioneer"
+  | "bracket-buster"
+  | "flawless-month"
   | "knockout"
   | "loss-streak"
 
@@ -34,6 +41,27 @@ const VETERAN_TIERS: { n: number; emoji: string; detail: string }[] = [
   { n: 50, emoji: "🧓", detail: "Grizzled veteran" },
   { n: 100, emoji: "🧙", detail: "True master" },
 ]
+
+const COLOR_NAMES: Record<MtgColor, string> = {
+  W: "White",
+  U: "Blue",
+  B: "Black",
+  R: "Red",
+  G: "Green",
+}
+const WUBRG: MtgColor[] = ["W", "U", "B", "R", "G"]
+
+function colorIdentityKey(colors: MtgColor[]): string {
+  if (colors.length === 0) return "C"
+  return WUBRG.filter((c) => colors.includes(c)).join("")
+}
+
+function colorIdentityLabel(colors: MtgColor[]): string {
+  if (colors.length === 0) return "Colorless"
+  if (colors.length === 5) return "5-Color"
+  if (colors.length === 1) return `Mono-${COLOR_NAMES[colors[0]]}`
+  return WUBRG.filter((c) => colors.includes(c)).join("")
+}
 
 export interface TimelineEvent {
   game: Game
@@ -66,16 +94,43 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
     (a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime()
   )
 
+  // Per-month aggregate (chronological, so lastId ends up being the closing game).
+  const monthAgg = new Map<string, { count: number; wins: number; lastId: string; label: string }>()
+  for (const g of chrono) {
+    const d = new Date(g.playedAt)
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    const me = g.players.find((p) => p.isMe)
+    const won = !!me && g.winnerId === me.id
+    const cur = monthAgg.get(key) ?? {
+      count: 0,
+      wins: 0,
+      lastId: g.id,
+      label: d.toLocaleDateString(undefined, { month: "long" }),
+    }
+    cur.count += 1
+    if (won) cur.wins += 1
+    cur.lastId = g.id
+    monthAgg.set(key, cur)
+  }
+
   const commanderPlays = new Map<string, number>()
+  const beatenByCount = new Map<string, number>() // opponent commander → times they've beaten me
+  const seenOpponents = new Set<string>()
+  const wonColorIdentities = new Set<string>()
   let winCount = 0
   let streak = 0
   let lossStreak = 0
+  let bracketSum = 0
+  let bracketCount = 0
 
   const events: TimelineEvent[] = chrono.map((game, i) => {
     const me = game.players.find((p) => p.isMe)
     const won = !!me && game.winnerId === me.id
     const careerIndex = i + 1
     const cmdr = shortCommander(me?.commanderName)
+    const date = new Date(game.playedAt)
+    const opponents = game.players.filter((p) => !p.isMe)
+    const priorBracketAvg = bracketCount > 0 ? bracketSum / bracketCount : null
     const milestones: Milestone[] = []
 
     const playCount = (commanderPlays.get(me?.commanderName ?? "") ?? 0) + 1
@@ -95,8 +150,18 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       milestones.push({ kind: "veteran", emoji: tier.emoji, label: `${ordinal(playCount)} game with ${cmdr}`, detail: tier.detail })
     }
 
+    // New rival — first ever game against a newly-seen opponent.
+    if (careerIndex > 1) {
+      const newcomer = opponents.find((o) => !seenOpponents.has(o.commanderName))
+      if (newcomer) {
+        milestones.push({ kind: "new-rival", emoji: "🤝", label: "New rival", detail: shortCommander(newcomer.commanderName) })
+      }
+    }
+    for (const o of opponents) seenOpponents.add(o.commanderName)
+
     let winNumber: number | null = null
     if (won) {
+      const slump = lossStreak // capture before reset
       winCount += 1
       winNumber = winCount
       streak += 1
@@ -111,6 +176,32 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       if (streak >= 2) {
         milestones.push({ kind: "streak", label: `${streak}-win streak` })
       }
+      if (slump >= 3) {
+        milestones.push({ kind: "comeback", emoji: "♻️", label: "Comeback win", detail: `Snapped a ${slump}-loss slump` })
+      }
+
+      // Nemesis — beat an opponent who has beaten you 3+ times.
+      let nemesis: string | undefined
+      let nemesisCount = 0
+      for (const o of opponents) {
+        const c = beatenByCount.get(o.commanderName) ?? 0
+        if (c >= 3 && c > nemesisCount) {
+          nemesis = o.commanderName
+          nemesisCount = c
+        }
+      }
+      if (nemesis) {
+        milestones.push({ kind: "nemesis", emoji: "🦸", label: "Nemesis slain", detail: `${shortCommander(nemesis)} had beaten you ${nemesisCount}×` })
+      }
+
+      // Color pioneer — first win in a brand-new color identity.
+      const identity = colorsOf(me)
+      const ck = colorIdentityKey(identity)
+      if (!wonColorIdentities.has(ck)) {
+        wonColorIdentities.add(ck)
+        milestones.push({ kind: "color-pioneer", emoji: "🌈", label: `First win in ${colorIdentityLabel(identity)}`, detail: "New colors on the board" })
+      }
+
       if (me && me.seatPosition >= 3) {
         milestones.push({ kind: "tough-seat", emoji: "🎯", label: `Won from seat ${me.seatPosition}`, detail: "Back-of-the-table win" })
       }
@@ -122,6 +213,13 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       }
       if (game.winTurn && game.winTurn <= 5) {
         milestones.push({ kind: "fast-win", label: `Turn-${game.winTurn} kill`, detail: cmdr })
+      }
+      if (game.winTurn && game.winTurn >= 12) {
+        milestones.push({ kind: "slow-burn", emoji: "🐉", label: `Turn-${game.winTurn} grind`, detail: cmdr })
+      }
+      // Bracket buster — win meaningfully above your usual power level.
+      if (game.bracket && priorBracketAvg !== null && bracketCount >= 3 && game.bracket > priorBracketAvg + 0.75) {
+        milestones.push({ kind: "bracket-buster", emoji: "🎰", label: "Bracket buster", detail: `Won up at bracket ${game.bracket}` })
       }
       if (game.keyWinconCards && game.keyWinconCards.length > 0) {
         milestones.push({ kind: "wincon", label: `Closed with ${game.keyWinconCards[0]}` })
@@ -135,9 +233,25 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       if (typeof me?.knockoutTurn === "number" && me.knockoutTurn <= 6) {
         milestones.push({ kind: "knockout", label: `Knocked out turn ${me.knockoutTurn}`, detail: cmdr })
       }
+      const winner = game.players.find((p) => p.id === game.winnerId)
+      if (winner && !winner.isMe) {
+        beatenByCount.set(winner.commanderName, (beatenByCount.get(winner.commanderName) ?? 0) + 1)
+      }
     }
 
-    return { game, me, won, date: new Date(game.playedAt), careerIndex, winNumber, milestones }
+    // Flawless month — closing game of a calendar month that went undefeated (≥3 games).
+    const monthKey = `${date.getFullYear()}-${date.getMonth()}`
+    const ma = monthAgg.get(monthKey)
+    if (ma && ma.lastId === game.id && ma.count >= 3 && ma.wins === ma.count) {
+      milestones.push({ kind: "flawless-month", emoji: "🏆", label: "Flawless month", detail: `${ma.count}–0 in ${ma.label}` })
+    }
+
+    if (game.bracket) {
+      bracketSum += game.bracket
+      bracketCount += 1
+    }
+
+    return { game, me, won, date, careerIndex, winNumber, milestones }
   })
 
   return events.reverse()

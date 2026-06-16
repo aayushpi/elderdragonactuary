@@ -63,26 +63,28 @@ function id(seed: number): string {
  * wincon cards, brackets, fast mana, knockouts — so the timeline highlights and
  * the heatmap have realistic material to surface.
  */
-// 40-game W/L pattern with deliberate win and loss streaks.
-const RESULTS = "WLWWLWLLWWWLLLWLWWLWWWLLWLWWLLLWLWWLWLWWW"
+// 40-game W/L pattern with deliberate win and loss streaks, plus one undefeated
+// month (games 12-14) so the "flawless month" highlight fires.
+const RESULTS = "WLWWLWLLWWWLWWWLWWLWWWLLWLWWLLLWLWWLWLWWW"
 
 export function buildSampleGames(): Game[] {
   const games: Game[] = []
-  // Start in late 2025 so the career crosses a year boundary (shows a year divider).
-  const start = new Date("2025-10-03T19:30:00")
-  let cursor = start.getTime()
+  // Three games per calendar month starting Oct 2025 — so the career crosses a
+  // year boundary and each month maps cleanly to a 3-game block.
+  const base = new Date(2025, 9, 1)
 
   for (let i = 0; i < RESULTS.length; i++) {
     // Bias toward Krenko (deck 0) so it reaches the 10- and 20-game veteran tiers.
     const deckIndex = i % 7 < 4 ? 0 : (i % 7) - 3
     const deck = MY_DECKS[deckIndex]
     const playerCount = 3 + (i % 2) // alternate 3- and 4-player pods
-    cursor += 1000 * 60 * 60 * 24 * (4 + (i % 5))
-    const playedAt = new Date(cursor)
+    const monthIndex = Math.floor(i / 3)
+    const playedAt = new Date(base.getFullYear(), base.getMonth() + monthIndex, 5 + (i % 3) * 9, 19, 30)
     const meId = id(i * 100)
     const opponentNames = OPPONENTS.slice(i % 4, (i % 4) + playerCount - 1)
     const won = RESULTS[i] === "W"
-    const winTurn = won ? 4 + (i % 5) : 8 + (i % 3)
+    // win turns span fast kills (4-5) through grindy 12+ games
+    const winTurn = won ? 4 + (i % 9) : 8 + (i % 3)
     const usedFastMana = i % 5 === 0
     const opponentHasFastMana = i % 4 === 2 // some pods race out a fast-mana start
 
