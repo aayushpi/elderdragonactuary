@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
-import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2 } from "lucide-react"
+import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LETHAL_COMMANDER, LETHAL_POISON, type LivePlayer, type PlayerRuntime } from "./engine"
@@ -65,6 +65,8 @@ export function SeatFrame({
   rt,
   isActive,
   side,
+  preGame,
+  swapSlot,
   dragTarget,
   preview,
   attackSlot,
@@ -79,6 +81,10 @@ export function SeatFrame({
   isActive: boolean
   /** left/right seat: shift life inward so the active player's edge control doesn't cover it */
   side?: boolean
+  /** before the game starts: hide life/attack, emphasize name/commander/swap */
+  preGame?: boolean
+  /** the drag-to-swap grip, shown in the pre-game layout */
+  swapSlot?: ReactNode
   dragTarget?: boolean
   preview?: string | null
   attackSlot?: ReactNode
@@ -133,6 +139,30 @@ export function SeatFrame({
         <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
           <Skull className="h-9 w-9" />
           <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
+        </div>
+      ) : preGame ? (
+        /* Pre-game: no life / no attack — just name, commander, and swap grip. */
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-3 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <span className="max-w-[94%] truncate text-[clamp(1.1rem,4.5vmin,1.8rem)] font-bold uppercase tracking-wide text-white">
+            {player.displayName}
+          </span>
+          {hasCommander ? (
+            <button
+              onClick={onSetCommander}
+              className="flex max-w-[94%] items-center gap-1.5 rounded-full bg-black/35 px-4 py-2 text-[clamp(0.75rem,2.4vmin,1rem)] font-semibold text-white active:scale-95"
+            >
+              <span className="truncate">{player.commanderName}</span>
+              <Pencil className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            </button>
+          ) : (
+            <button
+              onClick={onSetCommander}
+              className="flex items-center gap-1.5 rounded-full border-2 border-dashed border-white/70 bg-black/30 px-4 py-2 text-[clamp(0.75rem,2.4vmin,1rem)] font-extrabold uppercase tracking-wider text-white active:scale-95"
+            >
+              <Plus className="h-4 w-4" /> Set commander
+            </button>
+          )}
+          {swapSlot}
         </div>
       ) : (
         <>

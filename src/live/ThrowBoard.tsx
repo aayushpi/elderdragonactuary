@@ -106,45 +106,44 @@ export function ThrowBoard({
         amount: amt,
       }))
     return (
-      <div className="relative h-full w-full">
-        <SeatFrame
-          player={p}
-          rt={rt}
-          isActive={p.seatPosition === game.activeSeat}
-          side={opts.side}
-          dragTarget={drag?.targetId === p.id}
-          preview={drag?.targetId === p.id ? "⚔" : null}
-          commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
-          onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
-          onRevive={() => game.revive(p.id)}
-          onKnockout={() => game.toggleKnockout(p.id)}
-          onSetCommander={() => setCmdrSeat(p)}
-          attackSlot={
-            drag
-              ? drag.sourceId === p.id
-                ? null
-                : <TargetZone armed={drag.targetId === p.id} />
-              : <AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />
-          }
-        />
-        {!game.started && (
+      <SeatFrame
+        player={p}
+        rt={rt}
+        isActive={p.seatPosition === game.activeSeat}
+        side={opts.side}
+        preGame={!game.started}
+        dragTarget={drag?.targetId === p.id}
+        preview={drag?.targetId === p.id ? "⚔" : null}
+        commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
+        onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
+        onRevive={() => game.revive(p.id)}
+        onKnockout={() => game.toggleKnockout(p.id)}
+        onSetCommander={() => setCmdrSeat(p)}
+        swapSlot={
           <button
             onPointerDown={(e) => startSwap(p.id, e)}
             aria-label="Drag to swap seat"
             className={cn(
-              "absolute bottom-2 left-1/2 z-30 -translate-x-1/2 touch-none flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors",
+              "mt-1 touch-none flex items-center gap-1.5 rounded-full px-4 py-2 text-[clamp(0.65rem,2vmin,0.8rem)] font-bold uppercase tracking-wide shadow-lg transition-colors active:scale-95",
               swapTarget === p.id
                 ? "bg-primary text-primary-foreground"
                 : swapping === p.id
-                  ? "bg-white/20 text-white/60"
-                  : "bg-black/40 text-white/70"
+                  ? "bg-white/30 text-white"
+                  : "bg-black/45 text-white/90"
             )}
           >
-            <GripVertical className="h-3 w-3" />
-            Swap
+            <GripVertical className="h-4 w-4" />
+            Drag to swap
           </button>
-        )}
-      </div>
+        }
+        attackSlot={
+          drag
+            ? drag.sourceId === p.id
+              ? null
+              : <TargetZone armed={drag.targetId === p.id} />
+            : <AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />
+        }
+      />
     )
   }
 
