@@ -115,20 +115,28 @@ function counterRotationStyle(r: CounterRotation): React.CSSProperties {
 function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat: LivePlayer["seatPosition"]) => void }) {
   const [rollingId, setRollingId] = useState<string | null>(null)
   const [rolling, setRolling] = useState(false)
+  const [pickedId, setPickedId] = useState<string | null>(null)
 
   function roll() {
+    setPickedId(null)
     setRolling(true)
     let ticks = 0
+    let lastPick = seats[0]
     const id = window.setInterval(() => {
-      const r = seats[Math.floor(Math.random() * seats.length)]
-      setRollingId(r.id)
+      lastPick = seats[Math.floor(Math.random() * seats.length)]
+      setRollingId(lastPick.id)
       ticks++
       if (ticks > 14) {
         window.clearInterval(id)
-        window.setTimeout(() => onPick(r.seatPosition), 550)
+        window.setTimeout(() => {
+          setRolling(false)
+          setPickedId(lastPick.id)
+        }, 200)
       }
     }, 75)
   }
+
+  const pickedPlayer = pickedId ? seats.find((p) => p.id === pickedId) ?? null : null
 
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
@@ -142,18 +150,34 @@ function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat:
               onClick={() => onPick(p.seatPosition)}
               className={cn(
                 "flex items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors",
-                rollingId === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                (rollingId === p.id || pickedId === p.id) ? "border-primary bg-primary text-primary-foreground" : "border-border"
               )}
             >
-              {rollingId === p.id && <Crown className="h-3.5 w-3.5" />}
+              {(rollingId === p.id || pickedId === p.id) && <Crown className="h-3.5 w-3.5" />}
               <span className="truncate">{p.displayName}</span>
             </button>
           ))}
         </div>
-        <Button onClick={roll} disabled={rolling} size="lg" className="w-full gap-2">
-          <Dices className={cn("h-5 w-5", rolling && "animate-spin")} />
-          {rolling ? "Rolling…" : "High roll (D20)"}
-        </Button>
+        {pickedPlayer ? (
+          <div className="flex w-full flex-col gap-2">
+            <p className="text-center text-sm font-semibold">
+              <span className="text-primary">{pickedPlayer.displayName}</span> goes first!
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={roll} variant="outline" className="flex-1 gap-1.5">
+                <Dices className="h-4 w-4" /> Re-roll
+              </Button>
+              <Button onClick={() => onPick(pickedPlayer.seatPosition)} className="flex-1">
+                Confirm
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button onClick={roll} disabled={rolling} size="lg" className="w-full gap-2">
+            <Dices className={cn("h-5 w-5", rolling && "animate-spin")} />
+            {rolling ? "Rolling…" : "High roll (D20)"}
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { type ReactNode, useRef, useState } from "react"
-import { GripHorizontal, GripVertical, Minus, Plus } from "lucide-react"
+import { Crosshair, GripHorizontal, GripVertical, Minus, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CommanderPicker } from "@/components/CommanderPicker"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
@@ -119,7 +119,13 @@ export function ThrowBoard({
           onRevive={() => game.revive(p.id)}
           onKnockout={() => game.toggleKnockout(p.id)}
           onSetCommander={() => setCmdrSeat(p)}
-          attackSlot={<AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />}
+          attackSlot={
+            drag
+              ? drag.sourceId === p.id
+                ? null
+                : <TargetZone armed={drag.targetId === p.id} />
+              : <AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />
+          }
         />
         {!game.started && (
           <button
@@ -198,6 +204,20 @@ export function ThrowBoard({
         />
       )}
     </>
+  )
+}
+
+function TargetZone({ armed }: { armed: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex h-10 items-center gap-1.5 rounded-full border-2 border-dashed px-4 text-[11px] font-extrabold uppercase tracking-wider text-white transition-all",
+        armed ? "animate-pulse scale-110 border-white bg-white/25" : "border-white/50 bg-black/20"
+      )}
+    >
+      <Crosshair className="h-4 w-4" />
+      Target
+    </div>
   )
 }
 
