@@ -1,6 +1,5 @@
 import { Fragment, useMemo, useState } from "react"
-import { Pencil, Trash2 } from "lucide-react"
-import { ResultBadge } from "@/components/modern/primitives"
+import { Check, Pencil, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
 import { CommanderAvatar } from "./CommanderAvatar"
@@ -135,7 +134,7 @@ function IconButton({
 function YearDivider({ year }: { year: number }) {
   return (
     <li className="relative pl-12 pb-3 pt-1">
-      <span className="absolute left-4 top-2.5 z-10 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-foreground ring-4 ring-background" />
+      <span className="absolute left-4 top-2.5 z-40 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-foreground ring-4 ring-background" />
       <div className="font-mono text-base font-semibold uppercase tracking-[0.2em]">{year}</div>
     </li>
   )
@@ -162,17 +161,20 @@ function Node({ event, handlers }: { event: TimelineEvent; handlers: JourneyHand
   return (
     <li className="relative pl-12 pb-8 last:pb-0">
       <span
+        title={won ? "Win" : "Loss"}
         className={cn(
-          "absolute left-4 top-1.5 z-10 -translate-x-1/2 rounded-full ring-4 ring-background",
-          highlight ? "h-4 w-4 bg-amber-500" : won ? "h-3.5 w-3.5 bg-primary" : "h-3.5 w-3.5 bg-muted-foreground/40"
+          "absolute left-4 top-0.5 z-40 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full ring-4 ring-background",
+          won ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
         )}
-      />
+      >
+        {won ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+      </span>
       <div className="flex items-start gap-3">
         <CommanderAvatar name={me?.commanderName} imageUri={me?.commanderImageUri} />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <ResultBadge won={won} />
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-lg font-semibold">{shortCommander(me?.commanderName)}</span>
+            {highlight && <span className="h-2 w-2 rounded-full bg-amber-500" title="Has highlights" />}
           </div>
           <div className="mt-1 text-base text-muted-foreground">
             {opponents.length > 0 ? `vs ${opponents.join(" · ")}` : "Solo log"}
@@ -217,7 +219,7 @@ function Node({ event, handlers }: { event: TimelineEvent; handlers: JourneyHand
 function Spine({ events, handlers }: { events: TimelineEvent[]; handlers: JourneyHandlers }) {
   return (
     <ol className="relative">
-      <span className="absolute left-4 top-2 bottom-2 w-px -translate-x-1/2 bg-border" />
+      <span className="pointer-events-none absolute left-4 top-2 bottom-2 z-30 w-px -translate-x-1/2 bg-border" />
       {events.map((ev) => (
         <Node key={ev.game.id} event={ev} handlers={handlers} />
       ))}
@@ -323,7 +325,7 @@ export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Gam
       ) : (
         <>
           <ol className="relative">
-            <span className="absolute left-4 top-2 bottom-2 w-px -translate-x-1/2 bg-border" />
+            <span className="pointer-events-none absolute left-4 top-2 bottom-2 z-30 w-px -translate-x-1/2 bg-border" />
             {months.map((block) => (
               <Fragment key={block.key}>
                 {block.showYear && <YearDivider year={block.year} />}
