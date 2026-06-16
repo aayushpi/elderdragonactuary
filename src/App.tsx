@@ -276,7 +276,18 @@ function App() {
                 />
               }
             />
-            <Route path="/prototypes/history" element={<PrototypesPage games={games} />} />
+            <Route
+              path="/prototypes/history"
+              element={
+                <PrototypesPage
+                  games={games}
+                  onEditGame={openEditGameFlow}
+                  onDeleteGame={(id) => {
+                    void deleteGame(id)
+                  }}
+                />
+              }
+            />
             {/* Map page removed */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

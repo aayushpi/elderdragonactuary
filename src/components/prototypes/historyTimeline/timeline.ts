@@ -11,6 +11,7 @@ export type MilestoneKind =
   | "streak"
   | "fast-win"
   | "wincon"
+  | "knockout"
 
 export interface Milestone {
   kind: MilestoneKind
@@ -98,6 +99,9 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       }
     } else {
       streak = 0
+      if (typeof me?.knockoutTurn === "number" && me.knockoutTurn <= 6) {
+        milestones.push({ kind: "knockout", label: `Knocked out turn ${me.knockoutTurn}`, detail: cmdr })
+      }
     }
 
     return { game, me, won, date: new Date(game.playedAt), careerIndex, winNumber, milestones }
@@ -159,6 +163,46 @@ export function groupByMonth(events: TimelineEvent[]): MonthChapter[] {
   }
 
   return chapters
+}
+
+// ── Pod grouping ─────────────────────────────────────────────────────────────
+
+export interface PodBlock {
+  key: string
+  label: string
+  events: TimelineEvent[]
+  games: number
+  wins: number
+  latest: number
+}
+
+function podKeyForGame(game: Game): string | null {
+  const names = game.players.map((p) => p.displayName?.trim()).filter(Boolean) as string[]
+  if (names.length !== game.players.length || names.length === 0) return null
+  return [...names].sort((a, b) => a.localeCompare(b)).join("|||")
+}
+
+/** Group events by the exact set of players at the table (a "pod"). Games where
+ *  not every seat is named are dropped, matching the existing History pods view. */
+export function groupIntoPods(events: TimelineEvent[]): PodBlock[] {
+  const map = new Map<string, PodBlock>()
+  for (const ev of events) {
+    const key = podKeyForGame(ev.game)
+    if (!key) continue
+    let block = map.get(key)
+    if (!block) {
+      const names = [...new Set(ev.game.players.map((p) => p.displayName!.trim()))].sort((a, b) =>
+        a.localeCompare(b)
+      )
+      block = { key, label: names.join(", "), events: [], games: 0, wins: 0, latest: 0 }
+      map.set(key, block)
+    }
+    block.events.push(ev)
+    block.games += 1
+    if (ev.won) block.wins += 1
+    block.latest = Math.max(block.latest, ev.date.getTime())
+  }
+  return Array.from(map.values()).sort((a, b) => b.latest - a.latest)
 }
 
 // ── Formatting helpers ───────────────────────────────────────────────────────

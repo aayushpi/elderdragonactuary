@@ -1,18 +1,26 @@
 import { Fragment, useMemo, useState } from "react"
-import { Pips, ResultBadge } from "@/components/modern/primitives"
+import { Pencil, Trash2 } from "lucide-react"
+import { ResultBadge } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
+import { CommanderAvatar } from "./CommanderAvatar"
 import { MilestoneEvent } from "./MilestoneBadge"
 import {
   buildTimeline,
-  colorsOf,
   dayLabel,
+  groupIntoPods,
   opponentsOf,
   shortCommander,
   type TimelineEvent,
 } from "./timeline"
 
 type ResultFilter = "All" | "Wins" | "Losses"
+type ViewMode = "date" | "pod"
+
+interface JourneyHandlers {
+  onEditGame?: (id: string) => void
+  onDeleteGame?: (id: string) => void
+}
 
 interface MonthBlock {
   key: string
@@ -71,6 +79,59 @@ function Chip({
   )
 }
 
+function Segmented({
+  value,
+  options,
+  onChange,
+}: {
+  value: string
+  options: { id: string; label: string }[]
+  onChange: (id: string) => void
+}) {
+  return (
+    <div className="inline-flex rounded-md border border-input p-0.5 gap-0.5">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={cn(
+            "h-9 px-4 rounded-[8px] text-sm font-medium transition-colors",
+            value === o.id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function IconButton({
+  label,
+  onClick,
+  danger,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  danger?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        danger ? "hover:text-destructive" : "hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 function YearDivider({ year }: { year: number }) {
   return (
     <li className="relative pl-12 pb-3 pt-1">
@@ -93,16 +154,8 @@ function MonthHeader({ label, count }: { label: string; count: number }) {
   )
 }
 
-/**
- * Variant A — "The Journey".
- * A vertical spine, newest at the top, sectioned by month with a year divider
- * at each year boundary. Every game is a node; milestone games bloom into a
- * highlighted card. Filter by result or hero — milestones keep their
- * career-wide numbering since the timeline is built before filtering.
- */
-function Node({ event }: { event: TimelineEvent }) {
-  const { game, me, won, date, careerIndex, milestones } = event
-  const colors = colorsOf(me)
+function Node({ event, handlers }: { event: TimelineEvent; handlers: JourneyHandlers }) {
+  const { game, me, won, date, milestones } = event
   const opponents = opponentsOf(game)
   const highlight = milestones.length > 0
 
@@ -114,29 +167,44 @@ function Node({ event }: { event: TimelineEvent }) {
           highlight ? "h-4 w-4 bg-amber-500" : won ? "h-3.5 w-3.5 bg-primary" : "h-3.5 w-3.5 bg-muted-foreground/40"
         )}
       />
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <ResultBadge won={won} />
-        <span className="text-lg font-semibold">{shortCommander(me?.commanderName)}</span>
-        {colors.length > 0 && (
-          <span className="inline-flex">
-            <Pips colors={colors} />
-          </span>
-        )}
-        <span className="ml-auto font-mono text-sm text-muted-foreground tabular">#{careerIndex}</span>
-      </div>
-
-      <div className="mt-1 text-base text-muted-foreground">
-        {opponents.length > 0 ? `vs ${opponents.join(" · ")}` : "Solo log"}
-      </div>
-
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm text-muted-foreground tabular">
-        <span>{dayLabel(date)}</span>
-        {game.winTurn ? <span>{game.winTurn} turns</span> : null}
-        {game.bracket ? <span>bracket {game.bracket}</span> : null}
+      <div className="flex items-start gap-3">
+        <CommanderAvatar name={me?.commanderName} imageUri={me?.commanderImageUri} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <ResultBadge won={won} />
+            <span className="text-lg font-semibold">{shortCommander(me?.commanderName)}</span>
+          </div>
+          <div className="mt-1 text-base text-muted-foreground">
+            {opponents.length > 0 ? `vs ${opponents.join(" · ")}` : "Solo log"}
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm text-muted-foreground tabular">
+            <span>{dayLabel(date)}</span>
+            {game.winTurn ? <span>{game.winTurn} turns</span> : null}
+            {game.bracket ? <span>bracket {game.bracket}</span> : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {handlers.onEditGame && (
+            <IconButton label="Edit game" onClick={() => handlers.onEditGame!(game.id)}>
+              <Pencil className="h-4 w-4" />
+            </IconButton>
+          )}
+          {handlers.onDeleteGame && (
+            <IconButton
+              label="Delete game"
+              danger
+              onClick={() => {
+                if (window.confirm("Delete this game?")) handlers.onDeleteGame!(game.id)
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </IconButton>
+          )}
+        </div>
       </div>
 
       {highlight && (
-        <div className="mt-3 space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-4">
+        <div className="ml-12 mt-3 space-y-3 rounded-lg border border-border bg-muted/40 p-4">
           {milestones.map((m, i) => (
             <MilestoneEvent key={i} milestone={m} />
           ))}
@@ -146,7 +214,18 @@ function Node({ event }: { event: TimelineEvent }) {
   )
 }
 
-export function VariantJourney({ games }: { games: Game[] }) {
+function Spine({ events, handlers }: { events: TimelineEvent[]; handlers: JourneyHandlers }) {
+  return (
+    <ol className="relative">
+      <span className="absolute left-4 top-2 bottom-2 w-px -translate-x-1/2 bg-border" />
+      {events.map((ev) => (
+        <Node key={ev.game.id} event={ev} handlers={handlers} />
+      ))}
+    </ol>
+  )
+}
+
+export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Game[] } & JourneyHandlers) {
   const allEvents = useMemo(() => buildTimeline(games), [games])
 
   const heroes = useMemo(() => {
@@ -157,6 +236,7 @@ export function VariantJourney({ games }: { games: Game[] }) {
     return [...names].sort((a, b) => a.localeCompare(b))
   }, [allEvents])
 
+  const [viewMode, setViewMode] = useState<ViewMode>("date")
   const [result, setResult] = useState<ResultFilter>("All")
   const [hero, setHero] = useState("all")
 
@@ -172,6 +252,8 @@ export function VariantJourney({ games }: { games: Game[] }) {
   )
 
   const months = useMemo(() => groupIntoMonths(shown), [shown])
+  const pods = useMemo(() => groupIntoPods(shown), [shown])
+  const handlers: JourneyHandlers = { onEditGame, onDeleteGame }
 
   if (allEvents.length === 0) {
     return <p className="text-base text-muted-foreground">No games yet.</p>
@@ -180,13 +262,14 @@ export function VariantJourney({ games }: { games: Game[] }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {(["All", "Wins", "Losses"] as ResultFilter[]).map((f) => (
-            <Chip key={f} active={result === f} onClick={() => setResult(f)}>
-              {f}
-            </Chip>
-          ))}
-        </div>
+        <Segmented
+          value={viewMode}
+          onChange={(v) => setViewMode(v as ViewMode)}
+          options={[
+            { id: "date", label: "By date" },
+            { id: "pod", label: "By pod" },
+          ]}
+        />
         <select
           value={hero}
           onChange={(e) => setHero(e.target.value)}
@@ -201,11 +284,42 @@ export function VariantJourney({ games }: { games: Game[] }) {
         </select>
       </div>
 
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        {(["All", "Wins", "Losses"] as ResultFilter[]).map((f) => (
+          <Chip key={f} active={result === f} onClick={() => setResult(f)}>
+            {f}
+          </Chip>
+        ))}
+      </div>
+
       {shown.length === 0 ? (
         <div className="rounded-lg border border-border bg-card py-12 text-center">
           <div className="text-base font-medium">No games match</div>
           <div className="mt-1 text-sm text-muted-foreground">Try a different filter.</div>
         </div>
+      ) : viewMode === "pod" ? (
+        pods.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card py-12 text-center">
+            <div className="text-base font-medium">No pods to show</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Pods form once every seat in a game is named.
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {pods.map((pod) => (
+              <section key={pod.key}>
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <h3 className="truncate text-lg font-semibold tracking-tight">{pod.label}</h3>
+                  <span className="shrink-0 font-mono text-sm text-muted-foreground tabular">
+                    {pod.wins}–{pod.games - pod.wins}
+                  </span>
+                </div>
+                <Spine events={pod.events} handlers={handlers} />
+              </section>
+            ))}
+          </div>
+        )
       ) : (
         <>
           <ol className="relative">
@@ -215,7 +329,7 @@ export function VariantJourney({ games }: { games: Game[] }) {
                 {block.showYear && <YearDivider year={block.year} />}
                 <MonthHeader label={block.month} count={block.events.length} />
                 {block.events.map((ev) => (
-                  <Node key={ev.game.id} event={ev} />
+                  <Node key={ev.game.id} event={ev} handlers={handlers} />
                 ))}
               </Fragment>
             ))}

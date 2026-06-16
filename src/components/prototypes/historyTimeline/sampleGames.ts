@@ -87,6 +87,7 @@ export function buildSampleGames(): Game[] {
       commanderColorIdentity: deck.colors,
       seatPosition: ((i % playerCount) + 1) as Player["seatPosition"],
       displayName: "You",
+      knockoutTurn: won ? undefined : Math.max(3, winTurn - 3 - (i % 3)),
       fastMana: { hasFastMana: usedFastMana, cards: usedFastMana ? [FAST_MANA[i % FAST_MANA.length]] : [] },
     }
 

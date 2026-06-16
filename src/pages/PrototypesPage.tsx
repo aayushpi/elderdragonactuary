@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
 import { VariantJourney } from "@/components/prototypes/historyTimeline/VariantJourney"
@@ -6,11 +6,17 @@ import { VariantChapters } from "@/components/prototypes/historyTimeline/Variant
 import { VariantFeed } from "@/components/prototypes/historyTimeline/VariantFeed"
 import { buildSampleGames } from "@/components/prototypes/historyTimeline/sampleGames"
 
+interface VariantContext {
+  games: Game[]
+  onEditGame?: (id: string) => void
+  onDeleteGame?: (id: string) => void
+}
+
 interface Variant {
   id: string
   name: string
   tagline: string
-  render: (games: Game[]) => React.ReactNode
+  render: (ctx: VariantContext) => React.ReactNode
 }
 
 const VARIANTS: Variant[] = [
@@ -18,34 +24,47 @@ const VARIANTS: Variant[] = [
     id: "journey",
     name: "Journey",
     tagline: "A vertical spine of your whole career — every game a node, wins lit up.",
-    render: (games) => <VariantJourney games={games} />,
+    render: ({ games, onEditGame, onDeleteGame }) => (
+      <VariantJourney games={games} onEditGame={onEditGame} onDeleteGame={onDeleteGame} />
+    ),
   },
   {
     id: "chapters",
     name: "Chapters",
     tagline: "Your history told month by month, each with its own record and signature deck.",
-    render: (games) => <VariantChapters games={games} />,
+    render: ({ games }) => <VariantChapters games={games} />,
   },
   {
     id: "activity",
     name: "Activity",
     tagline: "A play heatmap and a social-style feed of wins, losses and milestones.",
-    render: (games) => <VariantFeed games={games} />,
+    render: ({ games }) => <VariantFeed games={games} />,
   },
 ]
 
 interface PrototypesPageProps {
   games: Game[]
+  onEditGame?: (id: string) => void
+  onDeleteGame?: (id: string) => void
 }
 
-export function PrototypesPage({ games }: PrototypesPageProps) {
+export function PrototypesPage({ games, onEditGame, onDeleteGame }: PrototypesPageProps) {
   const [active, setActive] = useState(VARIANTS[0].id)
   const hasRealGames = games.length > 0
   const [useSample, setUseSample] = useState(!hasRealGames)
 
-  const sample = useMemo(() => buildSampleGames(), [])
+  // Local copy so delete works as a live demo against sample data.
+  const [sample, setSample] = useState<Game[]>(() => buildSampleGames())
   const data = useSample ? sample : games
   const variant = VARIANTS.find((v) => v.id === active) ?? VARIANTS[0]
+
+  const ctx: VariantContext = useSample
+    ? {
+        games: sample,
+        onEditGame: () => {},
+        onDeleteGame: (id) => setSample((s) => s.filter((g) => g.id !== id)),
+      }
+    : { games: data, onEditGame, onDeleteGame }
 
   return (
     <div className="space-y-6">
@@ -93,7 +112,7 @@ export function PrototypesPage({ games }: PrototypesPageProps) {
         </label>
       </div>
 
-      <div>{variant.render(data)}</div>
+      <div>{variant.render(ctx)}</div>
     </div>
   )
 }

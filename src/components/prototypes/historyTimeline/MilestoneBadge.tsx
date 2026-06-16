@@ -1,4 +1,4 @@
-import { Award, Crown, Flag, Flame, Sparkles, Swords, Trophy, Zap } from "lucide-react"
+import { Award, Crown, Flag, Flame, Skull, Sparkles, Swords, Trophy, Zap } from "lucide-react"
 import type { Milestone, MilestoneKind } from "./timeline"
 
 const STYLES: Record<MilestoneKind, { icon: typeof Trophy; className: string }> = {
@@ -10,6 +10,7 @@ const STYLES: Record<MilestoneKind, { icon: typeof Trophy; className: string }> 
   streak: { icon: Flame, className: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
   "fast-win": { icon: Zap, className: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
   wincon: { icon: Swords, className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+  knockout: { icon: Skull, className: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
 }
 
 /** Compact pill — used where several milestones sit inline. */
