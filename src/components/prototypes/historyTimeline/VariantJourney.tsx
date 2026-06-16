@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { Fragment, useMemo, useState } from "react"
 import { Pips, ResultBadge } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
@@ -13,6 +13,39 @@ import {
 } from "./timeline"
 
 type ResultFilter = "All" | "Wins" | "Losses"
+
+interface MonthBlock {
+  key: string
+  month: string
+  year: number
+  showYear: boolean
+  events: TimelineEvent[]
+}
+
+function groupIntoMonths(events: TimelineEvent[]): MonthBlock[] {
+  const blocks: MonthBlock[] = []
+  for (const ev of events) {
+    const key = `${ev.date.getFullYear()}-${ev.date.getMonth()}`
+    let block = blocks[blocks.length - 1]
+    if (!block || block.key !== key) {
+      block = {
+        key,
+        month: ev.date.toLocaleDateString(undefined, { month: "long" }),
+        year: ev.date.getFullYear(),
+        showYear: false,
+        events: [],
+      }
+      blocks.push(block)
+    }
+    block.events.push(ev)
+  }
+  let prevYear: number | null = null
+  for (const block of blocks) {
+    block.showYear = block.year !== prevYear
+    prevYear = block.year
+  }
+  return blocks
+}
 
 function Chip({
   active,
@@ -38,12 +71,34 @@ function Chip({
   )
 }
 
+function YearDivider({ year }: { year: number }) {
+  return (
+    <li className="relative pl-12 pb-3 pt-1">
+      <span className="absolute left-4 top-2.5 z-10 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-foreground ring-4 ring-background" />
+      <div className="font-mono text-base font-semibold uppercase tracking-[0.2em]">{year}</div>
+    </li>
+  )
+}
+
+function MonthHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <li className="sticky top-0 z-20 -mx-1 bg-background/90 px-1 py-2 backdrop-blur">
+      <div className="flex items-baseline justify-between pl-12">
+        <span className="text-lg font-semibold tracking-tight">{label}</span>
+        <span className="font-mono text-sm text-muted-foreground tabular">
+          {count} {count === 1 ? "game" : "games"}
+        </span>
+      </div>
+    </li>
+  )
+}
+
 /**
  * Variant A — "The Journey".
- * A vertical spine, newest at the top. Every game is a node; games that hit a
- * milestone bloom into a highlighted card listing each discrete highlight.
- * Filter by result or hero — milestones keep their career-wide numbering since
- * they're computed over the full timeline before filtering.
+ * A vertical spine, newest at the top, sectioned by month with a year divider
+ * at each year boundary. Every game is a node; milestone games bloom into a
+ * highlighted card. Filter by result or hero — milestones keep their
+ * career-wide numbering since the timeline is built before filtering.
  */
 function Node({ event }: { event: TimelineEvent }) {
   const { game, me, won, date, careerIndex, milestones } = event
@@ -116,6 +171,8 @@ export function VariantJourney({ games }: { games: Game[] }) {
     [allEvents, result, hero]
   )
 
+  const months = useMemo(() => groupIntoMonths(shown), [shown])
+
   if (allEvents.length === 0) {
     return <p className="text-base text-muted-foreground">No games yet.</p>
   }
@@ -153,8 +210,14 @@ export function VariantJourney({ games }: { games: Game[] }) {
         <>
           <ol className="relative">
             <span className="absolute left-4 top-2 bottom-2 w-px -translate-x-1/2 bg-border" />
-            {shown.map((ev) => (
-              <Node key={ev.game.id} event={ev} />
+            {months.map((block) => (
+              <Fragment key={block.key}>
+                {block.showYear && <YearDivider year={block.year} />}
+                <MonthHeader label={block.month} count={block.events.length} />
+                {block.events.map((ev) => (
+                  <Node key={ev.game.id} event={ev} />
+                ))}
+              </Fragment>
             ))}
           </ol>
           <div className="text-center font-mono text-sm text-muted-foreground tabular">
