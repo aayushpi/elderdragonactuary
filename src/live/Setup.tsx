@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { ArrowRight, Users, Clock, Pencil, ChevronLeft, X, Plus, UserPlus, Play } from "lucide-react"
+import { ArrowRight, Users, Clock, Pencil, ChevronLeft, ChevronUp, ChevronDown, X, Plus, UserPlus, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SECTION_LABEL } from "@/components/modern/primitives"
@@ -92,6 +92,17 @@ export function Setup({
   }
   function rename(id: string, displayName: string) {
     setSeats((prev) => prev && prev.map((s) => (s.id === id ? { ...s, displayName } : s)))
+  }
+  function movePlayer(id: string, dir: -1 | 1) {
+    setSeats((prev) => {
+      if (!prev) return prev
+      const idx = prev.findIndex((s) => s.id === id)
+      const newIdx = idx + dir
+      if (newIdx < 0 || newIdx >= prev.length) return prev
+      const next = [...prev]
+      ;[next[idx], next[newIdx]] = [next[newIdx], next[idx]]
+      return reindex(next)
+    })
   }
   function commitNew() {
     const n = newName.trim()
@@ -198,6 +209,24 @@ export function Setup({
                   <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
                 </button>
               )}
+              <div className="flex shrink-0 flex-col">
+                <button
+                  onClick={() => movePlayer(s.id, -1)}
+                  disabled={i === 0}
+                  aria-label="Move up"
+                  className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => movePlayer(s.id, 1)}
+                  disabled={i === seats.length - 1}
+                  aria-label="Move down"
+                  className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
               <button
                 onClick={() => removePlayer(s.id)}
                 disabled={seats.length <= 2}
@@ -286,6 +315,68 @@ export function Setup({
     </Shell>
   )
 }
+
+/* ---- Table layout SVG diagrams, matching ringGrid exactly ---- */
+
+type SeatRect = { x: number; y: number; w: number; h: number; me?: boolean }
+
+const W = 120
+const H = 160
+
+const LAYOUTS: Record<number, SeatRect[]> = {
+  2: [
+    { x: 20, y: 88, w: 80, h: 52, me: true },   // bot (seat 1, you)
+    { x: 20, y: 20, w: 80, h: 52 },              // top (seat 2)
+  ],
+  3: [
+    { x: 20, y: 90, w: 80, h: 52, me: true },    // bot (seat 1)
+    { x: 8,  y: 20, w: 48, h: 60 },              // tl (seat 2)
+    { x: 64, y: 20, w: 48, h: 60 },              // tr (seat 3)
+  ],
+  4: [
+    { x: 20, y: 112, w: 80, h: 40, me: true },   // bot
+    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
+    { x: 20, y: 10,  w: 80, h: 40 },             // top
+    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+  ],
+  5: [
+    { x: 8,  y: 105, w: 50, h: 42, me: true },   // bl (seat 1)
+    { x: 8,  y: 55,  w: 32, h: 45 },             // lft (seat 2)
+    { x: 8,  y: 10,  w: 104, h: 40 },            // top (seat 3, full width)
+    { x: 80, y: 55,  w: 32, h: 45 },             // rgt (seat 4)
+    { x: 62, y: 105, w: 50, h: 42 },             // br (seat 5)
+  ],
+  6: [
+    { x: 8,  y: 105, w: 50, h: 42, me: true },   // bl (seat 1)
+    { x: 8,  y: 55,  w: 32, h: 45 },             // lft (seat 2)
+    { x: 8,  y: 10,  w: 50, h: 40 },             // tl (seat 3)
+    { x: 62, y: 10,  w: 50, h: 40 },             // tr (seat 4)
+    { x: 80, y: 55,  w: 32, h: 45 },             // rgt (seat 5)
+    { x: 62, y: 105, w: 50, h: 42 },             // br (seat 6)
+  ],
+}
+
+function TableLayoutIcon({ count }: { count: number }) {
+  const seats = LAYOUTS[count] ?? LAYOUTS[4]
+  return (
+    <div className="flex justify-center py-1">
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+        {seats.map((s, i) => (
+          <rect
+            key={i}
+            x={s.x} y={s.y} width={s.w} height={s.h}
+            rx={8}
+            fill={s.me ? "hsl(var(--primary))" : "hsl(var(--muted))"}
+            stroke={s.me ? "hsl(var(--primary))" : "hsl(var(--border))"}
+            strokeWidth={1.5}
+            opacity={s.me ? 1 : 0.7}
+          />
+        ))}
+      </svg>
+    </div>
+  )
+}
+
 
 export function Shell({
   title,

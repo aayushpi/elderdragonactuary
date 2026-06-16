@@ -222,8 +222,8 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         const cmdr = { ...prev.cmdr, [targetId]: { ...prev.cmdr[targetId] } }
         const poison = { ...prev.poison }
         if (isPoison) {
-          // poison adds counters, life is untouched
           poison[targetId] = Math.max(0, (poison[targetId] ?? 0) + amount)
+          life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
         } else {
           life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
           if (isCommander && sourceId) {
@@ -252,6 +252,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const poison = { ...c.poison }
       if (last.isPoison) {
         poison[last.targetId] = Math.max(0, (poison[last.targetId] ?? 0) - last.amount)
+        life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
       } else {
         life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
         if (last.isCommander && last.sourceId) {
@@ -275,6 +276,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const poison = { ...c.poison }
       if (ev.isPoison) {
         poison[ev.targetId] = Math.max(0, (poison[ev.targetId] ?? 0) + ev.amount)
+        life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
       } else {
         life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
         if (ev.isCommander && ev.sourceId) {
@@ -522,13 +524,13 @@ const RING_GRIDS: Record<number, RingGrid> = {
   5: {
     columns: "1fr 1fr",
     rows: "1fr 1.25fr 1fr",
-    areas: ['"tl tr"', '"lft rgt"', '"bot bot"'],
+    areas: ['"top top"', '"lft rgt"', '"bl br"'],
     cells: [
-      { area: "bot", rotate: 0 },
+      { area: "bl", rotate: 0 },
       { area: "lft", rotate: 90 },
-      { area: "tl", rotate: 180 },
-      { area: "tr", rotate: 180 },
+      { area: "top", rotate: 180 },
       { area: "rgt", rotate: 270 },
+      { area: "br", rotate: 0 },
     ],
   },
   6: {
