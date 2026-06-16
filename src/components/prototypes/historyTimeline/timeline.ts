@@ -6,12 +6,16 @@ export type MilestoneKind =
   | "first-game"
   | "milestone-game"
   | "debut"
+  | "veteran"
   | "first-win"
   | "win"
   | "streak"
   | "fast-win"
   | "wincon"
+  | "tough-seat"
+  | "underdog"
   | "knockout"
+  | "loss-streak"
 
 export interface Milestone {
   kind: MilestoneKind
@@ -19,7 +23,17 @@ export interface Milestone {
   label: string
   /** Supporting context, e.g. "Krenko, Mob Boss". */
   detail?: string
+  /** Optional emoji shown instead of the kind's lucide icon. */
+  emoji?: string
 }
+
+/** Per-commander play-count tiers — "veteran status" for a deck you keep bringing. */
+const VETERAN_TIERS: { n: number; emoji: string; detail: string }[] = [
+  { n: 10, emoji: "🧒", detail: "Getting comfortable" },
+  { n: 20, emoji: "🧑", detail: "Seasoned pilot" },
+  { n: 50, emoji: "🧓", detail: "Grizzled veteran" },
+  { n: 100, emoji: "🧙", detail: "True master" },
+]
 
 export interface TimelineEvent {
   game: Game
@@ -52,9 +66,10 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
     (a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime()
   )
 
-  const seenCommanders = new Set<string>()
+  const commanderPlays = new Map<string, number>()
   let winCount = 0
   let streak = 0
+  let lossStreak = 0
 
   const events: TimelineEvent[] = chrono.map((game, i) => {
     const me = game.players.find((p) => p.isMe)
@@ -63,17 +78,21 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
     const cmdr = shortCommander(me?.commanderName)
     const milestones: Milestone[] = []
 
+    const playCount = (commanderPlays.get(me?.commanderName ?? "") ?? 0) + 1
+    if (me?.commanderName) commanderPlays.set(me.commanderName, playCount)
+
     if (careerIndex === 1) {
       milestones.push({ kind: "first-game", label: "First game logged", detail: cmdr })
     } else if (GAME_LANDMARKS.has(careerIndex)) {
       milestones.push({ kind: "milestone-game", label: `${ordinal(careerIndex)} game played`, detail: cmdr })
     }
 
-    if (me?.commanderName && !seenCommanders.has(me.commanderName)) {
-      if (seenCommanders.size > 0) {
-        milestones.push({ kind: "debut", label: `${cmdr} debut`, detail: "First time piloting this deck" })
-      }
-      seenCommanders.add(me.commanderName)
+    if (me?.commanderName && playCount === 1 && careerIndex > 1) {
+      milestones.push({ kind: "debut", emoji: "👶", label: `${cmdr} debut`, detail: "First time piloting this deck" })
+    }
+    const tier = VETERAN_TIERS.find((t) => t.n === playCount)
+    if (tier && me?.commanderName) {
+      milestones.push({ kind: "veteran", emoji: tier.emoji, label: `${ordinal(playCount)} game with ${cmdr}`, detail: tier.detail })
     }
 
     let winNumber: number | null = null
@@ -81,6 +100,7 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       winCount += 1
       winNumber = winCount
       streak += 1
+      lossStreak = 0
 
       if (winCount === 1) {
         milestones.push({ kind: "first-win", label: "First win", detail: cmdr })
@@ -91,6 +111,15 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       if (streak >= 2) {
         milestones.push({ kind: "streak", label: `${streak}-win streak` })
       }
+      if (me && me.seatPosition >= 3) {
+        milestones.push({ kind: "tough-seat", emoji: "🎯", label: `Won from seat ${me.seatPosition}`, detail: "Back-of-the-table win" })
+      }
+      const beatFastMana =
+        !me?.fastMana?.hasFastMana &&
+        game.players.some((p) => !p.isMe && p.fastMana?.hasFastMana)
+      if (beatFastMana) {
+        milestones.push({ kind: "underdog", emoji: "🐢", label: "Beat a fast-mana start", detail: "No fast mana of your own" })
+      }
       if (game.winTurn && game.winTurn <= 5) {
         milestones.push({ kind: "fast-win", label: `Turn-${game.winTurn} kill`, detail: cmdr })
       }
@@ -99,6 +128,10 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       }
     } else {
       streak = 0
+      lossStreak += 1
+      if (lossStreak >= 2) {
+        milestones.push({ kind: "loss-streak", emoji: "📉", label: `${lossStreak}-loss streak` })
+      }
       if (typeof me?.knockoutTurn === "number" && me.knockoutTurn <= 6) {
         milestones.push({ kind: "knockout", label: `Knocked out turn ${me.knockoutTurn}`, detail: cmdr })
       }
