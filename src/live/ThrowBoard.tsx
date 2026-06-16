@@ -1,5 +1,5 @@
-import { type ReactNode, useState } from "react"
-import { GripHorizontal, Minus, Plus } from "lucide-react"
+import { type ReactNode, useRef, useState } from "react"
+import { GripHorizontal, GripVertical, Minus, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CommanderPicker } from "@/components/CommanderPicker"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
@@ -52,6 +52,44 @@ export function ThrowBoard({
   })
   useDragLock(!!drag)
 
+  const swappingRef = useRef<string | null>(null)
+  const swapTargetRef = useRef<string | null>(null)
+  const [swapping, setSwapping] = useState<string | null>(null)
+  const [swapTarget, setSwapTarget] = useState<string | null>(null)
+
+  function startSwap(id: string, e: React.PointerEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    swappingRef.current = id
+    swapTargetRef.current = null
+    setSwapping(id)
+    setSwapTarget(null)
+    const move = (ev: PointerEvent) => {
+      const el = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest("[data-seat-cell]")
+      const overId = (el as HTMLElement | null)?.getAttribute("data-seat-cell") ?? null
+      const next = overId !== swappingRef.current ? overId : null
+      if (next !== swapTargetRef.current) {
+        swapTargetRef.current = next
+        setSwapTarget(next)
+      }
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      const srcId = swappingRef.current
+      const tgtId = swapTargetRef.current
+      swappingRef.current = null
+      swapTargetRef.current = null
+      setSwapping(null)
+      setSwapTarget(null)
+      if (srcId && tgtId) game.swapSeats(srcId, tgtId)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
+  }
+
   function apply(amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) {
     if (!pending) return
     try { navigator.vibrate?.(opts.isPoison ? 60 : 40) } catch { /* unsupported */ }
@@ -68,20 +106,39 @@ export function ThrowBoard({
         amount: amt,
       }))
     return (
-      <SeatFrame
-        player={p}
-        rt={rt}
-        isActive={p.seatPosition === game.activeSeat}
-        side={opts.side}
-        dragTarget={drag?.targetId === p.id}
-        preview={drag?.targetId === p.id ? "⚔" : null}
-        commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
-        onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
-        onRevive={() => game.revive(p.id)}
-        onKnockout={() => game.toggleKnockout(p.id)}
-        onSetCommander={() => setCmdrSeat(p)}
-        attackSlot={<AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />}
-      />
+      <div className="relative h-full w-full">
+        <SeatFrame
+          player={p}
+          rt={rt}
+          isActive={p.seatPosition === game.activeSeat}
+          side={opts.side}
+          dragTarget={drag?.targetId === p.id}
+          preview={drag?.targetId === p.id ? "⚔" : null}
+          commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
+          onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
+          onRevive={() => game.revive(p.id)}
+          onKnockout={() => game.toggleKnockout(p.id)}
+          onSetCommander={() => setCmdrSeat(p)}
+          attackSlot={<AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />}
+        />
+        {!game.started && (
+          <button
+            onPointerDown={(e) => startSwap(p.id, e)}
+            aria-label="Drag to swap seat"
+            className={cn(
+              "absolute bottom-2 left-1/2 z-30 -translate-x-1/2 touch-none flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors",
+              swapTarget === p.id
+                ? "bg-primary text-primary-foreground"
+                : swapping === p.id
+                  ? "bg-white/20 text-white/60"
+                  : "bg-black/40 text-white/70"
+            )}
+          >
+            <GripVertical className="h-3 w-3" />
+            Swap
+          </button>
+        )}
+      </div>
     )
   }
 
