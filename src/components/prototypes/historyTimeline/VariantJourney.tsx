@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react"
 import { Pips, ResultBadge } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
@@ -11,11 +12,38 @@ import {
   type TimelineEvent,
 } from "./timeline"
 
+type ResultFilter = "All" | "Wins" | "Losses"
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "h-9 px-4 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-colors",
+        active
+          ? "bg-foreground text-background"
+          : "border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 /**
  * Variant A — "The Journey".
  * A vertical spine, newest at the top. Every game is a node; games that hit a
- * milestone bloom into a highlighted card listing each discrete highlight
- * (5th win · Krenko, Closed with Craterhoof Behemoth, …).
+ * milestone bloom into a highlighted card listing each discrete highlight.
+ * Filter by result or hero — milestones keep their career-wide numbering since
+ * they're computed over the full timeline before filtering.
  */
 function Node({ event }: { event: TimelineEvent }) {
   const { game, me, won, date, careerIndex, milestones } = event
@@ -64,18 +92,76 @@ function Node({ event }: { event: TimelineEvent }) {
 }
 
 export function VariantJourney({ games }: { games: Game[] }) {
-  const events = buildTimeline(games)
+  const allEvents = useMemo(() => buildTimeline(games), [games])
 
-  if (events.length === 0) {
+  const heroes = useMemo(() => {
+    const names = new Set<string>()
+    for (const ev of allEvents) {
+      if (ev.me?.commanderName) names.add(ev.me.commanderName)
+    }
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [allEvents])
+
+  const [result, setResult] = useState<ResultFilter>("All")
+  const [hero, setHero] = useState("all")
+
+  const shown = useMemo(
+    () =>
+      allEvents.filter((ev) => {
+        if (result === "Wins" && !ev.won) return false
+        if (result === "Losses" && ev.won) return false
+        if (hero !== "all" && ev.me?.commanderName !== hero) return false
+        return true
+      }),
+    [allEvents, result, hero]
+  )
+
+  if (allEvents.length === 0) {
     return <p className="text-base text-muted-foreground">No games yet.</p>
   }
 
   return (
-    <ol className="relative">
-      <span className="absolute left-4 top-2 bottom-2 w-px -translate-x-1/2 bg-border" />
-      {events.map((ev) => (
-        <Node key={ev.game.id} event={ev} />
-      ))}
-    </ol>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {(["All", "Wins", "Losses"] as ResultFilter[]).map((f) => (
+            <Chip key={f} active={result === f} onClick={() => setResult(f)}>
+              {f}
+            </Chip>
+          ))}
+        </div>
+        <select
+          value={hero}
+          onChange={(e) => setHero(e.target.value)}
+          className="h-10 rounded-md border border-input bg-card px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value="all">All heroes</option>
+          {heroes.map((name) => (
+            <option key={name} value={name}>
+              {shortCommander(name)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="rounded-lg border border-border bg-card py-12 text-center">
+          <div className="text-base font-medium">No games match</div>
+          <div className="mt-1 text-sm text-muted-foreground">Try a different filter.</div>
+        </div>
+      ) : (
+        <>
+          <ol className="relative">
+            <span className="absolute left-4 top-2 bottom-2 w-px -translate-x-1/2 bg-border" />
+            {shown.map((ev) => (
+              <Node key={ev.game.id} event={ev} />
+            ))}
+          </ol>
+          <div className="text-center font-mono text-sm text-muted-foreground tabular">
+            showing {shown.length} of {allEvents.length} games
+          </div>
+        </>
+      )}
+    </div>
   )
 }
