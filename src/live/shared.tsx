@@ -110,8 +110,7 @@ export function SeatFrame({
       return () => window.clearTimeout(t)
     }
   }, [rt.life])
-  // Upgrade stored art_crop URLs (204px) to large (672×936) for sharp display
-  const art = player.commanderImageUri?.replace("/art_crop/", "/large/")
+  const art = player.commanderImageUri
   const hasCommander = !!player.commanderName?.trim()
   return (
     <div
