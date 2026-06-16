@@ -1,16 +1,18 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, Lock, Unlock, X } from "lucide-react"
+import { Play, Timer, ChevronRight, Flag, Undo2, Dices, Crown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ringGrid, useTurnClock, type DamageEvent, type LiveGameApi, type LivePlayer } from "./engine"
+import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
+import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
 
 interface BoardChromeProps {
   game: LiveGameApi
-  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean; locked: boolean }) => ReactNode
+  renderSeat: (player: LivePlayer, opts: { rotated: boolean; side: boolean }) => ReactNode
   centerExtra?: ReactNode
   onSave: () => void
   onRematch: () => void
+  onDiscard?: () => void
   saving?: boolean
 }
 
@@ -41,14 +43,14 @@ function RingCell({ id, rotate, area, children }: { id: string; rotate: number; 
   )
 }
 
-export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: BoardChromeProps) {
+export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, saving }: BoardChromeProps) {
   const seats = [...game.players].sort((a, b) => a.seatPosition - b.seatPosition)
   const grid = ringGrid(seats.length)
   const rotById: Record<string, number> = {}
   seats.forEach((p, i) => (rotById[p.id] = grid.cells[i].rotate))
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
-  const [locked, setLocked] = useState(false)
+  const counterRotate = useOrientationLock()
   // who-goes-first happens on the board, before the clock starts
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
@@ -56,7 +58,8 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
   }, [game.started])
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-0 z-50 overflow-hidden" style={counterRotationStyle(counterRotate)}>
+    <div className="h-full w-full overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div
         className="grid h-full w-full gap-px"
         style={{
@@ -69,7 +72,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
           const cell = grid.cells[i]
           return (
             <RingCell key={p.id} id={p.id} area={cell.area} rotate={cell.rotate}>
-              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270, locked })}
+              {renderSeat(p, { rotated: cell.rotate === 180, side: cell.rotate === 90 || cell.rotate === 270 })}
             </RingCell>
           )
         })}
@@ -78,7 +81,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
       {game.phase === "ended" ? (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="pointer-events-auto w-[min(80vw,20rem)]">
-            <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} saving={saving} />
+            <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} onDiscard={onDiscard} saving={saving} />
           </div>
         </div>
       ) : !game.started && !starterPicked ? (
@@ -93,12 +96,18 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, saving }: Boa
         <TurnControl
           game={game}
           rotate={rotById[game.activePlayer.id] ?? 0}
-          locked={locked}
-          onToggleLock={() => setLocked((l) => !l)}
         />
       )}
     </div>
+    </div>
   )
+}
+
+function counterRotationStyle(r: CounterRotation): React.CSSProperties {
+  if (r === 0) return {}
+  if (r === 90)  return { width: "100vh", height: "100vw", transform: "rotate(90deg) translateY(-100%)",  transformOrigin: "top left" }
+  if (r === -90) return { width: "100vh", height: "100vw", transform: "rotate(-90deg) translateX(-100%)", transformOrigin: "top left" }
+  return { transform: "rotate(180deg)", transformOrigin: "center" }
 }
 
 /* Centre overlay: high-roll a D20 or tap a player to decide who starts. The
@@ -156,13 +165,9 @@ function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat:
 function TurnControl({
   game,
   rotate,
-  locked,
-  onToggleLock,
 }: {
   game: LiveGameApi
   rotate: number
-  locked: boolean
-  onToggleLock: () => void
 }) {
   const clock = useTurnClock(game.turnStartedAt, game.started)
   const activeId = game.activePlayer.id
@@ -250,16 +255,6 @@ function TurnControl({
               <Flag className="h-4 w-4" />
             </button>
           )}
-          <button
-            onClick={onToggleLock}
-            aria-label={locked ? "unlock board" : "lock board"}
-            className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full transition-colors active:scale-95",
-              locked ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          </button>
         </div>
       </div>
 
@@ -296,7 +291,7 @@ function UndoLog({
   onUndoLast,
   onClose,
 }: {
-  events: DamageEvent[]
+  events: GameEvent[]
   players: LivePlayer[]
   onUndoTo: (index: number) => void
   onUndoLast: () => void
@@ -304,7 +299,8 @@ function UndoLog({
 }) {
   const nameById = Object.fromEntries(players.map((p) => [p.id, p.displayName]))
 
-  function label(ev: DamageEvent): string {
+  function label(ev: GameEvent): string {
+    if (ev.kind === "turn") return `— End of turn ${ev.turn} —`
     const target = nameById[ev.targetId] ?? "?"
     if (ev.sourceId) {
       const src = nameById[ev.sourceId] ?? "?"
@@ -312,6 +308,10 @@ function UndoLog({
       return `${src} → ${target}: ${ev.amount > 0 ? "+" : ""}${ev.amount}${type}`
     }
     return `${target}: ${ev.amount > 0 ? "-" : "+"}${Math.abs(ev.amount)} life`
+  }
+
+  function turnOf(ev: GameEvent): number {
+    return ev.kind === "turn" ? ev.turn : ev.turn
   }
 
   const recent = [...events].reverse()
@@ -339,14 +339,18 @@ function UndoLog({
           ) : (
             recent.map((ev, ri) => {
               const originalIndex = events.length - 1 - ri
+              const isTurnMarker = ev.kind === "turn"
               return (
                 <button
                   key={ev.id}
                   onClick={() => onUndoTo(originalIndex)}
-                  className="w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center justify-between gap-2"
+                  className={cn(
+                    "w-full px-4 py-2.5 text-left text-sm hover:bg-muted flex items-center justify-between gap-2",
+                    isTurnMarker && "bg-muted/40 text-muted-foreground"
+                  )}
                 >
-                  <span className="font-mono text-xs text-muted-foreground shrink-0">T{ev.turn}</span>
-                  <span className="flex-1 truncate">{label(ev)}</span>
+                  <span className="font-mono text-xs text-muted-foreground shrink-0">T{turnOf(ev)}</span>
+                  <span className={cn("flex-1 truncate", isTurnMarker && "italic text-xs")}>{label(ev)}</span>
                   <span className="text-xs text-muted-foreground shrink-0">undo to here</span>
                 </button>
               )

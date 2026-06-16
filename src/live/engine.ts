@@ -38,6 +38,7 @@ export interface LivePlayer {
  *  is damage; negative is a life adjustment. `lifelink` grants the source that
  *  much life. */
 export interface DamageEvent {
+  kind: "damage"
   id: string
   turn: number
   sourceId: string | null
@@ -48,6 +49,19 @@ export interface DamageEvent {
   isPoison: boolean
   ts: number
 }
+
+/** Recorded when a turn ends so undo can restore turn number + active seat. */
+export interface TurnEvent {
+  kind: "turn"
+  id: string
+  /** turn number that just ended */
+  turn: number
+  fromSeat: SeatPosition
+  toSeat: SeatPosition
+  ts: number
+}
+
+export type GameEvent = DamageEvent | TurnEvent
 
 export interface LiveConfig {
   players: LivePlayer[]
@@ -83,7 +97,7 @@ export interface LiveGameApi {
   config: LiveConfig
   players: LivePlayer[]
   runtime: Record<string, PlayerRuntime>
-  events: DamageEvent[]
+  events: GameEvent[]
   phase: Phase
   turn: number
   activeSeat: SeatPosition
@@ -192,7 +206,7 @@ function syncKoTurns(core: Core, players: LivePlayer[], turn: number): Record<st
 export function useLiveGame(initial: LiveConfig): LiveGameApi {
   const [config, setConfig] = useState<LiveConfig>(initial)
   const [core, setCore] = useState<Core>(() => freshCore(initial.players))
-  const [events, setEvents] = useState<DamageEvent[]>([])
+  const [events, setEvents] = useState<GameEvent[]>([])
   const [phase, setPhase] = useState<Phase>("playing")
   const [turn, setTurn] = useState(1)
   const [activeSeat, setActiveSeat] = useState<SeatPosition>(initial.startingSeat)
@@ -215,7 +229,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const isPoison = opts?.isPoison ?? false
       setEvents((prev) => [
         ...prev,
-        { id: genId(), turn, sourceId, targetId, amount, isCommander, isLifelink, isPoison, ts: Date.now() },
+        { kind: "damage", id: genId(), turn, sourceId, targetId, amount, isCommander, isLifelink, isPoison, ts: Date.now() },
       ])
       setCore((prev) => {
         const life = { ...prev.life }
@@ -243,9 +257,14 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
   const undoLast = useCallback(() => {
     const last = events[events.length - 1]
     if (!last) return
-    // two separate, pure state updates — never nest setCore inside setEvents,
-    // or StrictMode's double-invoke reverses the event twice.
     setEvents((prev) => prev.slice(0, -1))
+    if (last.kind === "turn") {
+      // reverse the turn transition
+      setTurn(last.turn)
+      setActiveSeat(last.fromSeat)
+      setTurnStartedAt(Date.now())
+      return
+    }
     setCore((c) => {
       const life = { ...c.life }
       const cmdr = { ...c.cmdr, [last.targetId]: { ...c.cmdr[last.targetId] } }
@@ -270,7 +289,14 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
   const undoToIndex = useCallback((index: number) => {
     const kept = events.slice(0, index)
     let c = freshCore(players)
+    let replayedTurn = 1
+    let replayedSeat: SeatPosition = config.startingSeat
     for (const ev of kept) {
+      if (ev.kind === "turn") {
+        replayedTurn = ev.turn + 1
+        replayedSeat = ev.toSeat
+        continue
+      }
       const life = { ...c.life }
       const cmdr = { ...c.cmdr, [ev.targetId]: { ...c.cmdr[ev.targetId] } }
       const poison = { ...c.poison }
@@ -289,8 +315,11 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       c = { ...c, life, cmdr, poison }
     }
     setEvents(kept)
-    setCore({ ...c, koTurn: syncKoTurns(c, players, turn) })
-  }, [events, players, turn])
+    setCore({ ...c, koTurn: syncKoTurns(c, players, replayedTurn) })
+    setTurn(replayedTurn)
+    setActiveSeat(replayedSeat)
+    setPhase("playing")
+  }, [events, players, config.startingSeat])
 
   const chooseStarter = useCallback((seat: SeatPosition) => setActiveSeat(seat), [])
 
@@ -310,10 +339,14 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         break
       }
     }
+    setEvents((prev) => [
+      ...prev,
+      { kind: "turn", id: genId(), turn, fromSeat: activeSeat, toSeat: nextSeat, ts: Date.now() },
+    ])
     setActiveSeat(nextSeat)
     setTurn((t) => t + 1)
     setTurnStartedAt(Date.now())
-  }, [seatOrder, runtime, activeSeat])
+  }, [seatOrder, runtime, activeSeat, turn])
 
   const toggleKnockout = useCallback(
     (id: string) => {
@@ -338,7 +371,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         koTurn,
       }
     })
-    setEvents((prev) => prev.filter((e) => e.targetId !== id))
+    setEvents((prev) => prev.filter((e) => e.kind !== "damage" || e.targetId !== id))
   }, [])
 
   const aliveCount = useMemo(

@@ -4,6 +4,7 @@
   "description": "MTG Commander game tracker — win rates, ELO ratings, and live game sessions.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "natural",
   "background_color": "#0c0c0e",
   "theme_color": "#0c0c0e",
   "icons": [

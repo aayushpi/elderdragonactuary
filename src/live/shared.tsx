@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
-import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus } from "lucide-react"
+import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LETHAL_COMMANDER, LETHAL_POISON, type LivePlayer, type PlayerRuntime } from "./engine"
@@ -45,22 +45,14 @@ function vibrate(ms: number) {
   try { navigator.vibrate?.(ms) } catch { /* unsupported */ }
 }
 
-/* ---- Bright per-colour fills for the edge-to-edge panels ---- */
-const COLOR_HEX: Record<string, string> = {
-  W: "#E2A60C",
-  U: "#1668E3",
-  B: "#7C3AED",
-  R: "#E11D2B",
-  G: "#15A53C",
-}
-
-/** A single bright fill from colour identity — gold for multicolour, slate for
- *  colourless. Solid (no gradients) so players read instantly across a table. */
-function panelColor(colors?: string[]): string {
-  const cs = (colors ?? []).filter((c) => COLOR_HEX[c])
-  if (cs.length === 0) return "#64748B"
-  if (cs.length === 1) return COLOR_HEX[cs[0]]
-  return "#C99A1E"
+/** Vivid per-seat colors — distinct and readable across a table. */
+const SEAT_COLORS: Record<number, string> = {
+  1: "#E11D2B", // red
+  2: "#1668E3", // blue
+  3: "#15A53C", // green
+  4: "#D97706", // amber
+  5: "#7C3AED", // violet
+  6: "#0891B2", // cyan
 }
 
 /* ---- Edge-to-edge seat panel — bright fill or commander art ----
@@ -81,7 +73,6 @@ export function SeatFrame({
   onRevive,
   onKnockout,
   commanderSources,
-  locked,
 }: {
   player: LivePlayer
   rt: PlayerRuntime
@@ -98,8 +89,6 @@ export function SeatFrame({
   onKnockout: () => void
   /** per-source commander damage with display names */
   commanderSources?: Array<{ name: string; amount: number }>
-  /** when true, life buttons and KO/revive are disabled */
-  locked?: boolean
 }) {
   const prevLifeRef = useRef(rt.life)
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
@@ -115,12 +104,13 @@ export function SeatFrame({
       return () => window.clearTimeout(t)
     }
   }, [rt.life])
-  const art = player.commanderImageUri
+  // Upgrade stored art_crop URLs (204px) to large (672×936) for sharp display
+  const art = player.commanderImageUri?.replace("/art_crop/", "/large/")
   const hasCommander = !!player.commanderName?.trim()
   return (
     <div
       data-seat-id={player.id}
-      style={{ backgroundColor: rt.knockedOut ? undefined : panelColor(player.commanderColorIdentity) }}
+      style={{ backgroundColor: rt.knockedOut ? undefined : (SEAT_COLORS[player.seatPosition] ?? "#64748B") }}
       className={cn(
         "relative h-full w-full select-none overflow-hidden text-white transition-shadow",
         rt.knockedOut && "bg-muted",
@@ -142,7 +132,7 @@ export function SeatFrame({
       {rt.knockedOut ? (
         <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
           <Skull className="h-9 w-9" />
-          {!locked && <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />}
+          <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
         </div>
       ) : (
         <>
@@ -178,9 +168,8 @@ export function SeatFrame({
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { if (!locked) { vibrate(25); onSelfChange(1) } }}
+                onClick={() => { vibrate(25); onSelfChange(1) }}
                 aria-label="lose 1 life"
-                disabled={locked}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
               >
                 <Minus className="h-5 w-5" />
@@ -198,9 +187,8 @@ export function SeatFrame({
                 {rt.life}
               </span>
               <button
-                onClick={() => { if (!locked) { vibrate(15); onSelfChange(-1) } }}
+                onClick={() => { vibrate(15); onSelfChange(-1) }}
                 aria-label="gain 1 life"
-                disabled={locked}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
               >
                 <Plus className="h-5 w-5" />
@@ -239,11 +227,9 @@ export function SeatFrame({
             )}
           </div>
 
-          {!locked && (
-            <div className="absolute right-1 top-1 z-20">
-              <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
-            </div>
-          )}
+          <div className="absolute right-1 top-1 z-20">
+            <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
+          </div>
         </>
       )}
 
@@ -297,11 +283,13 @@ export function EndGameBanner({
   winner,
   onSave,
   onRematch,
+  onDiscard,
   saving,
 }: {
   winner: LivePlayer | null
   onSave: () => void
   onRematch: () => void
+  onDiscard?: () => void
   saving?: boolean
 }) {
   return (
@@ -320,6 +308,11 @@ export function EndGameBanner({
           <RotateCcw className="h-4 w-4" /> Rematch
         </Button>
       </div>
+      {onDiscard && (
+        <Button onClick={onDiscard} variant="ghost" className="w-full gap-1.5 text-muted-foreground hover:text-destructive">
+          <Trash2 className="h-3.5 w-3.5" /> Discard game
+        </Button>
+      )}
     </div>
   )
 }
