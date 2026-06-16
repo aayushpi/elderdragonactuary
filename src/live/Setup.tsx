@@ -1,5 +1,5 @@
-import { useRef, useState } from "react"
-import { ArrowRight, Users, Clock, Pencil, ChevronLeft, ChevronUp, ChevronDown, X, Plus, UserPlus, Play } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { ArrowRight, Users, Clock, Pencil, ChevronLeft, GripVertical, X, Plus, UserPlus, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SECTION_LABEL } from "@/components/modern/primitives"
@@ -93,17 +93,63 @@ export function Setup({
   function rename(id: string, displayName: string) {
     setSeats((prev) => prev && prev.map((s) => (s.id === id ? { ...s, displayName } : s)))
   }
-  function movePlayer(id: string, dir: -1 | 1) {
-    setSeats((prev) => {
-      if (!prev) return prev
-      const idx = prev.findIndex((s) => s.id === id)
-      const newIdx = idx + dir
-      if (newIdx < 0 || newIdx >= prev.length) return prev
-      const next = [...prev]
-      ;[next[idx], next[newIdx]] = [next[newIdx], next[idx]]
-      return reindex(next)
-    })
+  const draggingRef = useRef<string | null>(null)
+  const dragOverRef = useRef<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!draggingId) return
+    document.body.style.touchAction = "none"
+    document.body.style.userSelect = "none"
+    return () => {
+      document.body.style.touchAction = ""
+      document.body.style.userSelect = ""
+    }
+  }, [draggingId])
+
+  function startDrag(id: string, e: React.PointerEvent) {
+    e.preventDefault()
+    draggingRef.current = id
+    dragOverRef.current = null
+    setDraggingId(id)
+    setDragOverId(null)
+    const move = (ev: PointerEvent) => {
+      const el = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest("[data-player-row]")
+      const overId = (el as HTMLElement | null)?.getAttribute("data-player-row") ?? null
+      const next = overId !== draggingRef.current ? overId : null
+      if (next !== dragOverRef.current) {
+        dragOverRef.current = next
+        setDragOverId(next)
+      }
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      const srcId = draggingRef.current
+      const tgtId = dragOverRef.current
+      draggingRef.current = null
+      dragOverRef.current = null
+      setDraggingId(null)
+      setDragOverId(null)
+      if (srcId && tgtId && srcId !== tgtId) {
+        setSeats((prev) => {
+          if (!prev) return prev
+          const srcIdx = prev.findIndex((s) => s.id === srcId)
+          const tgtIdx = prev.findIndex((s) => s.id === tgtId)
+          if (srcIdx === -1 || tgtIdx === -1) return prev
+          const next = [...prev]
+          ;[next[srcIdx], next[tgtIdx]] = [next[tgtIdx], next[srcIdx]]
+          return reindex(next)
+        })
+      }
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
   }
+
   function commitNew() {
     const n = newName.trim()
     if (!n) return
@@ -186,7 +232,21 @@ export function Setup({
         </span>
         <div className="space-y-2">
           {seats.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2.5">
+            <div
+              key={s.id}
+              data-player-row={s.id}
+              className={cn(
+                "flex items-center gap-2 rounded-xl border bg-card p-2.5 transition-colors",
+                draggingId === s.id ? "opacity-40" : dragOverId === s.id ? "border-primary bg-primary/5" : "border-border"
+              )}
+            >
+              <button
+                onPointerDown={(e) => startDrag(s.id, e)}
+                aria-label="Drag to reorder"
+                className="flex h-7 w-6 shrink-0 touch-none cursor-grab items-center justify-center rounded text-muted-foreground active:cursor-grabbing"
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold tabular-nums">
                 {i + 1}
               </span>
@@ -209,24 +269,6 @@ export function Setup({
                   <Pencil className="h-3 w-3 shrink-0 text-muted-foreground" />
                 </button>
               )}
-              <div className="flex shrink-0 flex-col">
-                <button
-                  onClick={() => movePlayer(s.id, -1)}
-                  disabled={i === 0}
-                  aria-label="Move up"
-                  className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                >
-                  <ChevronUp className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => movePlayer(s.id, 1)}
-                  disabled={i === seats.length - 1}
-                  aria-label="Move down"
-                  className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                >
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </button>
-              </div>
               <button
                 onClick={() => removePlayer(s.id)}
                 disabled={seats.length <= 2}
