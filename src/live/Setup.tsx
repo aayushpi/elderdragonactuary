@@ -8,7 +8,6 @@ import type { SeatPosition } from "@/types"
 import { genId, type LiveConfig } from "@/live/engine"
 import type { RichPod } from "./setupData"
 import { type DraftSeat, blankSeat, podToRoster, randomStarter, toConfig } from "./setupShared"
-import { StarterBar } from "./StarterBar"
 
 /* ============================================================================
  * Variant A — "Pod & table" (commanders are chosen in-game)
@@ -52,7 +51,6 @@ export function Setup({
 }) {
   const [seats, setSeats] = useState<DraftSeat[] | null>(null)
   const [pod, setPod] = useState<RichPod | null>(null)
-  const [starter, setStarter] = useState<SeatPosition>(1)
   const [editName, setEditName] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
   const addRef = useRef<HTMLInputElement>(null)
@@ -65,12 +63,10 @@ export function Setup({
     const { seats: s } = podToRoster(p)
     setSeats(s)
     setPod(p)
-    setStarter(1)
   }
   function newTable() {
     setSeats([blankSeat(1), { id: genId(), seatPosition: 2, isMe: false, displayName: "", commanderName: "" }])
     setPod(null)
-    setStarter(1)
   }
 
   function addPlayer(name = "") {
@@ -85,9 +81,7 @@ export function Setup({
   function removePlayer(id: string) {
     setSeats((prev) => {
       if (!prev || prev.length <= 2) return prev
-      const next = reindex(prev.filter((s) => s.id !== id))
-      if (starter > next.length) setStarter(1)
-      return next
+      return reindex(prev.filter((s) => s.id !== id))
     })
   }
   function rename(id: string, displayName: string) {
@@ -330,7 +324,6 @@ export function Setup({
                 onClick={() => {
                   setSeats(podToRoster(p).seats)
                   setPod(p)
-                  setStarter(1)
                 }}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-semibold",
@@ -349,13 +342,8 @@ export function Setup({
         <TableLayoutIcon count={seats.length} />
       </section>
 
-      <section className="space-y-2">
-        <span className={SECTION_LABEL}>Who goes first?</span>
-        <StarterBar seats={seats} value={starter} onChange={setStarter} />
-      </section>
-
       <div className="mt-auto">
-        <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, starter, pod ?? undefined))}>
+        <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, randomStarter(seats), pod ?? undefined))}>
           Start game <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
