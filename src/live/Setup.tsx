@@ -345,6 +345,11 @@ export function Setup({
       )}
 
       <section className="space-y-2">
+        <span className={SECTION_LABEL}>Table layout</span>
+        <TableLayoutIcon count={seats.length} />
+      </section>
+
+      <section className="space-y-2">
         <span className={SECTION_LABEL}>Who goes first?</span>
         <StarterBar seats={seats} value={starter} onChange={setStarter} />
       </section>
