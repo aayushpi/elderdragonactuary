@@ -4,15 +4,20 @@ import type { Game, MtgColor, Player } from "@/types"
 
 export type MilestoneKind =
   | "first-game"
-  | "first-win"
   | "milestone-game"
-  | "streak"
   | "debut"
+  | "first-win"
+  | "win"
+  | "streak"
   | "fast-win"
+  | "wincon"
 
 export interface Milestone {
   kind: MilestoneKind
+  /** Headline, e.g. "5th career win". */
   label: string
+  /** Supporting context, e.g. "Krenko, Mob Boss". */
+  detail?: string
 }
 
 export interface TimelineEvent {
@@ -22,10 +27,13 @@ export interface TimelineEvent {
   date: Date
   /** 1-based index of this game in the user's career (chronological). */
   careerIndex: number
+  /** 1-based win number, or null for a loss. */
+  winNumber: number | null
   milestones: Milestone[]
 }
 
-const GAME_COUNT_MILESTONES = new Set([1, 5, 10, 25, 50, 75, 100, 150, 200, 250, 500])
+const GAME_LANDMARKS = new Set([10, 25, 50, 75, 100, 150, 200, 250, 500])
+const WIN_LANDMARKS = new Set([5, 10, 25, 50, 75, 100, 150, 200])
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"]
@@ -34,8 +42,9 @@ function ordinal(n: number): string {
 }
 
 /**
- * Walk games chronologically to derive career milestones (streaks, debuts,
- * firsts), then return events newest-first for display.
+ * Walk games chronologically to derive career milestones (firsts, win/game
+ * landmarks, streaks, debuts, fast kills, signature wincons), then return events
+ * newest-first for display.
  */
 export function buildTimeline(games: Game[]): TimelineEvent[] {
   const chrono = [...games].sort(
@@ -43,47 +52,55 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
   )
 
   const seenCommanders = new Set<string>()
-  let hasWon = false
+  let winCount = 0
   let streak = 0
 
   const events: TimelineEvent[] = chrono.map((game, i) => {
     const me = game.players.find((p) => p.isMe)
     const won = !!me && game.winnerId === me.id
     const careerIndex = i + 1
+    const cmdr = shortCommander(me?.commanderName)
     const milestones: Milestone[] = []
 
     if (careerIndex === 1) {
-      milestones.push({ kind: "first-game", label: "First game logged" })
-    }
-    if (GAME_COUNT_MILESTONES.has(careerIndex) && careerIndex !== 1) {
-      milestones.push({ kind: "milestone-game", label: `${ordinal(careerIndex)} game` })
+      milestones.push({ kind: "first-game", label: "First game logged", detail: cmdr })
+    } else if (GAME_LANDMARKS.has(careerIndex)) {
+      milestones.push({ kind: "milestone-game", label: `${ordinal(careerIndex)} game played`, detail: cmdr })
     }
 
-    const cmdr = me?.commanderName
-    if (cmdr && !seenCommanders.has(cmdr)) {
+    if (me?.commanderName && !seenCommanders.has(me.commanderName)) {
       if (seenCommanders.size > 0) {
-        milestones.push({ kind: "debut", label: `Debut: ${cmdr.split(",")[0]}` })
+        milestones.push({ kind: "debut", label: `${cmdr} debut`, detail: "First time piloting this deck" })
       }
-      seenCommanders.add(cmdr)
+      seenCommanders.add(me.commanderName)
     }
 
+    let winNumber: number | null = null
     if (won) {
-      if (!hasWon) {
-        hasWon = true
-        milestones.push({ kind: "first-win", label: "First win" })
-      }
+      winCount += 1
+      winNumber = winCount
       streak += 1
+
+      if (winCount === 1) {
+        milestones.push({ kind: "first-win", label: "First win", detail: cmdr })
+      } else if (WIN_LANDMARKS.has(winCount)) {
+        milestones.push({ kind: "win", label: `${ordinal(winCount)} career win`, detail: cmdr })
+      }
+
       if (streak >= 2) {
-        milestones.push({ kind: "streak", label: `${streak}-game win streak` })
+        milestones.push({ kind: "streak", label: `${streak}-win streak` })
       }
       if (game.winTurn && game.winTurn <= 5) {
-        milestones.push({ kind: "fast-win", label: `Fast win — turn ${game.winTurn}` })
+        milestones.push({ kind: "fast-win", label: `Turn-${game.winTurn} kill`, detail: cmdr })
+      }
+      if (game.keyWinconCards && game.keyWinconCards.length > 0) {
+        milestones.push({ kind: "wincon", label: `Closed with ${game.keyWinconCards[0]}` })
       }
     } else {
       streak = 0
     }
 
-    return { game, me, won, date: new Date(game.playedAt), careerIndex, milestones }
+    return { game, me, won, date: new Date(game.playedAt), careerIndex, winNumber, milestones }
   })
 
   return events.reverse()
@@ -99,6 +116,7 @@ export interface MonthChapter {
   wins: number
   winRate: number
   topCommander?: string
+  topCommanderGames: number
 }
 
 export function groupByMonth(events: TimelineEvent[]): MonthChapter[] {
@@ -116,6 +134,7 @@ export function groupByMonth(events: TimelineEvent[]): MonthChapter[] {
         games: 0,
         wins: 0,
         winRate: 0,
+        topCommanderGames: 0,
       }
       chapters.push(current)
     }
@@ -131,15 +150,12 @@ export function groupByMonth(events: TimelineEvent[]): MonthChapter[] {
       const name = e.me?.commanderName
       if (name) tally.set(name, (tally.get(name) ?? 0) + 1)
     }
-    let best: string | undefined
-    let bestCount = 0
     for (const [name, count] of tally) {
-      if (count > bestCount) {
-        best = name
-        bestCount = count
+      if (count > c.topCommanderGames) {
+        c.topCommander = name
+        c.topCommanderGames = count
       }
     }
-    c.topCommander = best
   }
 
   return chapters

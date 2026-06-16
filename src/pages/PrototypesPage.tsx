@@ -50,13 +50,13 @@ export function PrototypesPage({ games }: PrototypesPageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight">History · Timeline</h1>
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold tracking-tight">History · Timeline</h1>
+          <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Prototype
           </span>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-base text-muted-foreground">
           Three takes on reimagining the History page as a personal timeline.
         </p>
       </div>
@@ -80,8 +80,8 @@ export function PrototypesPage({ games }: PrototypesPageProps) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{variant.tagline}</p>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+        <p className="text-base text-muted-foreground">{variant.tagline}</p>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={useSample}

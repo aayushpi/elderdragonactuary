@@ -5,7 +5,7 @@ import type { Game } from "@/types"
 import { MilestoneBadge } from "./MilestoneBadge"
 import { buildTimeline, opponentsOf, shortCommander, type TimelineEvent } from "./timeline"
 
-// ── Contribution heatmap ─────────────────────────────────────────────────────
+// ── Contribution heatmap (games played per day) ──────────────────────────────
 
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
@@ -15,8 +15,18 @@ function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
+const CELL = "h-[14px] w-[14px] rounded-[3px]"
+
+function intensityClass(count: number, max: number): string {
+  if (count <= 0) return "bg-muted/50"
+  const ratio = max <= 1 ? 1 : count / max
+  if (ratio > 0.66) return "bg-primary"
+  if (ratio > 0.33) return "bg-primary/60"
+  return "bg-primary/30"
+}
+
 function Heatmap({ events }: { events: TimelineEvent[] }) {
-  const { weeks, monthMarks, max } = useMemo(() => {
+  const { weeks, monthMarks, max, totalGames } = useMemo(() => {
     const counts = new Map<string, number>()
     let max = 0
     for (const ev of events) {
@@ -30,7 +40,6 @@ function Heatmap({ events }: { events: TimelineEvent[] }) {
     const last = dates.length ? new Date(Math.max(...dates)) : new Date()
     const earliest = dates.length ? new Date(Math.min(...dates)) : new Date()
 
-    // start at the Sunday on/before the earliest game (cap at ~20 weeks)
     const start = startOfDay(earliest)
     start.setDate(start.getDate() - start.getDay())
     const end = startOfDay(last)
@@ -58,47 +67,53 @@ function Heatmap({ events }: { events: TimelineEvent[] }) {
       weeks.push(week)
       col++
     }
-    return { weeks, monthMarks, max }
+    return { weeks, monthMarks, max, totalGames: events.length }
   }, [events])
 
-  function intensity(count: number): string {
-    if (count <= 0) return "bg-muted/50"
-    const ratio = max <= 1 ? 1 : count / max
-    if (ratio > 0.66) return "bg-primary"
-    if (ratio > 0.33) return "bg-primary/60"
-    return "bg-primary/30"
-  }
-
   return (
-    <div className="overflow-x-auto no-scrollbar">
-      <div className="inline-block min-w-full">
-        <div className="flex gap-[3px] pl-7">
-          {weeks.map((_, col) => {
-            const mark = monthMarks.find((m) => m.col === col)
-            return (
-              <div key={col} className="w-[12px] text-[9px] text-muted-foreground">
-                {mark?.label ?? ""}
-              </div>
-            )
-          })}
-        </div>
-        <div className="mt-1 flex gap-[3px]">
-          <div className="mr-1 flex flex-col justify-between py-[1px] text-[9px] text-muted-foreground">
-            <span>Mon</span>
-            <span>Wed</span>
-            <span>Fri</span>
+    <div>
+      <div className="overflow-x-auto no-scrollbar">
+        <div className="inline-block min-w-full">
+          <div className="flex gap-[3px] pl-9">
+            {weeks.map((_, col) => {
+              const mark = monthMarks.find((m) => m.col === col)
+              return (
+                <div key={col} className="w-[14px] text-[11px] text-muted-foreground">
+                  {mark?.label ?? ""}
+                </div>
+              )
+            })}
           </div>
-          {weeks.map((week, col) => (
-            <div key={col} className="flex flex-col gap-[3px]">
-              {week.map((cell) => (
-                <div
-                  key={cell.date.toISOString()}
-                  title={`${cell.date.toLocaleDateString()} — ${cell.count} game${cell.count === 1 ? "" : "s"}`}
-                  className={cn("h-[12px] w-[12px] rounded-[2px]", intensity(cell.count))}
-                />
-              ))}
+          <div className="mt-1 flex gap-[3px]">
+            <div className="mr-1 flex flex-col justify-between py-[2px] text-[11px] text-muted-foreground">
+              <span>Mon</span>
+              <span>Wed</span>
+              <span>Fri</span>
             </div>
-          ))}
+            {weeks.map((week, col) => (
+              <div key={col} className="flex flex-col gap-[3px]">
+                {week.map((cell) => (
+                  <div
+                    key={cell.date.toISOString()}
+                    title={`${cell.date.toLocaleDateString()} — ${cell.count} game${cell.count === 1 ? "" : "s"} played`}
+                    className={cn(CELL, intensityClass(cell.count, max))}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+        <span>{totalGames} games played</span>
+        <div className="flex items-center gap-1.5">
+          <span>Fewer</span>
+          <span className={cn(CELL, "bg-muted/50")} />
+          <span className={cn(CELL, "bg-primary/30")} />
+          <span className={cn(CELL, "bg-primary/60")} />
+          <span className={cn(CELL, "bg-primary")} />
+          <span>More</span>
         </div>
       </div>
     </div>
@@ -125,26 +140,24 @@ function FeedLine({ event }: { event: TimelineEvent }) {
   const opponents = opponentsOf(game)
 
   return (
-    <li className="flex gap-3">
+    <li className="flex gap-3.5">
       <span
         className={cn(
-          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+          "mt-2 h-2.5 w-2.5 shrink-0 rounded-full",
           won ? "bg-primary" : "bg-muted-foreground/40"
         )}
       />
-      <div className="min-w-0 flex-1 pb-4">
-        <p className="text-sm">
+      <div className="min-w-0 flex-1 pb-5">
+        <p className="text-base leading-snug">
           <span className="font-semibold">{won ? "Won" : "Lost"}</span> with{" "}
-          <span className="font-medium">{cmdr}</span>
+          <span className="font-semibold">{cmdr}</span>
           {won && game.winTurn ? ` on turn ${game.winTurn}` : ""}
           {opponents.length > 0 ? (
             <span className="text-muted-foreground"> vs {opponents.join(" · ")}</span>
           ) : null}
         </p>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[11px] text-muted-foreground tabular">
-            {relativeTime(date)}
-          </span>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <span className="font-mono text-sm text-muted-foreground tabular">{relativeTime(date)}</span>
           {milestones.map((m, i) => (
             <MilestoneBadge key={i} milestone={m} />
           ))}
@@ -156,27 +169,28 @@ function FeedLine({ event }: { event: TimelineEvent }) {
 
 /**
  * Variant C — "Activity".
- * A social-style feed of your play, fronted by a GitHub-style contribution
- * heatmap so you can feel the rhythm of how often you get to the table.
+ * A games-played heatmap so you can feel how often you get to the table, over a
+ * social-style feed of wins, losses and milestones.
  */
 export function VariantFeed({ games }: { games: Game[] }) {
   const events = buildTimeline(games)
 
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">No games yet.</p>
+    return <p className="text-base text-muted-foreground">No games yet.</p>
   }
 
   return (
-    <div className="space-y-6">
-      <div className={CARD + " p-4 sm:p-5"}>
-        <h2 className={SECTION_LABEL + " mb-3"}>Table time</h2>
+    <div className="space-y-8">
+      <div className={CARD + " p-5"}>
+        <h2 className={SECTION_LABEL + " mb-1"}>Games played</h2>
+        <p className="mb-4 text-sm text-muted-foreground">Each square is a day — darker means more games at the table.</p>
         <Heatmap events={events} />
       </div>
 
       <div>
-        <h2 className={SECTION_LABEL + " mb-3"}>Recent activity</h2>
+        <h2 className={SECTION_LABEL + " mb-4"}>Recent activity</h2>
         <ul className="relative">
-          <span className="absolute left-[3px] top-2 bottom-2 w-px bg-border" />
+          <span className="absolute left-[4px] top-2 bottom-2 w-px bg-border" />
           {events.map((ev) => (
             <FeedLine key={ev.game.id} event={ev} />
           ))}
