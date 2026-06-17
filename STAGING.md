@@ -51,14 +51,14 @@ auth config.)
 ## 3. Seed staging with an anonymized copy of prod
 
 Run [`scripts/sync-staging-data.sh`](scripts/sync-staging-data.sh). It exports
-`public.games`, `public.invite_codes`, and the referenced `auth.users` from prod,
-loads them into staging (public tables fully replaced; `auth.users` upserted so your
-staging logins survive), then runs [`scripts/staging-anonymize.sql`](scripts/staging-anonymize.sql).
+`public.games` and `public.invite_codes` from prod, loads them into staging (public
+tables fully replaced), then runs [`scripts/staging-anonymize.sql`](scripts/staging-anonymize.sql).
 
 ```bash
 # Connection strings: Supabase Dashboard -> Settings -> Database -> Connection string (URI)
 export PROD_DB_URL='postgresql://postgres:<pw>@db.<prod-ref>.supabase.co:5432/postgres'
 export STAGING_DB_URL='postgresql://postgres:<pw>@db.jqbwndjfqwbijmdjoljt.supabase.co:5432/postgres'
+export STAGING_OWNER_EMAIL='you@example.com'            # staging login that will own the games
 export KEEP_EMAILS='you@example.com,demo@example.com'   # staging logins to keep usable
 ./scripts/sync-staging-data.sh
 ```
@@ -67,14 +67,21 @@ Requires `psql` (`brew install libpq`). The script refuses to run unless
 `STAGING_DB_URL` points at `eda-staging` and `PROD_DB_URL` does not — it cannot write
 to prod.
 
+### Why games are reassigned to one owner
+
+Production users are **not** imported. Every imported game is reassigned to
+`STAGING_OWNER_EMAIL` because RLS only shows each user their own games and you can't log
+in as anonymized prod users — so without this, the staging UI would look empty. Sign in
+as that account to see the whole dataset. Bonus: real prod emails never enter staging.
+
 ### What gets anonymized
 
-- `auth.users.email` → `user+<id>@staging.local`; phone and name metadata stripped.
-  Accounts in `KEEP_EMAILS` are left untouched so you can still log in.
 - `games.players[].displayName` → deterministic `Player <hash>` (same person → same
   fake everywhere, so pod / commander ELO grouping is preserved).
 - `games.notes` → `[redacted for staging]`.
+- `auth.users.email` → `user+<id>@staging.local` for any account not in `KEEP_EMAILS`
+  (defensive; with the reassignment approach only your staging logins exist anyway).
 
-IDs, dates, win/loss, commanders, seats, brackets, and all relationships are preserved,
-so staging behaves identically to prod — just without real PII. Re-run any time to
-refresh the snapshot; the anonymization is idempotent.
+IDs, dates, win/loss, commanders, seats, brackets, and per-game relationships are
+preserved, so staging behaves like prod — just without real PII, and all under one
+login. Re-run any time to refresh the snapshot; the anonymization is idempotent.
