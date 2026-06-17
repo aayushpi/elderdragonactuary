@@ -37,11 +37,16 @@ Supabase Dashboard → project **eda-staging** → Authentication → **URL Conf
 
 ```
 http://localhost:5173/**
-https://gocommando-*.vercel.app/**
+https://gocommando-staging.vercel.app/**
+https://*-<vercel-team-slug>.vercel.app/**
 ```
 
-The wildcard covers both the stable alias and all preview deploys. (This cannot be set
-via the Supabase MCP — it only exposes DB/migration tools, not auth config.)
+Line 2 is the exact stable staging alias. Line 3 is optional — it covers ephemeral PR
+preview deploys, using Supabase's required wildcard form (`*` must lead the subdomain
+label, with your Vercel team/account slug as the literal suffix; `gocommando-*` is
+rejected by the validator). Skip line 3 if you only test on the stable staging URL.
+(None of this can be set via the Supabase MCP — it only exposes DB/migration tools, not
+auth config.)
 
 ## 3. Seed staging with an anonymized copy of prod
 
