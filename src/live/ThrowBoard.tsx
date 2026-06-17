@@ -115,6 +115,7 @@ export function ThrowBoard({
         dragTarget={drag?.targetId === p.id}
         preview={drag?.targetId === p.id ? "⚔" : null}
         commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
+        damageView={game.config.damageView}
         onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
         onRevive={() => game.revive(p.id)}
         onKnockout={() => game.toggleKnockout(p.id)}

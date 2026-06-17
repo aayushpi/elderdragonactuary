@@ -1,7 +1,7 @@
 import type { CommanderPick } from "@/components/CommanderPicker"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
 import type { SeatPosition } from "@/types"
-import { genId, type LiveConfig, type LivePlayer } from "@/live/engine"
+import { genId, type DamageView, type LiveConfig, type LivePlayer } from "@/live/engine"
 import type { PodMember, RichPod } from "./setupData"
 
 export type DraftSeat = LivePlayer
@@ -102,7 +102,8 @@ export function clearCommander(seat: DraftSeat): DraftSeat {
 export function toConfig(
   seats: DraftSeat[],
   starter: SeatPosition,
-  pod?: { id?: string; label?: string }
+  pod?: { id?: string; label?: string },
+  opts?: { damageView?: DamageView }
 ): LiveConfig {
   return {
     players: seats.map((s, i) => ({
@@ -114,5 +115,6 @@ export function toConfig(
     startingSeat: starter,
     podId: pod?.id,
     podLabel: pod?.label,
+    damageView: opts?.damageView,
   }
 }

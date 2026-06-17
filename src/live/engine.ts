@@ -73,11 +73,14 @@ export interface TurnEvent {
 
 export type GameEvent = DamageEvent | TurnEvent
 
+export type DamageView = "flip" | "chip" | "strip"
+
 export interface LiveConfig {
   players: LivePlayer[]
   startingSeat: SeatPosition
   podId?: string
   podLabel?: string
+  damageView?: DamageView
 }
 
 export interface PlayerRuntime {

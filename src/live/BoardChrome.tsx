@@ -62,7 +62,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" style={counterRotationStyle(counterRotate)}>
-    <div className="h-full w-full overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="h-full w-full overflow-hidden bg-border">
       <div
         className="grid h-full w-full gap-px"
         style={{
