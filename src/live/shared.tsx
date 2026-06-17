@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { LETHAL_COMMANDER, LETHAL_POISON, type LivePlayer, type PlayerRuntime } from "./engine"
+import { LETHAL_COMMANDER, LETHAL_POISON, SEAT_COLORS, type LivePlayer, type PlayerRuntime } from "./engine"
 import type { DragInfo } from "./drag"
 
 /* The live attack vector drawn from the source handle to the finger. Lives here
@@ -45,15 +45,6 @@ function vibrate(ms: number) {
   try { navigator.vibrate?.(ms) } catch { /* unsupported */ }
 }
 
-/** Vivid per-seat colors — distinct and readable across a table. */
-const SEAT_COLORS: Record<number, string> = {
-  1: "#E11D2B", // red
-  2: "#1668E3", // blue
-  3: "#15A53C", // green
-  4: "#D97706", // amber
-  5: "#7C3AED", // violet
-  6: "#0891B2", // cyan
-}
 
 /* ---- Edge-to-edge seat panel — bright fill or commander art ----
  * Identity is the full-bleed colour (or the commander's art when set). Life is
@@ -110,7 +101,8 @@ export function SeatFrame({
       return () => window.clearTimeout(t)
     }
   }, [rt.life])
-  const art = player.commanderImageUri
+  // Normalise any Scryfall size segment to art_crop for seat panel backgrounds
+  const art = player.commanderImageUri?.replace(/\/(large|png|normal|small|border_crop)\//, "/art_crop/")
   const hasCommander = !!player.commanderName?.trim()
   return (
     <div
@@ -300,7 +292,7 @@ export function KnockoutControl({
   return (
     <button
       onClick={onKnockout}
-      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+      className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white/80 hover:bg-destructive hover:text-white transition-colors active:scale-95"
     >
       <Skull className="h-3.5 w-3.5" /> KO
     </button>

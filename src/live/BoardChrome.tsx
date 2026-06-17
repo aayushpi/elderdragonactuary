@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
+import { SEAT_COLORS } from "./engine"
 import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
+import { useWakeLock } from "./useWakeLock"
 
 interface BoardChromeProps {
   game: LiveGameApi
@@ -51,6 +53,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
   const counterRotate = useOrientationLock()
+  useWakeLock(game.started && game.phase !== "ended")
   // who-goes-first happens on the board, before the clock starts
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
@@ -143,20 +146,26 @@ function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat:
       <div className="pointer-events-auto flex w-[min(84vw,19rem)] flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur">
         <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Who goes first?</span>
         <div className="grid w-full grid-cols-2 gap-1.5">
-          {seats.map((p) => (
-            <button
-              key={p.id}
-              disabled={rolling}
-              onClick={() => onPick(p.seatPosition)}
-              className={cn(
-                "flex items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors",
-                (rollingId === p.id || pickedId === p.id) ? "border-primary bg-primary text-primary-foreground" : "border-border"
-              )}
-            >
-              {(rollingId === p.id || pickedId === p.id) && <Crown className="h-3.5 w-3.5" />}
-              <span className="truncate">{p.displayName}</span>
-            </button>
-          ))}
+          {seats.map((p) => {
+            const seatColor = SEAT_COLORS[p.seatPosition] ?? "#64748B"
+            const active = rollingId === p.id || pickedId === p.id
+            return (
+              <button
+                key={p.id}
+                disabled={rolling}
+                onClick={() => onPick(p.seatPosition)}
+                style={{
+                  backgroundColor: active ? seatColor : undefined,
+                  borderColor: seatColor,
+                  color: active ? "#fff" : seatColor,
+                }}
+                className="flex items-center justify-center gap-1 rounded-lg border-2 px-2 py-2.5 text-sm font-semibold transition-all active:scale-95"
+              >
+                {active && <Crown className="h-3.5 w-3.5" />}
+                <span className="truncate">{p.displayName}</span>
+              </button>
+            )
+          })}
         </div>
         {pickedPlayer ? (
           <div className="flex w-full flex-col gap-2">

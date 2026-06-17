@@ -21,6 +21,16 @@ export function genId(): string {
   return Math.random().toString(36) + Date.now().toString(36)
 }
 
+/** Vivid per-seat colors — distinct and readable around the table. */
+export const SEAT_COLORS: Record<number, string> = {
+  1: "#E11D2B", // red
+  2: "#1668E3", // blue
+  3: "#15A53C", // green
+  4: "#D97706", // amber
+  5: "#7C3AED", // violet
+  6: "#0891B2", // cyan
+}
+
 export interface LivePlayer {
   id: string
   seatPosition: SeatPosition
