@@ -94,6 +94,7 @@ export function SeatFrame({
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
   const [flipped, setFlipped] = useState(false)
   const [chipExpanded, setChipExpanded] = useState(false)
+  const [artFailed, setArtFailed] = useState(false)
   const swipeStartX = useRef(0)
   const swipeStartY = useRef(0)
 
@@ -159,11 +160,14 @@ export function SeatFrame({
       )}
     >
       {/* commander art + legibility scrim */}
-      {art && !rt.knockedOut && (
+      {art && !rt.knockedOut && !artFailed && (
         <>
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${art})` }}
+          <img
+            src={art}
+            onError={() => setArtFailed(true)}
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            alt=""
+            aria-hidden
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/60" />
         </>

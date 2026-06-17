@@ -54,10 +54,11 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
 
   const counterRotate = useOrientationLock()
   useWakeLock(game.started && game.phase !== "ended")
-  // who-goes-first happens on the board, before the clock starts
+  // seat-placement phase → roll phase → game phase
+  const [readyToRoll, setReadyToRoll] = useState(false)
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
-    if (!game.started) setStarterPicked(false)
+    if (!game.started) { setReadyToRoll(false); setStarterPicked(false) }
   }, [game.started])
 
   return (
@@ -87,6 +88,8 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
             <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} onDiscard={onDiscard} saving={saving} />
           </div>
         </div>
+      ) : !game.started && !readyToRoll ? (
+        <ReadyToRoll onReady={() => setReadyToRoll(true)} />
       ) : !game.started && !starterPicked ? (
         <StarterChooser
           seats={seats}
@@ -111,6 +114,22 @@ function counterRotationStyle(r: CounterRotation): React.CSSProperties {
   if (r === 90)  return { width: "100vh", height: "100vw", transform: "rotate(90deg) translateY(-100%)",  transformOrigin: "top left" }
   if (r === -90) return { width: "100vh", height: "100vw", transform: "rotate(-90deg) translateX(-100%)", transformOrigin: "top left" }
   return { transform: "rotate(180deg)", transformOrigin: "center" }
+}
+
+/* First overlay: let players get seated and set commanders before rolling. */
+function ReadyToRoll({ onReady }: { onReady: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-end justify-center pb-16">
+      <div className="pointer-events-auto flex flex-col items-center gap-2">
+        <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
+          Drag seats · set commanders · then roll
+        </p>
+        <Button onClick={onReady} size="lg" className="h-14 gap-2 rounded-full px-8 text-base shadow-2xl">
+          <Dices className="h-5 w-5" /> Ready to roll
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 /* Centre overlay: high-roll a D20 or tap a player to decide who starts. The

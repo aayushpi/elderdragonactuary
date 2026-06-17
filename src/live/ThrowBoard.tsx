@@ -268,16 +268,7 @@ function StepperEntry({
   const [mods, setMods] = useState({ isCommander: false, isPoison: false, isLifelink: false })
 
   function toggle(key: keyof typeof mods) {
-    setMods((m) => {
-      const next = { ...m, [key]: !m[key] }
-      // poison is its own damage type — it can't also be commander/lifelink
-      if (key === "isPoison" && next.isPoison) {
-        next.isCommander = false
-        next.isLifelink = false
-      }
-      if ((key === "isCommander" || key === "isLifelink") && next[key]) next.isPoison = false
-      return next
-    })
+    setMods((m) => ({ ...m, [key]: !m[key] }))
   }
 
   return (
