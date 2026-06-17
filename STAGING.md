@@ -85,3 +85,33 @@ as that account to see the whole dataset. Bonus: real prod emails never enter st
 IDs, dates, win/loss, commanders, seats, brackets, and per-game relationships are
 preserved, so staging behaves like prod — just without real PII, and all under one
 login. Re-run any time to refresh the snapshot; the anonymization is idempotent.
+
+### Re-syncing (refreshing the snapshot)
+
+The sync **does not run automatically** — no cron, CI, or scheduled job. Staging holds a
+point-in-time snapshot from the last time the script was run, and that's fine: stale
+data is perfectly usable for testing. Re-syncing is optional.
+
+To refresh, just run the same command again with the same env vars:
+
+```bash
+export PROD_DB_URL='...' STAGING_DB_URL='...' STAGING_OWNER_EMAIL='...' KEEP_EMAILS='...'
+./scripts/sync-staging-data.sh
+```
+
+What a re-sync does:
+
+- **Fully replaces** `public.games` and `public.invite_codes` (they are `TRUNCATE`d and
+  reloaded), so any games you logged or edited while testing on staging are wiped and
+  replaced with a fresh anonymized copy of prod. Your staging **login accounts**
+  (`KEEP_EMAILS`) are preserved.
+- Re-runs the anonymizer; it is idempotent, so repeated runs are safe.
+
+When you'd actually want to re-sync:
+
+- Staging got cluttered with test data and you want a clean realistic baseline back.
+- You need recent prod patterns (new commanders, larger game volume) for a test.
+- You want fresh-ish data for a demo.
+
+If you don't re-sync, nothing breaks — staging simply stays frozen at the last snapshot
+plus whatever you changed while testing.
