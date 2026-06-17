@@ -76,11 +76,17 @@ as that account to see the whole dataset. Bonus: real prod emails never enter st
 
 ### What gets anonymized
 
-- `games.players[].displayName` → deterministic `Player <hash>` (same person → same
-  fake everywhere, so pod / commander ELO grouping is preserved).
-- `games.notes` → `[redacted for staging]`.
-- `auth.users.email` → `user+<id>@staging.local` for any account not in `KEEP_EMAILS`
-  (defensive; with the reassignment approach only your staging logins exist anyway).
+Real PII is replaced with realistic **mock** PII, so staging shows human-looking names
+and emails that don't connect to any real user (rather than opaque redactions).
+
+- `games.players[].displayName` → a stable mock `First Last` name. The mapping is
+  persisted in `public.staging_name_map`, so the same person maps to the same mock name
+  everywhere and across re-syncs, and distinct real names always get distinct mocks —
+  pod / commander ELO grouping (keyed on displayName) is preserved with no merges.
+- `auth.users` → mock `first.last.<hash>@staging.local` email plus a matching mock
+  `full_name` / `name`, for any account not in `KEEP_EMAILS` (defensive; with the
+  reassignment approach only your staging logins exist anyway).
+- `games.notes` → `[redacted for staging]` (free text can't be meaningfully mocked).
 
 IDs, dates, win/loss, commanders, seats, brackets, and per-game relationships are
 preserved, so staging behaves like prod — just without real PII, and all under one

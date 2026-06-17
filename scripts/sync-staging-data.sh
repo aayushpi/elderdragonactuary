@@ -3,7 +3,8 @@
 # sync-staging-data.sh — copy production data into the eda-staging project, anonymized.
 #
 # Pulls public.games and public.invite_codes from production, loads them into staging,
-# then runs scripts/staging-anonymize.sql to scrub PII. Public tables are fully replaced.
+# then runs scripts/staging-anonymize.sql to replace PII with realistic mock PII.
+# Public tables are fully replaced.
 #
 # Production users are NOT imported. Every imported game is reassigned to one staging
 # login (STAGING_OWNER_EMAIL) so you can actually see the data in-app — RLS only shows
