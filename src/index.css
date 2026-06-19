@@ -170,6 +170,22 @@
   }
 }
 
+/* Live-board life-total damage flash (mirrors the live game mode). */
+@keyframes eda-live-dmg {
+  0% {
+    color: #fca5a5;
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .live-dmg {
+    animation: eda-live-dmg 0.45s ease;
+  }
+}
+
 /* Accent glow that sits behind the app simulation (Linear signature). */
 .eda-glow {
   background: radial-gradient(

@@ -1,28 +1,252 @@
-import { useMemo, useState } from "react"
-import { Plus, LogOut, Download, FileText, Upload, Trash2, Share2 } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  Plus,
+  Minus,
+  LogOut,
+  Download,
+  FileText,
+  Upload,
+  Trash2,
+  Share2,
+  Swords,
+  Timer,
+  Undo2,
+} from "lucide-react"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { StatsPage } from "@/pages/StatsPage"
 import { HistoryPage } from "@/pages/HistoryPage"
+import { LogGamePage } from "@/pages/LogGamePage"
 import { DEMO_GAMES } from "@/components/home/demoData"
+import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
 import { cn } from "@/lib/utils"
 
 /* ============================================================================
-   A near-full-size, interactive simulation of the actual app. The Dashboard,
-   Stats and History tabs render the *real* page components driven by sample
-   data (see demoData), so the logged-out homepage shows exactly what the
-   product looks like in use. Settings is a faithful read-only replica (the
-   live one mutates stored data). Linear-style: drive the product on the page.
+   A near-full-size, interactive simulation of the actual app. Dashboard, Stats
+   and History render the *real* page components driven by sample data; "Track
+   a game" opens the real LogGamePage; "Live game" shows a faithful recreation
+   of the at-the-table live board (PR #54 UX). Settings is a read-only replica.
    ========================================================================== */
 
-type Tab = "Dashboard" | "Stats" | "History" | "Settings"
-const TABS: Tab[] = ["Dashboard", "Stats", "History", "Settings"]
+type View = "Dashboard" | "Stats" | "History" | "Settings" | "Live" | "Log"
+const TABS: View[] = ["Dashboard", "Stats", "History", "Settings"]
 
-const PATH_TO_TAB: Record<string, Tab> = {
+const PATH_TO_TAB: Record<string, View> = {
   "/": "Dashboard",
   "/stats": "Stats",
   "/history": "History",
   "/settings": "Settings",
+}
+
+/* ---- Live at-the-table board (faithful to the live game mode) ------------ */
+
+// Seat identity colours, straight from the live engine.
+const SEAT_COLORS: Record<number, string> = {
+  1: "#E11D2B",
+  2: "#1668E3",
+  3: "#15A53C",
+  4: "#D97706",
+}
+
+interface LiveSeat {
+  name: string
+  commander: string
+  seat: number
+  start: number
+  top: boolean
+  cmdrDmg?: number
+  poison?: number
+}
+
+// Grid order: top-left, top-right, bottom-left, bottom-right. The two top seats
+// are rotated 180° so their text faces players across the table.
+const LIVE_SEATS: LiveSeat[] = [
+  { name: "Priya", commander: "Atraxa, Praetors' Voice", seat: 2, start: 31, top: true, poison: 4 },
+  { name: "Dave", commander: "Edgar Markov", seat: 1, start: 24, top: true, cmdrDmg: 12 },
+  { name: "Marisol", commander: "Krenko, Mob Boss", seat: 3, start: 40, top: false },
+  { name: "You", commander: "Yuriko, the Tiger's Shadow", seat: 4, start: 27, top: false, cmdrDmg: 7 },
+]
+
+function useArt(name: string) {
+  const [art, setArt] = useState<string | undefined>()
+  useEffect(() => {
+    let cancelled = false
+    fetchCardByName(name)
+      .then((card) => !cancelled && setArt(resolveArtCrop(card) ?? undefined))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [name])
+  return art
+}
+
+function LiveSeatPanel({
+  seat,
+  life,
+  flash,
+  onSelf,
+}: {
+  seat: LiveSeat
+  life: number
+  flash: boolean
+  onSelf: (delta: number) => void
+}) {
+  const art = useArt(seat.commander)
+  const hasDamage = (seat.cmdrDmg ?? 0) > 0 || (seat.poison ?? 0) > 0
+
+  return (
+    <div
+      className="relative overflow-hidden select-none text-white"
+      style={{ backgroundColor: SEAT_COLORS[seat.seat] }}
+    >
+      {art && (
+        <>
+          <img src={art} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/60" />
+        </>
+      )}
+
+      <div className={cn("absolute inset-0 z-10 flex flex-col items-center justify-center gap-0.5", seat.top && "rotate-180")}>
+        {/* attack pill near the inner edge */}
+        <div className="absolute left-1/2 top-2 -translate-x-1/2">
+          <span className="flex h-7 items-center gap-1 rounded-full bg-black/35 px-3 text-[10px] font-extrabold uppercase tracking-wider [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <Swords className="h-3 w-3" /> Attack
+          </span>
+        </div>
+
+        <span className="max-w-[90%] truncate text-[11px] font-bold uppercase tracking-wide text-white/85 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          {seat.name}
+        </span>
+        <span className="-mt-0.5 max-w-[92%] truncate text-[9.5px] font-medium text-white/65 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          {seat.commander}
+        </span>
+
+        <div className="flex items-center gap-2.5 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <button
+            onClick={() => onSelf(1)}
+            aria-label="lose 1 life"
+            className="grid h-8 w-8 place-items-center rounded-full bg-black/25 active:scale-95"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <span
+            key={flash ? `f${life}` : life}
+            className={cn(
+              "font-black leading-none tabular-nums text-[clamp(2.2rem,7vmin,4rem)]",
+              life <= 5 && "text-red-300",
+              flash && "live-dmg"
+            )}
+          >
+            {life}
+          </span>
+          <button
+            onClick={() => onSelf(-1)}
+            aria-label="gain 1 life"
+            className="grid h-8 w-8 place-items-center rounded-full bg-black/25 active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
+        {hasDamage && (
+          <span className="mt-0.5 flex items-center gap-1.5 rounded-full bg-black/35 px-2.5 py-0.5 text-[10px] font-bold text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            {(seat.cmdrDmg ?? 0) > 0 && <span>⚔ {seat.cmdrDmg}</span>}
+            {(seat.poison ?? 0) > 0 && (
+              <span className={cn((seat.poison ?? 0) >= 10 ? "text-green-300" : "text-white/90")}>
+                {(seat.cmdrDmg ?? 0) > 0 ? "· " : ""}☠ {seat.poison}
+              </span>
+            )}
+            <span className="text-white/50">›</span>
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LiveBoardView({ onOpenAuth }: { onOpenAuth: (mode: "login" | "signup") => void }) {
+  const [lives, setLives] = useState(LIVE_SEATS.map((s) => s.start))
+  const [flashIdx, setFlashIdx] = useState(-1)
+  const [turn, setTurn] = useState(4)
+  const [seconds, setSeconds] = useState(132)
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const dmg = window.setInterval(() => {
+      setLives((prev) => {
+        const i = Math.floor(Math.random() * prev.length)
+        let nv = prev[i] - (1 + Math.floor(Math.random() * 4))
+        if (nv < 1) nv = 40
+        const next = [...prev]
+        next[i] = nv
+        setFlashIdx(i)
+        return next
+      })
+    }, 2400)
+    const clock = window.setInterval(() => {
+      setSeconds((s) => {
+        if (s >= 175) {
+          setTurn((t) => t + 1)
+          return 0
+        }
+        return s + 1
+      })
+    }, 1000)
+    return () => {
+      window.clearInterval(dmg)
+      window.clearInterval(clock)
+    }
+  }, [])
+
+  const adjust = (i: number, delta: number) =>
+    setLives((prev) => {
+      const next = [...prev]
+      next[i] = Math.max(0, next[i] + delta)
+      if (delta < 0) setFlashIdx(i)
+      return next
+    })
+
+  const mmss = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`
+
+  return (
+    <div className="relative mx-auto aspect-[4/5] w-full max-w-[440px] overflow-hidden rounded-[22px] border border-border bg-border shadow-[0_24px_70px_hsl(240_8%_8%/0.25)] dark:shadow-[0_24px_70px_hsl(0_0%_0%/0.55)] sm:aspect-[16/11] sm:max-w-[760px]">
+      <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-px">
+        {LIVE_SEATS.map((seat, i) => (
+          <LiveSeatPanel
+            key={seat.name}
+            seat={seat}
+            life={lives[i]}
+            flash={flashIdx === i}
+            onSelf={(d) => adjust(i, d)}
+          />
+        ))}
+      </div>
+
+      {/* Center turn control — pinned over the seam, never rotated */}
+      <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur">
+          <button
+            onClick={() => onOpenAuth("signup")}
+            aria-label="Undo"
+            className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              setTurn((t) => t + 1)
+              setSeconds(0)
+            }}
+            className="inline-flex h-9 items-center gap-2 rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground tabular-nums"
+          >
+            <Timer className="h-4 w-4 opacity-80" />
+            End turn · T{turn} {mmss}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /* ---- Faithful static replica of the real Settings page ------------------- */
@@ -70,11 +294,7 @@ function SettingsView({ onOpenAuth }: { onOpenAuth: (mode: "login" | "signup") =
               disabled
               className="h-10 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
             />
-            <input
-              value="You"
-              readOnly
-              className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
-            />
+            <input value="You" readOnly className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm" />
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -173,69 +393,104 @@ function SettingsView({ onOpenAuth }: { onOpenAuth: (mode: "login" | "signup") =
 /* ---- The simulation shell ------------------------------------------------ */
 
 export function AppSimulation({ onOpenAuth }: { onOpenAuth: (mode: "login" | "signup") => void }) {
-  const [tab, setTab] = useState<Tab>("Dashboard")
-  const toAuth = () => onOpenAuth("signup")
-  const navigate = (path: string) => setTab(PATH_TO_TAB[path] ?? "Dashboard")
+  const [view, setView] = useState<View>("Dashboard")
+  const logPrefill = useRef<string | undefined>(undefined)
 
-  const view = useMemo(() => {
-    switch (tab) {
+  const navigate = (path: string) => setView(PATH_TO_TAB[path] ?? "Dashboard")
+  const openLog = (commander?: string) => {
+    logPrefill.current = commander
+    setView("Log")
+  }
+
+  const body = useMemo(() => {
+    switch (view) {
       case "Stats":
-        return <StatsPage games={DEMO_GAMES} onNavigate={navigate} onOpenLogGame={toAuth} />
+        return <StatsPage games={DEMO_GAMES} onNavigate={navigate} onOpenLogGame={openLog} />
       case "History":
         return (
           <HistoryPage
             games={DEMO_GAMES}
-            onDeleteGame={toAuth}
-            onEditGame={toAuth}
+            onDeleteGame={() => {}}
+            onEditGame={() => openLog()}
             scrollToGameId={null}
             onScrollHandled={() => {}}
           />
         )
       case "Settings":
         return <SettingsView onOpenAuth={onOpenAuth} />
+      case "Live":
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h1 className="text-xl font-semibold tracking-tight">Live game</h1>
+              <p className="text-sm text-muted-foreground">
+                One phone in the middle of the table tracks every seat.
+              </p>
+            </div>
+            <LiveBoardView onOpenAuth={onOpenAuth} />
+          </div>
+        )
+      case "Log":
+        return (
+          <div className="mx-auto max-w-2xl">
+            <h1 className="mb-5 text-xl font-semibold tracking-tight">Track a game</h1>
+            <LogGamePage
+              prefillCommander={logPrefill.current}
+              onSave={() => onOpenAuth("signup")}
+              onCancel={() => setView("Dashboard")}
+            />
+          </div>
+        )
       default:
         return (
-          <DashboardPage
-            games={DEMO_GAMES}
-            onNavigate={navigate}
-            onOpenLogGame={toAuth}
-            onEditGame={toAuth}
-          />
+          <DashboardPage games={DEMO_GAMES} onNavigate={navigate} onOpenLogGame={openLog} onEditGame={() => openLog()} />
         )
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab])
+  }, [view])
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[16px] border border-border bg-background shadow-[0_30px_90px_hsl(240_8%_8%/0.16)] dark:shadow-[0_30px_90px_hsl(0_0%_0%/0.5)]">
-      {/* App top bar — mirrors the real Nav, tabs are live */}
+      {/* App top bar — mirrors the real Nav, tabs + Live/Track buttons are live */}
       <div className="flex h-[52px] shrink-0 items-center justify-between gap-3 border-b border-border bg-[hsl(var(--background)/0.85)] px-3 backdrop-blur-md sm:px-4">
         <nav className="no-scrollbar -mx-1 flex items-center gap-0.5 overflow-x-auto px-1">
           {TABS.map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => setView(t)}
               className={cn(
                 "h-8 shrink-0 rounded-md px-3 text-[12.5px] font-medium transition-colors",
-                t === tab ? "bg-raised text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                t === view ? "bg-raised text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               {t}
             </button>
           ))}
         </nav>
-        <button
-          onClick={toAuth}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Track a game</span>
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            onClick={() => setView("Live")}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-md border border-input px-2.5 text-[12.5px] font-medium transition-colors",
+              view === "Live" ? "bg-raised text-foreground" : "text-foreground hover:bg-muted"
+            )}
+          >
+            <Swords className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Live game</span>
+          </button>
+          <button
+            onClick={() => openLog()}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Track a game</span>
+          </button>
+        </div>
       </div>
 
       {/* Body — the real pages, in the real content container */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{view}</div>
+        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{body}</div>
       </div>
     </div>
   )
