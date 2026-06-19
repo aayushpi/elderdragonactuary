@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react"
 import { Plus, LogOut, Download, FileText, Upload, Trash2, Share2 } from "lucide-react"
-import { LogoMark } from "@/components/modern/LogoMark"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { StatsPage } from "@/pages/StatsPage"
 import { HistoryPage } from "@/pages/HistoryPage"
@@ -211,10 +210,6 @@ export function AppSimulation({ onOpenAuth }: { onOpenAuth: (mode: "login" | "si
     <div className="flex h-full flex-col overflow-hidden rounded-[16px] border border-border bg-background shadow-[0_30px_90px_hsl(240_8%_8%/0.16)] dark:shadow-[0_30px_90px_hsl(0_0%_0%/0.5)]">
       {/* App top bar — mirrors the real Nav, tabs are live */}
       <div className="flex h-[52px] shrink-0 items-center justify-between gap-3 border-b border-border bg-[hsl(var(--background)/0.85)] px-3 backdrop-blur-md sm:px-4">
-        <div className="flex items-center gap-2.5">
-          <LogoMark size={24} />
-          <span className="hidden text-[14px] font-semibold tracking-tight sm:inline">Elder Dragon Actuary</span>
-        </div>
         <nav className="no-scrollbar -mx-1 flex items-center gap-0.5 overflow-x-auto px-1">
           {TABS.map((t) => (
             <button

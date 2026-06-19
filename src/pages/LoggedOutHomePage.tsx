@@ -73,19 +73,10 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
                 Explore the demo
               </a>
             </div>
-            <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              No credit card · sign up in seconds
-            </p>
           </section>
 
           {/* The app, near full-bleed */}
           <section id="demo" className="scroll-mt-20 pb-[clamp(40px,6vw,80px)] pt-[clamp(32px,5vw,56px)]">
-            <div className="mb-2 flex items-center justify-between gap-3 px-1">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                Live demo · click any tab — no account needed
-              </p>
-              <p className="hidden font-mono text-[11px] text-muted-foreground sm:block">Sample data</p>
-            </div>
             <div className="fade-up h-[clamp(560px,80vh,900px)]">
               <AppSimulation onOpenAuth={openAuth} />
             </div>

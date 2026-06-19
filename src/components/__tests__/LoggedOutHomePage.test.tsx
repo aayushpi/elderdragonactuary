@@ -34,7 +34,7 @@ describe("LoggedOutHomePage simulation", () => {
   it("renders the real Dashboard by default with demo data", () => {
     const c = mount()
     const text = c.textContent ?? ""
-    expect(text).toContain("Live demo")
+    expect(text).toContain("Shuffle, Ramp, Study, Send.")
     expect(text).toContain("Games")
     expect(text).toContain("Win rate")
     expect(text).toContain("Recent games")
