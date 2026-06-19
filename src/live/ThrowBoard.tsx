@@ -1,12 +1,13 @@
 import { type ReactNode, useRef, useState } from "react"
-import { Crosshair, GripHorizontal, GripVertical, Minus, Plus } from "lucide-react"
+import { Crosshair, GripHorizontal, GripVertical, Minus, Plus, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { CommanderPicker } from "@/components/CommanderPicker"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
 import { BoardChrome } from "./BoardChrome"
-import { SeatFrame, DragVector } from "./shared"
+import { SeatFrame, DragVector, DamageModal } from "./shared"
 import { useDragAttack, useDragLock } from "./drag"
-import type { DamageOpts, LiveGameApi, LivePlayer } from "./engine"
+import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer } from "./engine"
 
 /* ============================================================================
  * ThrowBoard — "drag from any seat onto any target" core.
@@ -46,6 +47,17 @@ export function ThrowBoard({
   const [pending, setPending] = useState<PendingHit | null>(null)
   // seat assigning a commander in-game (upright picker, led by that player's decks)
   const [cmdrSeat, setCmdrSeat] = useState<LivePlayer | null>(null)
+  // seat whose full damage breakdown is open
+  const [damageSeat, setDamageSeat] = useState<LivePlayer | null>(null)
+  // commanders are mandatory before a game can be saved (needed for stats)
+  const [showCommanderGate, setShowCommanderGate] = useState(false)
+
+  const missingCommanders = game.players.filter((p) => !p.commanderName?.trim())
+
+  function handleSaveRequest() {
+    if (missingCommanders.length > 0) setShowCommanderGate(true)
+    else onSave()
+  }
 
   const { drag, start } = useDragAttack({
     onDrop: (sourceId, targetId, point) => setPending({ sourceId, targetId, ...point }),
@@ -115,7 +127,7 @@ export function ThrowBoard({
         dragTarget={drag?.targetId === p.id}
         preview={drag?.targetId === p.id ? "⚔" : null}
         commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
-        damageView={game.config.damageView}
+        onShowDamage={() => setDamageSeat(p)}
         onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
         onRevive={() => game.revive(p.id)}
         onKnockout={() => game.toggleKnockout(p.id)}
@@ -161,7 +173,7 @@ export function ThrowBoard({
         game={game}
         renderSeat={(p, o) => seat(p, { side: o.side })}
         centerExtra={centerExtra}
-        onSave={onSave}
+        onSave={handleSaveRequest}
         onRematch={onRematch}
         onDiscard={onDiscard}
         saving={saving}
@@ -202,6 +214,77 @@ export function ThrowBoard({
             setCmdrSeat(null)
           }}
         />
+      )}
+
+      {damageSeat && (
+        <DamageModal
+          player={damageSeat}
+          commanderSources={Object.entries(game.runtime[damageSeat.id]?.commanderFrom ?? {})
+            .filter(([, amt]) => amt > 0)
+            .map(([srcId, amt]) => ({
+              name: game.players.find((pl) => pl.id === srcId)?.displayName ?? "?",
+              amount: amt,
+            }))}
+          poison={game.runtime[damageSeat.id]?.poison ?? 0}
+          onClose={() => setDamageSeat(null)}
+        />
+      )}
+
+      {showCommanderGate && (
+        <div className="fixed inset-0 z-[64] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-[min(90vw,24rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="border-b px-4 py-3">
+              <p className="text-sm font-semibold">Set commanders to save</p>
+              <p className="text-xs text-muted-foreground">
+                Every player needs a commander so the game counts toward stats.
+              </p>
+            </div>
+            <div className="max-h-[55vh] divide-y divide-border overflow-y-auto">
+              {[...game.players]
+                .sort((a, b) => a.seatPosition - b.seatPosition)
+                .map((p) => {
+                  const has = !!p.commanderName?.trim()
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setCmdrSeat(p)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60"
+                    >
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: SEAT_COLORS[p.seatPosition] ?? "#64748B" }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold">{p.displayName}</div>
+                        <div className={cn("truncate text-xs", has ? "text-muted-foreground" : "text-destructive")}>
+                          {has ? p.commanderName : "No commander — tap to set"}
+                        </div>
+                      </div>
+                      {has ? (
+                        <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <Plus className="h-4 w-4 shrink-0 text-destructive" />
+                      )}
+                    </button>
+                  )
+                })}
+            </div>
+            <div className="flex gap-2 border-t p-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowCommanderGate(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={missingCommanders.length > 0}
+                onClick={() => { setShowCommanderGate(false); onSave() }}
+              >
+                {missingCommanders.length > 0
+                  ? `${missingCommanders.length} missing`
+                  : "Save game"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

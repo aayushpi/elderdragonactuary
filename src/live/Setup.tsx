@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { SECTION_LABEL } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
 import type { SeatPosition } from "@/types"
-import { genId, type DamageView, type LiveConfig } from "@/live/engine"
+import { genId, type LiveConfig } from "@/live/engine"
 import type { RichPod } from "./setupData"
 import { type DraftSeat, blankSeat, podToRoster, randomStarter, toConfig } from "./setupShared"
 
@@ -53,7 +53,6 @@ export function Setup({
   const [pod, setPod] = useState<RichPod | null>(null)
   const [editName, setEditName] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
-  const [damageView, setDamageView] = useState<DamageView | undefined>(undefined)
   const addRef = useRef<HTMLInputElement>(null)
 
   function startNow(p: RichPod) {
@@ -343,32 +342,8 @@ export function Setup({
         <TableLayoutIcon count={seats.length} />
       </section>
 
-      <section className="space-y-2">
-        <span className={SECTION_LABEL}>Damage display</span>
-        <div className="grid grid-cols-2 gap-1.5">
-          {([
-            { value: undefined, label: "Inline", desc: "Always shown below life" },
-            { value: "flip" as DamageView, label: "A · Swipe", desc: "Swipe left to reveal" },
-            { value: "chip" as DamageView, label: "B · Chip", desc: "Tap chip to expand" },
-            { value: "strip" as DamageView, label: "C · Strip", desc: "Persistent bottom bar" },
-          ] as const).map((opt) => (
-            <button
-              key={opt.label}
-              onClick={() => setDamageView(opt.value)}
-              className={cn(
-                "rounded-xl border p-2.5 text-left transition-colors",
-                damageView === opt.value ? "border-primary bg-primary/10" : "border-border bg-card"
-              )}
-            >
-              <div className="text-xs font-semibold">{opt.label}</div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">{opt.desc}</div>
-            </button>
-          ))}
-        </div>
-      </section>
-
       <div className="mt-auto">
-        <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, randomStarter(seats), pod ?? undefined, { damageView }))}>
+        <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, randomStarter(seats), pod ?? undefined))}>
           Start game <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
@@ -394,10 +369,10 @@ const LAYOUTS: Record<number, SeatRect[]> = {
     { x: 64, y: 20, w: 48, h: 60 },              // tr (seat 3)
   ],
   4: [
-    { x: 20, y: 112, w: 80, h: 40, me: true },   // bot
-    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
-    { x: 20, y: 10,  w: 80, h: 40 },             // top
-    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+    { x: 8,  y: 84,  w: 50, h: 68, me: true },   // bl
+    { x: 8,  y: 8,   w: 50, h: 68 },             // tl
+    { x: 62, y: 8,   w: 50, h: 68 },             // tr
+    { x: 62, y: 84,  w: 50, h: 68 },             // br
   ],
   5: [
     { x: 8,  y: 105, w: 50, h: 42, me: true },   // bl (seat 1)

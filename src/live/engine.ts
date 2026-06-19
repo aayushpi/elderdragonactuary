@@ -73,14 +73,11 @@ export interface TurnEvent {
 
 export type GameEvent = DamageEvent | TurnEvent
 
-export type DamageView = "flip" | "chip" | "strip"
-
 export interface LiveConfig {
   players: LivePlayer[]
   startingSeat: SeatPosition
   podId?: string
   podLabel?: string
-  damageView?: DamageView
 }
 
 export interface PlayerRuntime {
@@ -574,13 +571,13 @@ const RING_GRIDS: Record<number, RingGrid> = {
   },
   4: {
     columns: "1fr 1fr",
-    rows: "1fr 1.25fr 1fr",
-    areas: ['"top top"', '"lft rgt"', '"bot bot"'],
+    rows: "1fr 1fr",
+    areas: ['"tl tr"', '"bl br"'],
     cells: [
-      { area: "bot", rotate: 0 },
-      { area: "lft", rotate: 90 },
-      { area: "top", rotate: 180 },
-      { area: "rgt", rotate: 270 },
+      { area: "bl", rotate: 0 },
+      { area: "tl", rotate: 180 },
+      { area: "tr", rotate: 180 },
+      { area: "br", rotate: 0 },
     ],
   },
   5: {

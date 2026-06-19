@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from "react"
-import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil } from "lucide-react"
+import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { LETHAL_COMMANDER, LETHAL_POISON, SEAT_COLORS, type DamageView, type LivePlayer, type PlayerRuntime } from "./engine"
+import { LETHAL_COMMANDER, LETHAL_POISON, SEAT_COLORS, type LivePlayer, type PlayerRuntime } from "./engine"
 import type { DragInfo } from "./drag"
 
 /* The live attack vector drawn from the source handle to the finger. Lives here
@@ -66,7 +66,7 @@ export function SeatFrame({
   onRevive,
   onKnockout,
   commanderSources,
-  damageView,
+  onShowDamage,
 }: {
   player: LivePlayer
   rt: PlayerRuntime
@@ -87,16 +87,12 @@ export function SeatFrame({
   onKnockout: () => void
   /** per-source commander damage with display names */
   commanderSources?: Array<{ name: string; amount: number }>
-  /** how to display commander / poison damage */
-  damageView?: DamageView
+  /** open the full commander-damage + poison breakdown modal for this seat */
+  onShowDamage?: () => void
 }) {
   const prevLifeRef = useRef(rt.life)
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
-  const [flipped, setFlipped] = useState(false)
-  const [chipExpanded, setChipExpanded] = useState(false)
   const [artFailed, setArtFailed] = useState(false)
-  const swipeStartX = useRef(0)
-  const swipeStartY = useRef(0)
 
   useEffect(() => {
     const prev = prevLifeRef.current
@@ -115,38 +111,6 @@ export function SeatFrame({
 
   const totalCommanderDmg = commanderSources?.reduce((sum, s) => sum + s.amount, 0) ?? 0
   const hasDamageInfo = (commanderSources && commanderSources.length > 0) || rt.poison > 0
-
-  function onSwipeStart(e: React.PointerEvent) {
-    if (damageView !== "flip") return
-    swipeStartX.current = e.clientX
-    swipeStartY.current = e.clientY
-  }
-  function onSwipeEnd(e: React.PointerEvent) {
-    if (damageView !== "flip") return
-    const dx = e.clientX - swipeStartX.current
-    const dy = e.clientY - swipeStartY.current
-    if (Math.abs(dx) > 55 && Math.abs(dy) < 50) setFlipped(dx < 0)
-  }
-
-  // Full damage breakdown (used in flip face and chip expanded)
-  function DamageBreakdown() {
-    return (
-      <div className="flex flex-col items-center gap-0.5 text-[clamp(0.6rem,2vmin,0.85rem)] font-bold">
-        {commanderSources && commanderSources.length > 0 ? (
-          commanderSources.map((s) => (
-            <span key={s.name} className={cn(s.amount >= LETHAL_COMMANDER ? "text-red-300" : "text-white/90")}>
-              ⚔ {s.name} {s.amount}/{LETHAL_COMMANDER}
-            </span>
-          ))
-        ) : null}
-        {rt.poison > 0 && (
-          <span className={cn(rt.poison >= LETHAL_POISON ? "text-green-300" : "text-white/90")}>
-            ☠ Poison {rt.poison}/{LETHAL_POISON}
-          </span>
-        )}
-      </div>
-    )
-  }
 
   return (
     <div
@@ -224,141 +188,65 @@ export function SeatFrame({
           <div
             style={{ transform: side ? "translateY(-13%)" : undefined }}
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]"
-            onPointerDown={onSwipeStart}
-            onPointerUp={onSwipeEnd}
           >
             <span className="max-w-[90%] truncate text-[clamp(0.7rem,2.4vmin,1.1rem)] font-bold uppercase tracking-wide text-white/85">
               {player.displayName}
             </span>
-            {hasCommander && !flipped && (
+            {hasCommander && (
               <span className="-mt-0.5 max-w-[92%] truncate text-[clamp(0.55rem,1.7vmin,0.8rem)] font-medium text-white/65">
                 {player.commanderName}
               </span>
             )}
 
-            {/* Flip variant — damage face */}
-            {damageView === "flip" && flipped ? (
-              <div className="flex flex-col items-center gap-1.5 px-3 text-center">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-white/50">Damage taken</span>
-                <DamageBreakdown />
-                {!hasDamageInfo && (
-                  <span className="text-[clamp(0.65rem,2vmin,0.85rem)] text-white/50">None yet</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { vibrate(25); onSelfChange(1) }}
+                aria-label="lose 1 life"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
+              >
+                <Minus className="h-5 w-5" />
+              </button>
+              <span
+                key={flash}
+                style={{ fontSize: "clamp(3rem, 12vmin, 7.5rem)" }}
+                className={cn(
+                  "tabular-nums font-black leading-none",
+                  rt.life <= 5 && "text-red-300",
+                  flash === "damage" && "animate-life-damage text-red-300",
+                  flash === "heal" && "animate-life-heal text-emerald-300",
                 )}
-                <span className="mt-1 text-[9px] font-mono text-white/35">swipe right to return</span>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => { vibrate(25); onSelfChange(1) }}
-                    aria-label="lose 1 life"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
-                  >
-                    <Minus className="h-5 w-5" />
-                  </button>
-                  <span
-                    key={flash}
-                    style={{ fontSize: "clamp(3rem, 12vmin, 7.5rem)" }}
-                    className={cn(
-                      "tabular-nums font-black leading-none",
-                      rt.life <= 5 && "text-red-300",
-                      flash === "damage" && "animate-life-damage text-red-300",
-                      flash === "heal" && "animate-life-heal text-emerald-300",
-                    )}
-                  >
-                    {rt.life}
+              >
+                {rt.life}
+              </span>
+              <button
+                onClick={() => { vibrate(15); onSelfChange(-1) }}
+                aria-label="gain 1 life"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
+
+            {hasDamageInfo && (
+              <button
+                onClick={() => onShowDamage?.()}
+                aria-label="View commander and poison damage"
+                className="flex items-center gap-1.5 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/90 active:scale-95"
+              >
+                {totalCommanderDmg > 0 && (
+                  <span className={cn(commanderSources?.some((s) => s.amount >= LETHAL_COMMANDER) && "text-red-300")}>
+                    ⚔ {totalCommanderDmg}
                   </span>
-                  <button
-                    onClick={() => { vibrate(15); onSelfChange(-1) }}
-                    aria-label="gain 1 life"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
-                  >
-                    <Plus className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Damage display — variant specific */}
-                {damageView === "flip" && hasDamageInfo && (
-                  <span className="text-[9px] font-mono text-white/40">← swipe to see damage</span>
                 )}
-
-                {damageView === "chip" && hasDamageInfo && (
-                  chipExpanded ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <DamageBreakdown />
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setChipExpanded(false) }}
-                        className="mt-0.5 text-[9px] font-mono text-white/40 active:scale-95"
-                      >
-                        ‹ less
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setChipExpanded(true) }}
-                      className="flex items-center gap-1.5 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/90 active:scale-95"
-                    >
-                      {totalCommanderDmg > 0 && <span>⚔ {totalCommanderDmg}</span>}
-                      {rt.poison > 0 && <span>{totalCommanderDmg > 0 ? " · " : ""}☠ {rt.poison}</span>}
-                      <span className="text-white/50"> ›</span>
-                    </button>
-                  )
+                {rt.poison > 0 && (
+                  <span className={cn(rt.poison >= LETHAL_POISON ? "text-green-300" : "text-white/90")}>
+                    {totalCommanderDmg > 0 ? "· " : ""}☠ {rt.poison}
+                  </span>
                 )}
-
-                {/* Default inline damage (no variant or strip) */}
-                {(!damageView || damageView === "strip") && (
-                  <>
-                    {commanderSources && commanderSources.length > 0 && (
-                      <div className="flex flex-col items-center gap-0.5 text-[clamp(0.55rem,1.7vmin,0.8rem)] font-bold">
-                        {commanderSources.map((s) => (
-                          <span
-                            key={s.name}
-                            className={cn(s.amount >= LETHAL_COMMANDER ? "text-red-300" : "text-white/75")}
-                          >
-                            ⚔ {s.name} {s.amount}/{LETHAL_COMMANDER}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {(!commanderSources || commanderSources.length === 0) && Object.keys(rt.commanderFrom).length > 0 && (
-                      <div className="flex items-center gap-2 text-[clamp(0.6rem,1.9vmin,0.9rem)] font-bold">
-                        {Object.values(rt.commanderFrom).some(v => v > 0) && (
-                          <span className={cn(Math.max(0, ...Object.values(rt.commanderFrom)) >= LETHAL_COMMANDER ? "text-red-300" : "text-white/80")}>
-                            ⚔ {Math.max(0, ...Object.values(rt.commanderFrom))}/{LETHAL_COMMANDER}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {rt.poison > 0 && (
-                      <div className="text-[clamp(0.6rem,1.9vmin,0.9rem)] font-bold">
-                        <span className={cn(rt.poison >= LETHAL_POISON ? "text-green-300" : "text-white/80")}>
-                          ☠ {rt.poison}/{LETHAL_POISON}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
+                <span className="text-white/50">›</span>
+              </button>
             )}
           </div>
-
-          {/* Strip variant — persistent damage bar at the bottom edge */}
-          {damageView === "strip" && hasDamageInfo && (
-            <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-3 bg-black/50 px-2 py-1 text-[10px] font-bold [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]">
-              {commanderSources && commanderSources.length > 0
-                ? commanderSources.map((s) => (
-                    <span key={s.name} className={cn(s.amount >= LETHAL_COMMANDER ? "text-red-300" : "text-white/85")}>
-                      ⚔ {s.name.split(" ")[0]} {s.amount}
-                    </span>
-                  ))
-                : null}
-              {rt.poison > 0 && (
-                <span className={cn(rt.poison >= LETHAL_POISON ? "text-green-300" : "text-white/85")}>
-                  ☠ {rt.poison}
-                </span>
-              )}
-            </div>
-          )}
 
           <div className="absolute right-1 top-1 z-20">
             <KnockoutControl rt={rt} onRevive={onRevive} onKnockout={onKnockout} />
@@ -426,7 +314,7 @@ export function EndGameBanner({
   saving?: boolean
 }) {
   return (
-    <div className="rounded-xl border border-primary/40 bg-primary/10 p-4 space-y-3">
+    <div className="rounded-xl border border-primary/40 bg-card p-4 shadow-2xl space-y-3">
       <div className="flex items-center gap-2">
         <Trophy className="h-5 w-5 text-primary" />
         <span className="font-semibold">
@@ -446,6 +334,70 @@ export function EndGameBanner({
           <Trash2 className="h-3.5 w-3.5" /> Discard game
         </Button>
       )}
+    </div>
+  )
+}
+
+/* ---- Full commander + poison damage breakdown for one player ---- */
+export function DamageModal({
+  player,
+  commanderSources,
+  poison,
+  onClose,
+}: {
+  player: LivePlayer
+  commanderSources: Array<{ name: string; amount: number }>
+  poison: number
+  onClose: () => void
+}) {
+  const hasAny = commanderSources.length > 0 || poison > 0
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70" onClick={onClose}>
+      <div
+        className="w-[min(88vw,22rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-sm">{player.displayName}</p>
+            <p className="text-xs text-muted-foreground">Damage taken</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          {!hasAny && (
+            <p className="py-4 text-center text-sm text-muted-foreground">No commander or poison damage yet</p>
+          )}
+
+          {commanderSources.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commander damage</p>
+              {commanderSources.map((s) => (
+                <div key={s.name} className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                  <span className="truncate font-medium">⚔ {s.name}</span>
+                  <span className={cn("shrink-0 tabular-nums font-bold", s.amount >= LETHAL_COMMANDER ? "text-destructive" : "text-foreground")}>
+                    {s.amount} / {LETHAL_COMMANDER}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {poison > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Poison</p>
+              <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                <span className="font-medium">☠ Poison counters</span>
+                <span className={cn("tabular-nums font-bold", poison >= LETHAL_POISON ? "text-green-600 dark:text-green-400" : "text-foreground")}>
+                  {poison} / {LETHAL_POISON}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

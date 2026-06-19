@@ -83,8 +83,8 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
       </div>
 
       {game.phase === "ended" ? (
-        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
-          <div className="pointer-events-auto w-[min(80vw,20rem)]">
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70">
+          <div className="w-[min(80vw,20rem)]">
             <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} onDiscard={onDiscard} saving={saving} />
           </div>
         </div>
