@@ -28,6 +28,7 @@ import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
+import { useFeatureFlags } from "@/hooks/useFeatureFlags"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -44,6 +45,8 @@ type Theme = "light" | "dark"
 
 function App() {
   const { user, loading: authLoading, signOut } = useAuth()
+  const featureFlags = useFeatureFlags()
+  const liveGameEnabled = featureFlags.isEnabled("live-game")
   const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
@@ -120,6 +123,8 @@ function App() {
   async function handleSaveLiveGame(game: Game) {
     await addGame(game)
     try { trackGameLogged(game) } catch { void 0 }
+    setRecentlyEditedGameId(game.id)
+    navigate("/history")
   }
 
   function handleUpdateGame(game: Game) {
@@ -209,7 +214,7 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
-        onStartLive={() => navigateWithFlowMinimize("/live")}
+        onStartLive={liveGameEnabled ? () => navigateWithFlowMinimize("/live") : undefined}
         userEmail={user.email}
         onSignOut={() => {
           void (async () => {
@@ -285,7 +290,15 @@ function App() {
             <Route
               path="/live"
               element={
-                <LiveGamePage games={games} onSaveGame={handleSaveLiveGame} onExit={() => navigate("/")} />
+                liveGameEnabled ? (
+                  <LiveGamePage games={games} onSaveGame={handleSaveLiveGame} onExit={() => navigate("/")} />
+                ) : !featureFlags.ready ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Navigate to="/" replace />
+                )
               }
             />
             <Route path="*" element={<Navigate to="/" replace />} />

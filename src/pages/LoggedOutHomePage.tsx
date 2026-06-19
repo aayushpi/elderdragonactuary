@@ -208,7 +208,7 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-border bg-[hsl(var(--background)/0.88)] backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-[hsl(var(--background)/0.88)] pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className={cn(WRAP, "flex h-[60px] items-center justify-between gap-4")}>
           <Wordmark />
           <nav className="hidden items-center gap-1 sm:flex">
@@ -404,7 +404,7 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-9">
+      <footer className="border-t border-border py-9 pb-[max(2.25rem,env(safe-area-inset-bottom))]">
         <div className={cn(WRAP, "flex flex-wrap items-center justify-between gap-4 text-xs")}>
           <a href="https://aayush.fyi" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary transition-colors">
             Made by Aayush.

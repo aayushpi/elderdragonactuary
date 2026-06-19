@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
+import { SEAT_COLORS } from "./engine"
 import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
+import { useWakeLock } from "./useWakeLock"
 
 interface BoardChromeProps {
   game: LiveGameApi
@@ -51,15 +53,17 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) ?? null : null
 
   const counterRotate = useOrientationLock()
-  // who-goes-first happens on the board, before the clock starts
+  useWakeLock(game.started && game.phase !== "ended")
+  // seat-placement phase → roll phase → game phase
+  const [readyToRoll, setReadyToRoll] = useState(false)
   const [starterPicked, setStarterPicked] = useState(false)
   useEffect(() => {
-    if (!game.started) setStarterPicked(false)
+    if (!game.started) { setReadyToRoll(false); setStarterPicked(false) }
   }, [game.started])
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" style={counterRotationStyle(counterRotate)}>
-    <div className="h-full w-full overflow-hidden bg-border pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="h-full w-full overflow-hidden bg-border">
       <div
         className="grid h-full w-full gap-px"
         style={{
@@ -79,11 +83,13 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
       </div>
 
       {game.phase === "ended" ? (
-        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
-          <div className="pointer-events-auto w-[min(80vw,20rem)]">
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70">
+          <div className="w-[min(80vw,20rem)]">
             <EndGameBanner winner={winner} onSave={onSave} onRematch={onRematch} onDiscard={onDiscard} saving={saving} />
           </div>
         </div>
+      ) : !game.started && !readyToRoll ? (
+        <ReadyToRoll onReady={() => setReadyToRoll(true)} />
       ) : !game.started && !starterPicked ? (
         <StarterChooser
           seats={seats}
@@ -110,50 +116,96 @@ function counterRotationStyle(r: CounterRotation): React.CSSProperties {
   return { transform: "rotate(180deg)", transformOrigin: "center" }
 }
 
+/* First overlay: let players get seated and set commanders before rolling. */
+function ReadyToRoll({ onReady }: { onReady: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-end justify-center pb-16">
+      <div className="pointer-events-auto flex flex-col items-center gap-2">
+        <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
+          Drag seats · set commanders · then roll
+        </p>
+        <Button onClick={onReady} size="lg" className="h-14 gap-2 rounded-full px-8 text-base shadow-2xl">
+          <Dices className="h-5 w-5" /> Ready to roll
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 /* Centre overlay: high-roll a D20 or tap a player to decide who starts. The
  * winner then gets the Start control at their own edge. */
 function StarterChooser({ seats, onPick }: { seats: LivePlayer[]; onPick: (seat: LivePlayer["seatPosition"]) => void }) {
   const [rollingId, setRollingId] = useState<string | null>(null)
   const [rolling, setRolling] = useState(false)
+  const [pickedId, setPickedId] = useState<string | null>(null)
 
   function roll() {
+    setPickedId(null)
     setRolling(true)
     let ticks = 0
+    let lastPick = seats[0]
     const id = window.setInterval(() => {
-      const r = seats[Math.floor(Math.random() * seats.length)]
-      setRollingId(r.id)
+      lastPick = seats[Math.floor(Math.random() * seats.length)]
+      setRollingId(lastPick.id)
       ticks++
       if (ticks > 14) {
         window.clearInterval(id)
-        window.setTimeout(() => onPick(r.seatPosition), 550)
+        window.setTimeout(() => {
+          setRolling(false)
+          setPickedId(lastPick.id)
+        }, 200)
       }
     }, 75)
   }
+
+  const pickedPlayer = pickedId ? seats.find((p) => p.id === pickedId) ?? null : null
 
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
       <div className="pointer-events-auto flex w-[min(84vw,19rem)] flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur">
         <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Who goes first?</span>
         <div className="grid w-full grid-cols-2 gap-1.5">
-          {seats.map((p) => (
-            <button
-              key={p.id}
-              disabled={rolling}
-              onClick={() => onPick(p.seatPosition)}
-              className={cn(
-                "flex items-center justify-center gap-1 rounded-lg border px-2 py-2.5 text-sm font-semibold transition-colors",
-                rollingId === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border"
-              )}
-            >
-              {rollingId === p.id && <Crown className="h-3.5 w-3.5" />}
-              <span className="truncate">{p.displayName}</span>
-            </button>
-          ))}
+          {seats.map((p) => {
+            const seatColor = SEAT_COLORS[p.seatPosition] ?? "#64748B"
+            const active = rollingId === p.id || pickedId === p.id
+            return (
+              <button
+                key={p.id}
+                disabled={rolling}
+                onClick={() => onPick(p.seatPosition)}
+                style={{
+                  backgroundColor: active ? seatColor : undefined,
+                  borderColor: seatColor,
+                  color: active ? "#fff" : seatColor,
+                }}
+                className="flex items-center justify-center gap-1 rounded-lg border-2 px-2 py-2.5 text-sm font-semibold transition-all active:scale-95"
+              >
+                {active && <Crown className="h-3.5 w-3.5" />}
+                <span className="truncate">{p.displayName}</span>
+              </button>
+            )
+          })}
         </div>
-        <Button onClick={roll} disabled={rolling} size="lg" className="w-full gap-2">
-          <Dices className={cn("h-5 w-5", rolling && "animate-spin")} />
-          {rolling ? "Rolling…" : "High roll (D20)"}
-        </Button>
+        {pickedPlayer ? (
+          <div className="flex w-full flex-col gap-2">
+            <p className="text-center text-sm font-semibold">
+              <span className="text-primary">{pickedPlayer.displayName}</span> goes first!
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={roll} variant="outline" className="flex-1 gap-1.5">
+                <Dices className="h-4 w-4" /> Re-roll
+              </Button>
+              <Button onClick={() => onPick(pickedPlayer.seatPosition)} className="flex-1">
+                Confirm
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button onClick={roll} disabled={rolling} size="lg" className="w-full gap-2">
+            <Dices className={cn("h-5 w-5", rolling && "animate-spin")} />
+            {rolling ? "Rolling…" : "High roll (D20)"}
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
-import { useRef, useState } from "react"
-import { ArrowRight, Users, Clock, Pencil, ChevronLeft, X, Plus, UserPlus, Play } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { ArrowRight, Users, Clock, Pencil, ChevronLeft, GripVertical, X, Plus, UserPlus, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SECTION_LABEL } from "@/components/modern/primitives"
@@ -8,7 +8,6 @@ import type { SeatPosition } from "@/types"
 import { genId, type LiveConfig } from "@/live/engine"
 import type { RichPod } from "./setupData"
 import { type DraftSeat, blankSeat, podToRoster, randomStarter, toConfig } from "./setupShared"
-import { StarterBar } from "./StarterBar"
 
 /* ============================================================================
  * Variant A — "Pod & table" (commanders are chosen in-game)
@@ -52,7 +51,6 @@ export function Setup({
 }) {
   const [seats, setSeats] = useState<DraftSeat[] | null>(null)
   const [pod, setPod] = useState<RichPod | null>(null)
-  const [starter, setStarter] = useState<SeatPosition>(1)
   const [editName, setEditName] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
   const addRef = useRef<HTMLInputElement>(null)
@@ -65,12 +63,10 @@ export function Setup({
     const { seats: s } = podToRoster(p)
     setSeats(s)
     setPod(p)
-    setStarter(1)
   }
   function newTable() {
     setSeats([blankSeat(1), { id: genId(), seatPosition: 2, isMe: false, displayName: "", commanderName: "" }])
     setPod(null)
-    setStarter(1)
   }
 
   function addPlayer(name = "") {
@@ -85,14 +81,69 @@ export function Setup({
   function removePlayer(id: string) {
     setSeats((prev) => {
       if (!prev || prev.length <= 2) return prev
-      const next = reindex(prev.filter((s) => s.id !== id))
-      if (starter > next.length) setStarter(1)
-      return next
+      return reindex(prev.filter((s) => s.id !== id))
     })
   }
   function rename(id: string, displayName: string) {
     setSeats((prev) => prev && prev.map((s) => (s.id === id ? { ...s, displayName } : s)))
   }
+  const draggingRef = useRef<string | null>(null)
+  const dragOverRef = useRef<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!draggingId) return
+    document.body.style.touchAction = "none"
+    document.body.style.userSelect = "none"
+    return () => {
+      document.body.style.touchAction = ""
+      document.body.style.userSelect = ""
+    }
+  }, [draggingId])
+
+  function startDrag(id: string, e: React.PointerEvent) {
+    e.preventDefault()
+    draggingRef.current = id
+    dragOverRef.current = null
+    setDraggingId(id)
+    setDragOverId(null)
+    const move = (ev: PointerEvent) => {
+      const el = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest("[data-player-row]")
+      const overId = (el as HTMLElement | null)?.getAttribute("data-player-row") ?? null
+      const next = overId !== draggingRef.current ? overId : null
+      if (next !== dragOverRef.current) {
+        dragOverRef.current = next
+        setDragOverId(next)
+      }
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      const srcId = draggingRef.current
+      const tgtId = dragOverRef.current
+      draggingRef.current = null
+      dragOverRef.current = null
+      setDraggingId(null)
+      setDragOverId(null)
+      if (srcId && tgtId && srcId !== tgtId) {
+        setSeats((prev) => {
+          if (!prev) return prev
+          const srcIdx = prev.findIndex((s) => s.id === srcId)
+          const tgtIdx = prev.findIndex((s) => s.id === tgtId)
+          if (srcIdx === -1 || tgtIdx === -1) return prev
+          const next = [...prev]
+          ;[next[srcIdx], next[tgtIdx]] = [next[tgtIdx], next[srcIdx]]
+          return reindex(next)
+        })
+      }
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
+  }
+
   function commitNew() {
     const n = newName.trim()
     if (!n) return
@@ -175,7 +226,21 @@ export function Setup({
         </span>
         <div className="space-y-2">
           {seats.map((s, i) => (
-            <div key={s.id} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2.5">
+            <div
+              key={s.id}
+              data-player-row={s.id}
+              className={cn(
+                "flex items-center gap-2 rounded-xl border bg-card p-2.5 transition-colors",
+                draggingId === s.id ? "opacity-40" : dragOverId === s.id ? "border-primary bg-primary/5" : "border-border"
+              )}
+            >
+              <button
+                onPointerDown={(e) => startDrag(s.id, e)}
+                aria-label="Drag to reorder"
+                className="flex h-7 w-6 shrink-0 touch-none cursor-grab items-center justify-center rounded text-muted-foreground active:cursor-grabbing"
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold tabular-nums">
                 {i + 1}
               </span>
@@ -259,7 +324,6 @@ export function Setup({
                 onClick={() => {
                   setSeats(podToRoster(p).seats)
                   setPod(p)
-                  setStarter(1)
                 }}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-semibold",
@@ -278,13 +342,8 @@ export function Setup({
         <TableLayoutIcon count={seats.length} />
       </section>
 
-      <section className="space-y-2">
-        <span className={SECTION_LABEL}>Who goes first?</span>
-        <StarterBar seats={seats} value={starter} onChange={setStarter} />
-      </section>
-
       <div className="mt-auto">
-        <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, starter, pod ?? undefined))}>
+        <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, randomStarter(seats), pod ?? undefined))}>
           Start game <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
@@ -310,25 +369,25 @@ const LAYOUTS: Record<number, SeatRect[]> = {
     { x: 64, y: 20, w: 48, h: 60 },              // tr (seat 3)
   ],
   4: [
-    { x: 20, y: 112, w: 80, h: 40, me: true },   // bot
-    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
-    { x: 20, y: 10,  w: 80, h: 40 },             // top
-    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+    { x: 8,  y: 84,  w: 50, h: 68, me: true },   // bl
+    { x: 8,  y: 8,   w: 50, h: 68 },             // tl
+    { x: 62, y: 8,   w: 50, h: 68 },             // tr
+    { x: 62, y: 84,  w: 50, h: 68 },             // br
   ],
   5: [
-    { x: 20, y: 112, w: 80, h: 40, me: true },   // bot
-    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
-    { x: 8,  y: 10,  w: 48, h: 40 },             // tl
-    { x: 64, y: 10,  w: 48, h: 40 },             // tr
-    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
+    { x: 8,  y: 105, w: 50, h: 42, me: true },   // bl (seat 1)
+    { x: 8,  y: 55,  w: 32, h: 45 },             // lft (seat 2)
+    { x: 8,  y: 10,  w: 104, h: 40 },            // top (seat 3, full width)
+    { x: 80, y: 55,  w: 32, h: 45 },             // rgt (seat 4)
+    { x: 62, y: 105, w: 50, h: 42 },             // br (seat 5)
   ],
   6: [
-    { x: 8,  y: 110, w: 48, h: 42, me: true },   // bl
-    { x: 8,  y: 55,  w: 32, h: 50 },             // lft
-    { x: 8,  y: 10,  w: 48, h: 40 },             // tl
-    { x: 64, y: 10,  w: 48, h: 40 },             // tr
-    { x: 80, y: 55,  w: 32, h: 50 },             // rgt
-    { x: 64, y: 110, w: 48, h: 42 },             // br
+    { x: 8,  y: 105, w: 50, h: 42, me: true },   // bl (seat 1)
+    { x: 8,  y: 55,  w: 32, h: 45 },             // lft (seat 2)
+    { x: 8,  y: 10,  w: 50, h: 40 },             // tl (seat 3)
+    { x: 62, y: 10,  w: 50, h: 40 },             // tr (seat 4)
+    { x: 80, y: 55,  w: 32, h: 45 },             // rgt (seat 5)
+    { x: 62, y: 105, w: 50, h: 42 },             // br (seat 6)
   ],
 }
 

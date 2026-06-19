@@ -14,27 +14,34 @@ export function track(event: string, props?: Record<string, unknown>): void {
   }
 }
 
-export function identify(id: string): void {
+export function identify(id: string, properties?: Record<string, unknown>): void {
   try {
-    const ph = getPosthog() as { identify?: (id: string) => void } | undefined
+    const ph = getPosthog() as { identify?: (id: string, props?: Record<string, unknown>) => void } | undefined
     if (!ph?.identify) return
-    ph.identify(id)
+    ph.identify(id, properties)
   } catch {
     void 0
   }
+}
+
+/** Tie the PostHog distinct id to the signed-in user and set person properties
+ *  (e.g. email) used for feature-flag targeting and cohorts. Safe to call on
+ *  every session restore — identify is idempotent. */
+export function identifyUser(props: { user_id: string; email?: string }): void {
+  identify(props.user_id, props.email ? { email: props.email } : undefined)
 }
 
 export function trackAppStarted(props?: Record<string, unknown>) {
   track('app_started', props)
 }
 
-export function trackUserSignedIn(props?: { user_id?: string; method?: string }) {
-  if (props?.user_id) identify(props.user_id)
+export function trackUserSignedIn(props?: { user_id?: string; email?: string; method?: string }) {
+  if (props?.user_id) identifyUser({ user_id: props.user_id, email: props.email })
   track('user_signed_in', props)
 }
 
-export function trackUserSignedUp(props?: { user_id?: string; method?: string }) {
-  if (props?.user_id) identify(props.user_id)
+export function trackUserSignedUp(props?: { user_id?: string; email?: string; method?: string }) {
+  if (props?.user_id) identifyUser({ user_id: props.user_id, email: props.email })
   track('user_signed_up', props)
 }
 

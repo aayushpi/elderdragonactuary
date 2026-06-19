@@ -39,6 +39,14 @@ vi.mock("@/hooks/useAuth", () => ({
   }),
 }))
 
+vi.mock("@/hooks/useFeatureFlags", () => ({
+  useFeatureFlags: () => ({
+    flags: { "live-game": true },
+    ready: true,
+    isEnabled: () => true,
+  }),
+}))
+
 function renderPath(path: string): string {
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>

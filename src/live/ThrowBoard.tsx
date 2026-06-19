@@ -1,12 +1,13 @@
-import { type ReactNode, useState } from "react"
-import { GripHorizontal, Minus, Plus } from "lucide-react"
+import { type ReactNode, useRef, useState } from "react"
+import { Crosshair, GripHorizontal, GripVertical, Minus, Plus, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { CommanderPicker } from "@/components/CommanderPicker"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
 import { BoardChrome } from "./BoardChrome"
-import { SeatFrame, DragVector } from "./shared"
+import { SeatFrame, DragVector, DamageModal } from "./shared"
 import { useDragAttack, useDragLock } from "./drag"
-import type { DamageOpts, LiveGameApi, LivePlayer } from "./engine"
+import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer } from "./engine"
 
 /* ============================================================================
  * ThrowBoard — "drag from any seat onto any target" core.
@@ -46,11 +47,60 @@ export function ThrowBoard({
   const [pending, setPending] = useState<PendingHit | null>(null)
   // seat assigning a commander in-game (upright picker, led by that player's decks)
   const [cmdrSeat, setCmdrSeat] = useState<LivePlayer | null>(null)
+  // seat whose full damage breakdown is open
+  const [damageSeat, setDamageSeat] = useState<LivePlayer | null>(null)
+  // commanders are mandatory before a game can be saved (needed for stats)
+  const [showCommanderGate, setShowCommanderGate] = useState(false)
+
+  const missingCommanders = game.players.filter((p) => !p.commanderName?.trim())
+
+  function handleSaveRequest() {
+    if (missingCommanders.length > 0) setShowCommanderGate(true)
+    else onSave()
+  }
 
   const { drag, start } = useDragAttack({
     onDrop: (sourceId, targetId, point) => setPending({ sourceId, targetId, ...point }),
   })
   useDragLock(!!drag)
+
+  const swappingRef = useRef<string | null>(null)
+  const swapTargetRef = useRef<string | null>(null)
+  const [swapping, setSwapping] = useState<string | null>(null)
+  const [swapTarget, setSwapTarget] = useState<string | null>(null)
+
+  function startSwap(id: string, e: React.PointerEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    swappingRef.current = id
+    swapTargetRef.current = null
+    setSwapping(id)
+    setSwapTarget(null)
+    const move = (ev: PointerEvent) => {
+      const el = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest("[data-seat-cell]")
+      const overId = (el as HTMLElement | null)?.getAttribute("data-seat-cell") ?? null
+      const next = overId !== swappingRef.current ? overId : null
+      if (next !== swapTargetRef.current) {
+        swapTargetRef.current = next
+        setSwapTarget(next)
+      }
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      const srcId = swappingRef.current
+      const tgtId = swapTargetRef.current
+      swappingRef.current = null
+      swapTargetRef.current = null
+      setSwapping(null)
+      setSwapTarget(null)
+      if (srcId && tgtId) game.swapSeats(srcId, tgtId)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
+  }
 
   function apply(amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) {
     if (!pending) return
@@ -73,14 +123,39 @@ export function ThrowBoard({
         rt={rt}
         isActive={p.seatPosition === game.activeSeat}
         side={opts.side}
+        preGame={!game.started}
         dragTarget={drag?.targetId === p.id}
         preview={drag?.targetId === p.id ? "⚔" : null}
         commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
+        onShowDamage={() => setDamageSeat(p)}
         onSelfChange={(d) => game.applyDamage(p.id, d, { sourceId: null })}
         onRevive={() => game.revive(p.id)}
         onKnockout={() => game.toggleKnockout(p.id)}
         onSetCommander={() => setCmdrSeat(p)}
-        attackSlot={<AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />}
+        swapSlot={
+          <button
+            onPointerDown={(e) => startSwap(p.id, e)}
+            aria-label="Drag to swap seat"
+            className={cn(
+              "mt-1 touch-none flex items-center gap-1.5 rounded-full px-4 py-2 text-[clamp(0.65rem,2vmin,0.8rem)] font-bold uppercase tracking-wide shadow-lg transition-colors active:scale-95",
+              swapTarget === p.id
+                ? "bg-primary text-primary-foreground"
+                : swapping === p.id
+                  ? "bg-white/30 text-white"
+                  : "bg-black/45 text-white/90"
+            )}
+          >
+            <GripVertical className="h-4 w-4" />
+            Drag to swap
+          </button>
+        }
+        attackSlot={
+          drag
+            ? drag.sourceId === p.id
+              ? null
+              : <TargetZone armed={drag.targetId === p.id} />
+            : <AttackPill onPointerDown={(e) => start(p.id, e, undefined)} />
+        }
       />
     )
   }
@@ -98,7 +173,7 @@ export function ThrowBoard({
         game={game}
         renderSeat={(p, o) => seat(p, { side: o.side })}
         centerExtra={centerExtra}
-        onSave={onSave}
+        onSave={handleSaveRequest}
         onRematch={onRematch}
         onDiscard={onDiscard}
         saving={saving}
@@ -140,7 +215,92 @@ export function ThrowBoard({
           }}
         />
       )}
+
+      {damageSeat && (
+        <DamageModal
+          player={damageSeat}
+          commanderSources={Object.entries(game.runtime[damageSeat.id]?.commanderFrom ?? {})
+            .filter(([, amt]) => amt > 0)
+            .map(([srcId, amt]) => ({
+              name: game.players.find((pl) => pl.id === srcId)?.displayName ?? "?",
+              amount: amt,
+            }))}
+          poison={game.runtime[damageSeat.id]?.poison ?? 0}
+          onClose={() => setDamageSeat(null)}
+        />
+      )}
+
+      {showCommanderGate && (
+        <div className="fixed inset-0 z-[64] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-[min(90vw,24rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="border-b px-4 py-3">
+              <p className="text-sm font-semibold">Set commanders to save</p>
+              <p className="text-xs text-muted-foreground">
+                Every player needs a commander so the game counts toward stats.
+              </p>
+            </div>
+            <div className="max-h-[55vh] divide-y divide-border overflow-y-auto">
+              {[...game.players]
+                .sort((a, b) => a.seatPosition - b.seatPosition)
+                .map((p) => {
+                  const has = !!p.commanderName?.trim()
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setCmdrSeat(p)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60"
+                    >
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: SEAT_COLORS[p.seatPosition] ?? "#64748B" }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold">{p.displayName}</div>
+                        <div className={cn("truncate text-xs", has ? "text-muted-foreground" : "text-destructive")}>
+                          {has ? p.commanderName : "No commander — tap to set"}
+                        </div>
+                      </div>
+                      {has ? (
+                        <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <Plus className="h-4 w-4 shrink-0 text-destructive" />
+                      )}
+                    </button>
+                  )
+                })}
+            </div>
+            <div className="flex gap-2 border-t p-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowCommanderGate(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={missingCommanders.length > 0}
+                onClick={() => { setShowCommanderGate(false); onSave() }}
+              >
+                {missingCommanders.length > 0
+                  ? `${missingCommanders.length} missing`
+                  : "Save game"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  )
+}
+
+function TargetZone({ armed }: { armed: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex h-10 items-center gap-1.5 rounded-full border-2 border-dashed px-4 text-[11px] font-extrabold uppercase tracking-wider text-white transition-all",
+        armed ? "animate-pulse scale-110 border-white bg-white/25" : "border-white/50 bg-black/20"
+      )}
+    >
+      <Crosshair className="h-4 w-4" />
+      Target
+    </div>
   )
 }
 
@@ -191,16 +351,7 @@ function StepperEntry({
   const [mods, setMods] = useState({ isCommander: false, isPoison: false, isLifelink: false })
 
   function toggle(key: keyof typeof mods) {
-    setMods((m) => {
-      const next = { ...m, [key]: !m[key] }
-      // poison is its own damage type — it can't also be commander/lifelink
-      if (key === "isPoison" && next.isPoison) {
-        next.isCommander = false
-        next.isLifelink = false
-      }
-      if ((key === "isCommander" || key === "isLifelink") && next[key]) next.isPoison = false
-      return next
-    })
+    setMods((m) => ({ ...m, [key]: !m[key] }))
   }
 
   return (

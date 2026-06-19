@@ -21,6 +21,16 @@ export function genId(): string {
   return Math.random().toString(36) + Date.now().toString(36)
 }
 
+/** Vivid per-seat colors — distinct and readable around the table. */
+export const SEAT_COLORS: Record<number, string> = {
+  1: "#E11D2B", // red
+  2: "#1668E3", // blue
+  3: "#15A53C", // green
+  4: "#D97706", // amber
+  5: "#7C3AED", // violet
+  6: "#0891B2", // cyan
+}
+
 export interface LivePlayer {
   id: string
   seatPosition: SeatPosition
@@ -127,6 +137,8 @@ export interface LiveGameApi {
   /** assign / change a seat's commander mid-flow (deferred "add later") */
   setCommander: (id: string, c: CommanderAssign) => void
   setDisplayName: (id: string, name: string) => void
+  /** swap two players' seat positions before the game starts */
+  swapSeats: (aId: string, bId: string) => void
 }
 
 export interface CommanderAssign {
@@ -235,17 +247,17 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         const life = { ...prev.life }
         const cmdr = { ...prev.cmdr, [targetId]: { ...prev.cmdr[targetId] } }
         const poison = { ...prev.poison }
+        // Modifiers are independent: a single hit can be both commander damage
+        // and poison (e.g. an infect commander), and may also have lifelink.
+        life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
         if (isPoison) {
-          // poison adds counters, life is untouched
           poison[targetId] = Math.max(0, (poison[targetId] ?? 0) + amount)
-        } else {
-          life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
-          if (isCommander && sourceId) {
-            cmdr[targetId][sourceId] = Math.max(0, (cmdr[targetId][sourceId] ?? 0) + amount)
-          }
-          if (isLifelink && sourceId && amount > 0) {
-            life[sourceId] = (life[sourceId] ?? STARTING_LIFE) + amount
-          }
+        }
+        if (isCommander && sourceId) {
+          cmdr[targetId][sourceId] = Math.max(0, (cmdr[targetId][sourceId] ?? 0) + amount)
+        }
+        if (isLifelink && sourceId && amount > 0) {
+          life[sourceId] = (life[sourceId] ?? STARTING_LIFE) + amount
         }
         const draft: Core = { ...prev, life, cmdr, poison }
         return { ...draft, koTurn: syncKoTurns(draft, players, turn) }
@@ -269,16 +281,15 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const life = { ...c.life }
       const cmdr = { ...c.cmdr, [last.targetId]: { ...c.cmdr[last.targetId] } }
       const poison = { ...c.poison }
+      life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
       if (last.isPoison) {
         poison[last.targetId] = Math.max(0, (poison[last.targetId] ?? 0) - last.amount)
-      } else {
-        life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
-        if (last.isCommander && last.sourceId) {
-          cmdr[last.targetId][last.sourceId] = Math.max(0, (cmdr[last.targetId][last.sourceId] ?? 0) - last.amount)
-        }
-        if (last.isLifelink && last.sourceId && last.amount > 0) {
-          life[last.sourceId] = (life[last.sourceId] ?? STARTING_LIFE) - last.amount
-        }
+      }
+      if (last.isCommander && last.sourceId) {
+        cmdr[last.targetId][last.sourceId] = Math.max(0, (cmdr[last.targetId][last.sourceId] ?? 0) - last.amount)
+      }
+      if (last.isLifelink && last.sourceId && last.amount > 0) {
+        life[last.sourceId] = (life[last.sourceId] ?? STARTING_LIFE) - last.amount
       }
       const draft: Core = { ...c, life, cmdr, poison }
       return { ...draft, koTurn: syncKoTurns(draft, players, turn) }
@@ -299,16 +310,15 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const life = { ...c.life }
       const cmdr = { ...c.cmdr, [ev.targetId]: { ...c.cmdr[ev.targetId] } }
       const poison = { ...c.poison }
+      life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
       if (ev.isPoison) {
         poison[ev.targetId] = Math.max(0, (poison[ev.targetId] ?? 0) + ev.amount)
-      } else {
-        life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
-        if (ev.isCommander && ev.sourceId) {
-          cmdr[ev.targetId][ev.sourceId] = Math.max(0, (cmdr[ev.targetId][ev.sourceId] ?? 0) + ev.amount)
-        }
-        if (ev.isLifelink && ev.sourceId && ev.amount > 0) {
-          life[ev.sourceId] = (life[ev.sourceId] ?? STARTING_LIFE) + ev.amount
-        }
+      }
+      if (ev.isCommander && ev.sourceId) {
+        cmdr[ev.targetId][ev.sourceId] = Math.max(0, (cmdr[ev.targetId][ev.sourceId] ?? 0) + ev.amount)
+      }
+      if (ev.isLifelink && ev.sourceId && ev.amount > 0) {
+        life[ev.sourceId] = (life[ev.sourceId] ?? STARTING_LIFE) + ev.amount
       }
       c = { ...c, life, cmdr, poison }
     }
@@ -415,6 +425,19 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     }))
   }, [])
 
+  const swapSeats = useCallback((aId: string, bId: string) => {
+    setConfig((prev) => {
+      const ps = [...prev.players]
+      const ai = ps.findIndex((p) => p.id === aId)
+      const bi = ps.findIndex((p) => p.id === bId)
+      if (ai === -1 || bi === -1) return prev
+      const aSeat = ps[ai].seatPosition
+      ps[ai] = { ...ps[ai], seatPosition: ps[bi].seatPosition }
+      ps[bi] = { ...ps[bi], seatPosition: aSeat }
+      return { ...prev, players: ps }
+    })
+  }, [])
+
   const endGame = useCallback(() => setPhase("ended"), [])
 
   const reset = useCallback(
@@ -492,6 +515,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     reset,
     setCommander,
     setDisplayName,
+    swapSeats,
   }
 }
 
@@ -543,25 +567,25 @@ const RING_GRIDS: Record<number, RingGrid> = {
   },
   4: {
     columns: "1fr 1fr",
-    rows: "1fr 1.25fr 1fr",
-    areas: ['"top top"', '"lft rgt"', '"bot bot"'],
+    rows: "1fr 1fr",
+    areas: ['"tl tr"', '"bl br"'],
     cells: [
-      { area: "bot", rotate: 0 },
-      { area: "lft", rotate: 90 },
-      { area: "top", rotate: 180 },
-      { area: "rgt", rotate: 270 },
+      { area: "bl", rotate: 0 },
+      { area: "tl", rotate: 180 },
+      { area: "tr", rotate: 180 },
+      { area: "br", rotate: 0 },
     ],
   },
   5: {
     columns: "1fr 1fr",
     rows: "1fr 1.25fr 1fr",
-    areas: ['"tl tr"', '"lft rgt"', '"bot bot"'],
+    areas: ['"top top"', '"lft rgt"', '"bl br"'],
     cells: [
-      { area: "bot", rotate: 0 },
+      { area: "bl", rotate: 0 },
       { area: "lft", rotate: 90 },
-      { area: "tl", rotate: 180 },
-      { area: "tr", rotate: 180 },
+      { area: "top", rotate: 180 },
       { area: "rgt", rotate: 270 },
+      { area: "br", rotate: 0 },
     ],
   },
   6: {
