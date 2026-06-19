@@ -169,3 +169,68 @@
     animation: eda-tick 0.6s ease;
   }
 }
+
+/* ====== Linear-style scroll reveal ======
+   Elements start translated/faded and settle when scrolled into view. The
+   .is-visible class is toggled by an IntersectionObserver (see Reveal.tsx). */
+.eda-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.3, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.3, 1);
+  transition-delay: var(--d, 0s);
+}
+.eda-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .eda-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Accent glow that sits behind hero/product surfaces (Linear signature). */
+.eda-glow {
+  background: radial-gradient(
+    60% 60% at 50% 0%,
+    hsl(var(--primary) / 0.22) 0%,
+    hsl(var(--primary) / 0.06) 38%,
+    transparent 72%
+  );
+}
+
+/* Faint dotted grid backdrop for hero / section banding. */
+.eda-grid {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 75%);
+}
+
+/* Gradient ink for accented headline fragments. */
+.eda-gradient-text {
+  background: linear-gradient(
+    100deg,
+    hsl(var(--foreground)) 0%,
+    hsl(var(--primary)) 55%,
+    hsl(var(--foreground)) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Slow drift for ambient seat life totals in the live-board mockup. */
+@keyframes eda-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eda-float {
+    animation: eda-float 6s ease-in-out infinite;
+  }
+}
