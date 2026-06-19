@@ -247,17 +247,17 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         const life = { ...prev.life }
         const cmdr = { ...prev.cmdr, [targetId]: { ...prev.cmdr[targetId] } }
         const poison = { ...prev.poison }
+        // Modifiers are independent: a single hit can be both commander damage
+        // and poison (e.g. an infect commander), and may also have lifelink.
+        life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
         if (isPoison) {
           poison[targetId] = Math.max(0, (poison[targetId] ?? 0) + amount)
-          life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
-        } else {
-          life[targetId] = (life[targetId] ?? STARTING_LIFE) - amount
-          if (isCommander && sourceId) {
-            cmdr[targetId][sourceId] = Math.max(0, (cmdr[targetId][sourceId] ?? 0) + amount)
-          }
-          if (isLifelink && sourceId && amount > 0) {
-            life[sourceId] = (life[sourceId] ?? STARTING_LIFE) + amount
-          }
+        }
+        if (isCommander && sourceId) {
+          cmdr[targetId][sourceId] = Math.max(0, (cmdr[targetId][sourceId] ?? 0) + amount)
+        }
+        if (isLifelink && sourceId && amount > 0) {
+          life[sourceId] = (life[sourceId] ?? STARTING_LIFE) + amount
         }
         const draft: Core = { ...prev, life, cmdr, poison }
         return { ...draft, koTurn: syncKoTurns(draft, players, turn) }
@@ -281,17 +281,15 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const life = { ...c.life }
       const cmdr = { ...c.cmdr, [last.targetId]: { ...c.cmdr[last.targetId] } }
       const poison = { ...c.poison }
+      life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
       if (last.isPoison) {
         poison[last.targetId] = Math.max(0, (poison[last.targetId] ?? 0) - last.amount)
-        life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
-      } else {
-        life[last.targetId] = (life[last.targetId] ?? STARTING_LIFE) + last.amount
-        if (last.isCommander && last.sourceId) {
-          cmdr[last.targetId][last.sourceId] = Math.max(0, (cmdr[last.targetId][last.sourceId] ?? 0) - last.amount)
-        }
-        if (last.isLifelink && last.sourceId && last.amount > 0) {
-          life[last.sourceId] = (life[last.sourceId] ?? STARTING_LIFE) - last.amount
-        }
+      }
+      if (last.isCommander && last.sourceId) {
+        cmdr[last.targetId][last.sourceId] = Math.max(0, (cmdr[last.targetId][last.sourceId] ?? 0) - last.amount)
+      }
+      if (last.isLifelink && last.sourceId && last.amount > 0) {
+        life[last.sourceId] = (life[last.sourceId] ?? STARTING_LIFE) - last.amount
       }
       const draft: Core = { ...c, life, cmdr, poison }
       return { ...draft, koTurn: syncKoTurns(draft, players, turn) }
@@ -312,17 +310,15 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       const life = { ...c.life }
       const cmdr = { ...c.cmdr, [ev.targetId]: { ...c.cmdr[ev.targetId] } }
       const poison = { ...c.poison }
+      life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
       if (ev.isPoison) {
         poison[ev.targetId] = Math.max(0, (poison[ev.targetId] ?? 0) + ev.amount)
-        life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
-      } else {
-        life[ev.targetId] = (life[ev.targetId] ?? STARTING_LIFE) - ev.amount
-        if (ev.isCommander && ev.sourceId) {
-          cmdr[ev.targetId][ev.sourceId] = Math.max(0, (cmdr[ev.targetId][ev.sourceId] ?? 0) + ev.amount)
-        }
-        if (ev.isLifelink && ev.sourceId && ev.amount > 0) {
-          life[ev.sourceId] = (life[ev.sourceId] ?? STARTING_LIFE) + ev.amount
-        }
+      }
+      if (ev.isCommander && ev.sourceId) {
+        cmdr[ev.targetId][ev.sourceId] = Math.max(0, (cmdr[ev.targetId][ev.sourceId] ?? 0) + ev.amount)
+      }
+      if (ev.isLifelink && ev.sourceId && ev.amount > 0) {
+        life[ev.sourceId] = (life[ev.sourceId] ?? STARTING_LIFE) + ev.amount
       }
       c = { ...c, life, cmdr, poison }
     }
