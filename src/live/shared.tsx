@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -43,6 +43,66 @@ export function DragVector<P>({ drag, label }: { drag: DragInfo<P> | null; label
 
 function vibrate(ms: number) {
   try { navigator.vibrate?.(ms) } catch { /* unsupported */ }
+}
+
+/* ---- Press-and-hold stepper button ----
+ * A tap applies `shortDelta`; holding past ~450ms applies `longDelta` once (the
+ * ±10 "big step"). Pointer capture keeps the release on the button even if the
+ * finger drifts, so taps on small targets stay reliable. */
+const HOLD_MS = 450
+export function HoldStepButton({
+  onStep,
+  shortDelta,
+  longDelta,
+  className,
+  ariaLabel,
+  children,
+}: {
+  onStep: (delta: number) => void
+  shortDelta: number
+  longDelta: number
+  className?: string
+  ariaLabel?: string
+  children: ReactNode
+}) {
+  const firedLong = useRef(false)
+  const timer = useRef<number | undefined>(undefined)
+
+  function clear() {
+    if (timer.current !== undefined) {
+      window.clearTimeout(timer.current)
+      timer.current = undefined
+    }
+  }
+  function down(e: ReactPointerEvent) {
+    e.preventDefault()
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ }
+    firedLong.current = false
+    timer.current = window.setTimeout(() => {
+      firedLong.current = true
+      vibrate(55)
+      onStep(longDelta)
+    }, HOLD_MS)
+  }
+  function up() {
+    clear()
+    if (!firedLong.current) {
+      vibrate(20)
+      onStep(shortDelta)
+    }
+  }
+
+  return (
+    <button
+      onPointerDown={down}
+      onPointerUp={up}
+      onPointerCancel={clear}
+      aria-label={ariaLabel}
+      className={className}
+    >
+      {children}
+    </button>
+  )
 }
 
 
@@ -199,13 +259,15 @@ export function SeatFrame({
             )}
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => { vibrate(25); onSelfChange(1) }}
-                aria-label="lose 1 life"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
+              <HoldStepButton
+                onStep={onSelfChange}
+                shortDelta={1}
+                longDelta={10}
+                ariaLabel="lose life (hold for 10)"
+                className="flex h-16 w-16 touch-none items-center justify-center rounded-full bg-black/25 text-white active:scale-95"
               >
-                <Minus className="h-5 w-5" />
-              </button>
+                <Minus className="h-7 w-7" />
+              </HoldStepButton>
               <span
                 key={flash}
                 style={{ fontSize: "clamp(3rem, 12vmin, 7.5rem)" }}
@@ -218,13 +280,15 @@ export function SeatFrame({
               >
                 {rt.life}
               </span>
-              <button
-                onClick={() => { vibrate(15); onSelfChange(-1) }}
-                aria-label="gain 1 life"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/25 text-white active:scale-95 disabled:opacity-30"
+              <HoldStepButton
+                onStep={onSelfChange}
+                shortDelta={-1}
+                longDelta={-10}
+                ariaLabel="gain life (hold for 10)"
+                className="flex h-16 w-16 touch-none items-center justify-center rounded-full bg-black/25 text-white active:scale-95"
               >
-                <Plus className="h-5 w-5" />
-              </button>
+                <Plus className="h-7 w-7" />
+              </HoldStepButton>
             </div>
 
             {hasDamageInfo && (

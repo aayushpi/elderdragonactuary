@@ -1,13 +1,18 @@
 import { type ReactNode, useRef, useState } from "react"
-import { Crosshair, GripHorizontal, GripVertical, Minus, Plus, Pencil } from "lucide-react"
+import { Crosshair, GripHorizontal, GripVertical, Minus, Plus, Pencil, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CommanderPicker } from "@/components/CommanderPicker"
 import type { CommanderShortlistItem } from "@/lib/shortlist"
 import { BoardChrome } from "./BoardChrome"
-import { SeatFrame, DragVector, DamageModal } from "./shared"
+import { SeatFrame, DragVector, DamageModal, HoldStepButton } from "./shared"
 import { useDragAttack, useDragLock } from "./drag"
 import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer } from "./engine"
+
+/* Sentinel target id for the centre "Damage all" drop zone — the drag hit-test
+ * picks it up like any seat (it carries data-seat-id), but it fans the hit out
+ * to every other living player instead of one seat. */
+const DAMAGE_ALL_ID = "__damage_all__"
 
 /* ============================================================================
  * ThrowBoard — "drag from any seat onto any target" core.
@@ -105,7 +110,17 @@ export function ThrowBoard({
   function apply(amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) {
     if (!pending) return
     try { navigator.vibrate?.(opts.isPoison ? 60 : 40) } catch { /* unsupported */ }
-    game.applyDamage(pending.targetId, amount, { sourceId: pending.sourceId, ...opts })
+    if (pending.targetId === DAMAGE_ALL_ID) {
+      // Fan out to every living opponent. Each applyDamage call is independent,
+      // so commander damage, poison, and lifelink (one heal per hit) all tally
+      // correctly per target.
+      for (const p of game.players) {
+        if (p.id === pending.sourceId || game.runtime[p.id]?.knockedOut) continue
+        game.applyDamage(p.id, amount, { sourceId: pending.sourceId, ...opts })
+      }
+    } else {
+      game.applyDamage(pending.targetId, amount, { sourceId: pending.sourceId, ...opts })
+    }
     setPending(null)
   }
 
@@ -164,8 +179,9 @@ export function ThrowBoard({
     return playerDecks[p.displayName.trim().toLowerCase()] ?? recents
   }
 
+  const pendingAll = pending?.targetId === DAMAGE_ALL_ID
   const source = pending ? game.players.find((p) => p.id === pending.sourceId) ?? null : null
-  const target = pending ? game.players.find((p) => p.id === pending.targetId) ?? null : null
+  const target = pending && !pendingAll ? game.players.find((p) => p.id === pending.targetId) ?? null : null
 
   return (
     <>
@@ -180,7 +196,25 @@ export function ThrowBoard({
       />
       <DragVector drag={drag} />
 
-      {pending && source && target && (
+      {/* Centre "Damage all" drop zone — only present while an attack is in flight */}
+      {drag && (
+        <div
+          data-seat-id={DAMAGE_ALL_ID}
+          className={cn(
+            "fixed left-1/2 top-1/2 z-[56] flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 touch-none flex-col items-center justify-center gap-1 rounded-full border-2 text-center text-white transition-all",
+            drag.targetId === DAMAGE_ALL_ID
+              ? "scale-110 animate-pulse border-white bg-destructive/85 shadow-2xl"
+              : "border-dashed border-white/60 bg-black/55"
+          )}
+        >
+          <Swords className="h-7 w-7" />
+          <span className="text-[11px] font-extrabold uppercase leading-tight tracking-wide">
+            Damage<br />all
+          </span>
+        </div>
+      )}
+
+      {pending && source && (pendingAll || target) && (
         <>
           <div className="fixed inset-0 z-[59]" onClick={() => setPending(null)} />
           <div
@@ -192,8 +226,8 @@ export function ThrowBoard({
           >
             <StepperEntry
               key={`${pending.sourceId}-${pending.targetId}-${pending.x}`}
-              source={source}
-              target={target}
+              sourceName={source.displayName}
+              targetName={pendingAll ? "All players" : target?.displayName ?? "?"}
               onApply={apply}
             />
           </div>
@@ -322,12 +356,12 @@ function AttackPill({ onPointerDown }: { onPointerDown: (e: React.PointerEvent) 
   )
 }
 
-function EntryHeader({ source, target }: { source: LivePlayer; target: LivePlayer }) {
+function EntryHeader({ sourceName, targetName }: { sourceName: string; targetName: string }) {
   return (
     <div className="mb-2 text-center text-sm font-semibold">
-      <span className="text-foreground">{source.displayName}</span>
+      <span className="text-foreground">{sourceName}</span>
       <span className="text-muted-foreground"> → </span>
-      <span className="text-destructive">{target.displayName}</span>
+      <span className="text-destructive">{targetName}</span>
     </div>
   )
 }
@@ -339,12 +373,12 @@ const MODS = [
 ]
 
 function StepperEntry({
-  source,
-  target,
+  sourceName,
+  targetName,
   onApply,
 }: {
-  source: LivePlayer
-  target: LivePlayer
+  sourceName: string
+  targetName: string
   onApply: (amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) => void
 }) {
   const [value, setValue] = useState(1)
@@ -356,24 +390,28 @@ function StepperEntry({
 
   return (
     <div className="w-[15rem]">
-      <EntryHeader source={source} target={target} />
+      <EntryHeader sourceName={sourceName} targetName={targetName} />
 
       <div className="mb-3 flex items-center justify-between gap-2">
-        <button
-          onClick={() => setValue((v) => Math.max(1, v - 1))}
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted active:scale-95"
-          aria-label="minus"
+        <HoldStepButton
+          onStep={(d) => setValue((v) => Math.max(1, v + d))}
+          shortDelta={-1}
+          longDelta={-10}
+          ariaLabel="minus (hold for 10)"
+          className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl bg-muted active:scale-95"
         >
           <Minus className="h-7 w-7" />
-        </button>
+        </HoldStepButton>
         <span className="min-w-[2.5ch] text-center tabular-nums text-5xl font-black">{value}</span>
-        <button
-          onClick={() => setValue((v) => Math.min(99, v + 1))}
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted active:scale-95"
-          aria-label="plus"
+        <HoldStepButton
+          onStep={(d) => setValue((v) => Math.min(99, v + d))}
+          shortDelta={1}
+          longDelta={10}
+          ariaLabel="plus (hold for 10)"
+          className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl bg-muted active:scale-95"
         >
           <Plus className="h-7 w-7" />
-        </button>
+        </HoldStepButton>
       </div>
 
       <div className="mb-3 grid grid-cols-3 gap-1.5">
