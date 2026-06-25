@@ -169,3 +169,38 @@
     animation: eda-tick 0.6s ease;
   }
 }
+
+/* Live-board life-total damage flash (mirrors the live game mode). */
+@keyframes eda-live-dmg {
+  0% {
+    color: #fca5a5;
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .live-dmg {
+    animation: eda-live-dmg 0.45s ease;
+  }
+}
+
+/* Accent glow that sits behind the app simulation (Linear signature). */
+.eda-glow {
+  background: radial-gradient(
+    60% 60% at 50% 0%,
+    hsl(var(--primary) / 0.22) 0%,
+    hsl(var(--primary) / 0.06) 38%,
+    transparent 72%
+  );
+}
+
+/* Faint dotted grid backdrop for hero / section banding. */
+.eda-grid {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(70% 70% at 50% 30%, #000 0%, transparent 75%);
+}
+
