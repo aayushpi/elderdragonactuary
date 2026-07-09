@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
+import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 
 interface PlayerNamePickerProps {
   open: boolean
@@ -29,6 +30,7 @@ export function PlayerNamePicker({
 }: PlayerNamePickerProps) {
   const [draft, setDraft] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const keyboardInset = useKeyboardInset()
 
   useEffect(() => {
     if (open) setDraft("")
@@ -70,7 +72,12 @@ export function PlayerNamePicker({
           <span className="font-mono text-[11px] text-muted-foreground">most played first</span>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
+        {/* Inset padding keeps the last rows reachable when the keyboard
+            overlays the sheet (iOS) instead of shrinking it. */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto border-t border-border"
+          style={{ paddingBottom: keyboardInset }}
+        >
           <div className="divide-y divide-border">
             {filtered.map((name) => (
               <button
