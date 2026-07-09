@@ -124,7 +124,7 @@ export function ThrowBoard({
     setPending(null)
   }
 
-  function seat(p: LivePlayer, opts: { side: boolean }) {
+  function seat(p: LivePlayer, opts: { side: boolean; rollHighlight?: "rolling" | "picked" | null }) {
     const rt = game.runtime[p.id]
     const commanderSources = Object.entries(rt.commanderFrom)
       .filter(([, amt]) => amt > 0)
@@ -139,6 +139,7 @@ export function ThrowBoard({
         isActive={p.seatPosition === game.activeSeat}
         side={opts.side}
         preGame={!game.started}
+        rollHighlight={opts.rollHighlight}
         dragTarget={drag?.targetId === p.id}
         preview={drag?.targetId === p.id ? "⚔" : null}
         commanderSources={commanderSources.length > 0 ? commanderSources : undefined}
@@ -187,7 +188,7 @@ export function ThrowBoard({
     <>
       <BoardChrome
         game={game}
-        renderSeat={(p, o) => seat(p, { side: o.side })}
+        renderSeat={(p, o) => seat(p, { side: o.side, rollHighlight: o.rollHighlight })}
         centerExtra={centerExtra}
         onSave={handleSaveRequest}
         onRematch={onRematch}

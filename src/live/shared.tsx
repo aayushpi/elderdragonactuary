@@ -1,5 +1,5 @@
 import { type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
-import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil, X } from "lucide-react"
+import { Trophy, RotateCcw, Save, Skull, Heart, Minus, Plus, Trash2, Pencil, X, Dices, Crown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LETHAL_COMMANDER, LETHAL_POISON, SEAT_COLORS, type LivePlayer, type PlayerRuntime } from "./engine"
@@ -127,6 +127,7 @@ export function SeatFrame({
   onKnockout,
   commanderSources,
   onShowDamage,
+  rollHighlight,
 }: {
   player: LivePlayer
   rt: PlayerRuntime
@@ -149,6 +150,9 @@ export function SeatFrame({
   commanderSources?: Array<{ name: string; amount: number }>
   /** open the full commander-damage + poison breakdown modal for this seat */
   onShowDamage?: () => void
+  /** high-roll state, drawn right on this seat so the winner's table position
+   *  is unmistakable — a centered "X wins!" card doesn't say where to start */
+  rollHighlight?: "rolling" | "picked" | null
 }) {
   const prevLifeRef = useRef(rt.life)
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
@@ -323,6 +327,28 @@ export function SeatFrame({
           <span className="rounded-full bg-destructive px-3 py-1 text-3xl font-black text-destructive-foreground shadow-lg">
             {preview}
           </span>
+        </div>
+      )}
+
+      {rollHighlight && (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          <div
+            className={cn(
+              "flex flex-col items-center gap-1.5 rounded-2xl px-6 py-5 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)] transition-all",
+              rollHighlight === "picked"
+                ? "scale-110 bg-white/25 shadow-2xl ring-4 ring-white animate-pulse"
+                : "bg-black/35"
+            )}
+          >
+            {rollHighlight === "picked" ? (
+              <>
+                <Crown className="h-9 w-9 drop-shadow" />
+                <span className="text-sm font-black uppercase tracking-wider">Starts here</span>
+              </>
+            ) : (
+              <Dices className="h-9 w-9 animate-spin" />
+            )}
+          </div>
         </div>
       )}
     </div>
