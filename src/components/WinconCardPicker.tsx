@@ -47,14 +47,6 @@ export function WinconCardPicker({
     if (open) setQuery("")
   }, [open, setQuery])
 
-  // Nothing to tap without history — jump straight to typing.
-  useEffect(() => {
-    if (open && items.length === 0) {
-      const t = setTimeout(() => inputRef.current?.focus(), 30)
-      return () => clearTimeout(t)
-    }
-  }, [open, items.length])
-
   const selectedSet = useMemo(
     () => new Set(selectedCards.map((c) => c.toLowerCase())),
     [selectedCards]
@@ -137,7 +129,14 @@ export function WinconCardPicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={SHEET_CONTENT_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent
+        className={SHEET_CONTENT_CLASS}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          // Nothing to tap without history — jump straight to typing.
+          if (items.length === 0) inputRef.current?.focus()
+        }}
+      >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Key wincon cards</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">

@@ -59,7 +59,14 @@ export function PlayerNamePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={SHEET_CONTENT_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent
+        className={SHEET_CONTENT_CLASS}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          // Nothing to tap without saved names — jump straight to typing.
+          if (names.length === 0) inputRef.current?.focus()
+        }}
+      >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Pick a player</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
