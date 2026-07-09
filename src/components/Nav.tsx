@@ -25,7 +25,7 @@ function isActivePath(currentPath: string, path: string) {
 
 export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLive }: NavProps) {
   return (
-    <header className="sticky top-0 z-40 bg-background/85 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-40 bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md border-b border-border">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <div className="flex h-14 items-center justify-between gap-3">
           <button onClick={() => onNavigate("/")} className="min-w-0">

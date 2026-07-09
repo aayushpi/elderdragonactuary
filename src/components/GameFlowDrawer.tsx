@@ -30,12 +30,16 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
           !isReady
             ? "translate-y-full opacity-0"
             : minimized
-              ? "translate-y-[calc(100%-3.25rem)] opacity-100"
+              ? "translate-y-[calc(100%-3.25rem-env(safe-area-inset-top))] sm:translate-y-[calc(100%-3.25rem)] opacity-100"
               : "translate-y-0 opacity-100"
         )}
       >
+        {/* Header carries the safe-area inset itself (not the panel) so the
+            minimized "peek" — which reveals just this row — stays sized to
+            match; padding the whole panel would push the header below the
+            peek window instead of shrinking to fit above it. */}
         <div
-          className="flex items-center justify-between border-b px-3 py-2.5 sm:px-4 cursor-pointer"
+          className="flex items-center justify-between border-b px-3 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] sm:pt-2.5 sm:px-4 cursor-pointer"
           onClick={minimized ? onRestore : onMinimize}
         >
           <p className="text-sm font-semibold">{title}</p>

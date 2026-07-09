@@ -7,10 +7,16 @@ export const SECTION_LABEL =
   "text-[11px] font-mono font-medium uppercase tracking-[0.14em] text-muted-foreground"
 
 /* Full-screen sheet on phones, top-anchored modal on tablet+. Shared by the
- * one-tap pickers so they all feel identical. */
+ * one-tap pickers so they all feel identical. The top/bottom safe-area padding
+ * keeps the header and pinned bottom bar clear of the notch and home-indicator
+ * dead zones on an iOS home-screen install — those areas can eat taps even
+ * though the translucent status bar shows content underneath them. Reset to
+ * zero at sm:, where the sheet is a centered modal, not edge-to-edge. */
 export const SHEET_CONTENT_CLASS =
   "flex flex-col gap-0 p-0 overflow-hidden " +
+  "pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] " +
   "!left-0 !top-0 !translate-x-0 !translate-y-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 " +
+  "sm:pt-0 sm:pb-0 " +
   "sm:!left-[50%] sm:!top-3 sm:!translate-x-[-50%] sm:w-full sm:max-w-md sm:h-auto sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-lg sm:border"
 
 /* ====== Color-identity pips — official Scryfall mana symbols ====== */
