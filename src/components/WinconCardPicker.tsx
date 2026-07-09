@@ -10,6 +10,7 @@ import {
 import { useScryfall } from "@/hooks/useScryfall"
 import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 import { formatRelative, matchScore, type WinconShortlistItem } from "@/lib/shortlist"
+import { ManaCost } from "@/components/ManaCost"
 import { SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
 
 interface WinconCardPickerProps {
@@ -45,6 +46,14 @@ export function WinconCardPicker({
   useEffect(() => {
     if (open) setQuery("")
   }, [open, setQuery])
+
+  // Nothing to tap without history — jump straight to typing.
+  useEffect(() => {
+    if (open && items.length === 0) {
+      const t = setTimeout(() => inputRef.current?.focus(), 30)
+      return () => clearTimeout(t)
+    }
+  }, [open, items.length])
 
   const selectedSet = useMemo(
     () => new Set(selectedCards.map((c) => c.toLowerCase())),
@@ -102,7 +111,7 @@ export function WinconCardPicker({
     else addAndClear(trimmed)
   }
 
-  function Row({ name, sub }: { name: string; sub?: string }) {
+  function Row({ name, sub, manaCost }: { name: string; sub?: string; manaCost?: string }) {
     const active = selectedSet.has(name.toLowerCase())
     return (
       <button
@@ -121,6 +130,7 @@ export function WinconCardPicker({
           <span className="block truncate text-base font-medium">{name}</span>
           {sub && <span className="mt-0.5 block text-xs text-muted-foreground tabular">{sub}</span>}
         </span>
+        {manaCost && <ManaCost cost={manaCost} size="xs" />}
       </button>
     )
   }
@@ -155,7 +165,7 @@ export function WinconCardPicker({
           ))}
 
           {trimmed &&
-            searchMatches.map((s) => <Row key={s.name} name={s.name} />)}
+            searchMatches.map((s) => <Row key={s.name} name={s.name} manaCost={s.manaCost} />)}
 
           {trimmed && isLoading && (
             <div className="flex items-center justify-center gap-2 px-5 py-4 text-sm text-muted-foreground">
@@ -182,8 +192,12 @@ export function WinconCardPicker({
           )}
         </div>
 
-        {/* Pinned search bar + Done */}
-        <div className="border-t border-border px-5 py-4">
+        {/* Pinned search bar + Done — rides up with the keyboard on iOS,
+            where the overlay would otherwise cover it */}
+        <div
+          className="border-t border-border bg-background px-5 py-4 transition-transform"
+          style={{ transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined }}
+        >
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />

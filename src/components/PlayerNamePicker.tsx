@@ -98,8 +98,12 @@ export function PlayerNamePicker({
           </div>
         </div>
 
-        {/* Pinned add bar — type a new name and add it */}
-        <div className="border-t border-border px-5 py-4">
+        {/* Pinned add bar — type a new name and add it. Rides up with the
+            keyboard on iOS, where the overlay would otherwise cover it. */}
+        <div
+          className="border-t border-border bg-background px-5 py-4 transition-transform"
+          style={{ transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined }}
+        >
           <div className="flex gap-2">
             <input
               ref={inputRef}
