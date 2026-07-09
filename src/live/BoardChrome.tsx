@@ -216,7 +216,7 @@ function StarterChooser({
         </span>
         {pickedPlayer ? (
           <div className="flex w-full flex-col gap-2">
-            <p className="text-center text-sm font-semibold">
+            <p className="text-center text-lg font-bold">
               <span className="text-primary">{pickedPlayer.displayName}</span> goes first!
             </p>
             <div className="flex gap-2">

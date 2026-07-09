@@ -184,7 +184,8 @@ export function SeatFrame({
         "relative h-full w-full select-none overflow-hidden text-white transition-shadow",
         rt.knockedOut && "bg-muted",
         dragTarget && "ring-4 ring-inset ring-white",
-        isActive && !dragTarget && "ring-4 ring-inset ring-white/70"
+        isActive && !dragTarget && "ring-4 ring-inset ring-white/70",
+        rollHighlight === "picked" && "ring-[6px] ring-inset ring-white animate-pulse"
       )}
     >
       {/* commander art + legibility scrim */}
@@ -330,20 +331,24 @@ export function SeatFrame({
         </div>
       )}
 
+      {rollHighlight === "picked" && (
+        <div className="pointer-events-none absolute inset-0 z-30 bg-white/25 animate-pulse" />
+      )}
+
       {rollHighlight && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div
             className={cn(
-              "flex flex-col items-center gap-1.5 rounded-2xl px-6 py-5 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)] transition-all",
+              "flex flex-col items-center gap-2 rounded-2xl text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)] transition-all",
               rollHighlight === "picked"
-                ? "scale-110 bg-white/25 shadow-2xl ring-4 ring-white animate-pulse"
-                : "bg-black/35"
+                ? "scale-125 px-8 py-6 bg-white/30 shadow-2xl ring-[6px] ring-white animate-pulse"
+                : "px-6 py-5 bg-black/35"
             )}
           >
             {rollHighlight === "picked" ? (
               <>
-                <Crown className="h-9 w-9 drop-shadow" />
-                <span className="text-sm font-black uppercase tracking-wider">Starts here</span>
+                <Crown className="h-16 w-16 drop-shadow-lg" />
+                <span className="text-2xl font-black uppercase tracking-wider">Starts here</span>
               </>
             ) : (
               <Dices className="h-9 w-9 animate-spin" />

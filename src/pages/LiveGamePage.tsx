@@ -313,12 +313,6 @@ function PlayingBoard({
         onRematch={() => { setPendingWincon(false); game.reset(config) }}
         onDiscard={onNewSetup}
       />
-      <button
-        onClick={onNewSetup}
-        className="fixed left-1/2 top-1 z-[60] -translate-x-1/2 rounded-full bg-foreground/80 px-3 py-0.5 text-[10px] font-medium text-background"
-      >
-        ⨯ new setup
-      </button>
       {pendingWincon && (
         <WinconEntry
           winner={winner}
