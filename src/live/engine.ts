@@ -139,6 +139,8 @@ export interface LiveGameApi {
   setDisplayName: (id: string, name: string) => void
   /** swap two players' seat positions before the game starts */
   swapSeats: (aId: string, bId: string) => void
+  /** add a late arrival before the game starts (no-op once it has) */
+  addPlayer: (name: string) => void
 }
 
 export interface CommanderAssign {
@@ -438,6 +440,30 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     })
   }, [])
 
+  // A late arrival joining the table — only valid before the clock starts;
+  // deriveRuntime already defaults missing core entries to fresh values, so
+  // the new seat needs no core/runtime bookkeeping of its own.
+  const addPlayer = useCallback((name: string) => {
+    if (started) return
+    setConfig((prev) => {
+      if (prev.players.length >= 6) return prev
+      const usedSeats = new Set(prev.players.map((p) => p.seatPosition))
+      let seat: SeatPosition | null = null
+      for (let s = 1; s <= 6; s++) {
+        if (!usedSeats.has(s as SeatPosition)) { seat = s as SeatPosition; break }
+      }
+      if (seat === null) return prev
+      const newPlayer: LivePlayer = {
+        id: genId(),
+        seatPosition: seat,
+        isMe: false,
+        displayName: name.trim(),
+        commanderName: "",
+      }
+      return { ...prev, players: [...prev.players, newPlayer] }
+    })
+  }, [started])
+
   const endGame = useCallback(() => setPhase("ended"), [])
 
   const reset = useCallback(
@@ -516,6 +542,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     setCommander,
     setDisplayName,
     swapSeats,
+    addPlayer,
   }
 }
 

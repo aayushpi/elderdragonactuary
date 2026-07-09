@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { Play, Timer, ChevronRight, Flag, Undo2, Dices, X } from "lucide-react"
+import { Play, Timer, ChevronRight, Flag, Undo2, Dices, X, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
@@ -140,7 +140,11 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
           </div>
         </div>
       ) : !game.started && !readyToRoll ? (
-        <ReadyToRoll onReady={() => setReadyToRoll(true)} />
+        <ReadyToRoll
+          onReady={() => setReadyToRoll(true)}
+          onAddPlayer={game.addPlayer}
+          playerCount={seats.length}
+        />
       ) : !game.started && !starterPicked ? (
         <StarterChooser
           seats={seats}
@@ -148,6 +152,7 @@ export function BoardChrome({ game, renderSeat, onSave, onRematch, onDiscard, sa
           pickedId={pickedId}
           onRoll={rollDice}
           onPick={pickStarter}
+          onAddPlayer={game.addPlayer}
         />
       ) : (
         <TurnControl
@@ -167,21 +172,133 @@ function counterRotationStyle(r: CounterRotation): React.CSSProperties {
   return { transform: "rotate(180deg)", transformOrigin: "center" }
 }
 
+/* Lightweight "someone just sat down" affordance for the pre-roll overlays —
+ * collapses to a single tap, expands into a name field, and hides once the
+ * table is full. Lives here (not back in Setup) so a late arrival doesn't
+ * cost a trip off the board. */
+function QuickAddPlayer({
+  onAdd,
+  full,
+  tone = "dark",
+  compact = false,
+}: {
+  onAdd: (name: string) => void
+  full: boolean
+  /** "dark" sits directly on a seat's colour fill (ReadyToRoll); "light" sits
+   *  on the card background (StarterChooser). */
+  tone?: "dark" | "light"
+  /** Icon-only trigger, sized to sit inline beside another button rather than
+   *  stack its own row. ReadyToRoll has no card behind it — free-floating text
+   *  there sits directly on a seat's own name/commander controls, so any extra
+   *  row risks colliding with them (confirmed: it did, at 844×390). Keeping
+   *  this inline instead of stacked avoids growing that overlay's height at
+   *  all in the idle state. */
+  compact?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const t = window.setTimeout(() => inputRef.current?.focus(), 30)
+    return () => window.clearTimeout(t)
+  }, [open])
+
+  function commit() {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setOpen(false)
+      return
+    }
+    onAdd(trimmed)
+    setName("")
+    setOpen(false)
+  }
+
+  if (full) return null
+
+  if (!open) {
+    return compact ? (
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Add a player"
+        title="Add a player"
+        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/30 text-white shadow-2xl active:scale-95"
+      >
+        <UserPlus className="h-5 w-5" />
+      </button>
+    ) : (
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          "flex items-center gap-1.5 text-xs font-semibold",
+          tone === "dark"
+            ? "text-white/80 hover:text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <UserPlus className="h-3.5 w-3.5" /> Add a player
+      </button>
+    )
+  }
+
+  return (
+    <div className={cn("flex items-center gap-1.5", !compact && "w-full max-w-[16rem]")}>
+      <input
+        ref={inputRef}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit()
+          if (e.key === "Escape") {
+            setOpen(false)
+            setName("")
+          }
+        }}
+        onBlur={() => { if (!name.trim()) setOpen(false) }}
+        placeholder="Player name…"
+        className={cn(
+          "h-9 rounded-lg border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          compact ? "w-36" : "flex-1"
+        )}
+      />
+      <Button size="sm" onClick={commit} disabled={!name.trim()}>
+        Add
+      </Button>
+    </div>
+  )
+}
+
 /* First overlay: let players get seated and set commanders before rolling.
  * Anchored to true screen center — same as StarterChooser right after it —
  * because that's the one point the ring layouts never place a seat's own
  * controls on. Bottom-center used to sit right on top of the near seat's
  * "+ Commander" button in 2-player games. */
-function ReadyToRoll({ onReady }: { onReady: () => void }) {
+function ReadyToRoll({
+  onReady,
+  onAddPlayer,
+  playerCount,
+}: {
+  onReady: () => void
+  onAddPlayer: (name: string) => void
+  playerCount: number
+}) {
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
       <div className="pointer-events-auto flex flex-col items-center gap-2">
         <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
           Drag seats · set commanders · then roll
         </p>
-        <Button onClick={onReady} size="lg" className="h-14 gap-2 rounded-full px-8 text-base shadow-2xl">
-          <Dices className="h-5 w-5" /> Ready to roll
-        </Button>
+        {/* Same row as Ready to roll, not stacked below it — this overlay has
+            no card behind it, so an extra row here sits as free-floating text
+            directly on a seat's own name/commander controls underneath. */}
+        <div className="flex items-center gap-2">
+          <Button onClick={onReady} size="lg" className="h-14 gap-2 rounded-full px-8 text-base shadow-2xl">
+            <Dices className="h-5 w-5" /> Ready to roll
+          </Button>
+          <QuickAddPlayer onAdd={onAddPlayer} full={playerCount >= 6} compact />
+        </div>
       </div>
     </div>
   )
@@ -199,12 +316,14 @@ function StarterChooser({
   pickedId,
   onRoll,
   onPick,
+  onAddPlayer,
 }: {
   seats: LivePlayer[]
   rolling: boolean
   pickedId: string | null
   onRoll: () => void
   onPick: (seat: LivePlayer["seatPosition"]) => void
+  onAddPlayer: (name: string) => void
 }) {
   const pickedPlayer = pickedId ? seats.find((p) => p.id === pickedId) ?? null : null
 
@@ -235,21 +354,24 @@ function StarterChooser({
           </Button>
         )}
         {!rolling && !pickedPlayer && (
-          <div className="grid w-full grid-cols-2 gap-1.5">
-            {seats.map((p) => {
-              const seatColor = SEAT_COLORS[p.seatPosition] ?? "#64748B"
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => onPick(p.seatPosition)}
-                  style={{ borderColor: seatColor, color: seatColor }}
-                  className="truncate rounded-lg border-2 px-2 py-2.5 text-sm font-semibold transition-all active:scale-95"
-                >
-                  {p.displayName}
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <div className="grid w-full grid-cols-2 gap-1.5">
+              {seats.map((p) => {
+                const seatColor = SEAT_COLORS[p.seatPosition] ?? "#64748B"
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onPick(p.seatPosition)}
+                    style={{ borderColor: seatColor, color: seatColor }}
+                    className="truncate rounded-lg border-2 px-2 py-2.5 text-sm font-semibold transition-all active:scale-95"
+                  >
+                    {p.displayName}
+                  </button>
+                )
+              })}
+            </div>
+            <QuickAddPlayer onAdd={onAddPlayer} full={seats.length >= 6} tone="light" />
+          </>
         )}
       </div>
     </div>
