@@ -1,7 +1,8 @@
-import { Fragment, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { Check, Pencil, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
+import { GameDetailPanel } from "@/components/GameDetailPanel"
 import { CommanderAvatar } from "./CommanderAvatar"
 import { MilestoneEvent } from "./MilestoneBadge"
 import {
@@ -153,13 +154,23 @@ function MonthHeader({ label, count }: { label: string; count: number }) {
   )
 }
 
-function Node({ event, handlers }: { event: TimelineEvent; handlers: JourneyHandlers }) {
+function Node({
+  event,
+  handlers,
+  expanded,
+  onToggle,
+}: {
+  event: TimelineEvent
+  handlers: JourneyHandlers
+  expanded: boolean
+  onToggle: () => void
+}) {
   const { game, me, won, date, milestones } = event
   const opponents = opponentsOf(game)
   const highlight = milestones.length > 0
 
   return (
-    <li className="relative pl-12 pb-8 last:pb-0">
+    <li id={`event-${game.id}`} className="relative pl-12 pb-8 last:pb-0">
       <span
         title={won ? "Win" : "Loss"}
         className={cn(
@@ -170,21 +181,28 @@ function Node({ event, handlers }: { event: TimelineEvent; handlers: JourneyHand
         {won ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
       </span>
       <div className="flex items-start gap-3">
-        <CommanderAvatar name={me?.commanderName} imageUri={me?.commanderImageUri} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-lg font-semibold">{shortCommander(me?.commanderName)}</span>
-            {highlight && <span className="h-2 w-2 rounded-full bg-amber-500" title="Has highlights" />}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+          aria-expanded={expanded}
+        >
+          <CommanderAvatar name={me?.commanderName} imageUri={me?.commanderImageUri} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-lg font-semibold">{shortCommander(me?.commanderName)}</span>
+              {highlight && <span className="h-2 w-2 rounded-full bg-amber-500" title="Has highlights" />}
+            </div>
+            <div className="mt-1 text-base text-muted-foreground">
+              {opponents.length > 0 ? `vs ${opponents.join(" · ")}` : "Solo log"}
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm text-muted-foreground tabular">
+              <span>{dayLabel(date)}</span>
+              {game.winTurn ? <span>{game.winTurn} turns</span> : null}
+              {game.bracket ? <span>bracket {game.bracket}</span> : null}
+            </div>
           </div>
-          <div className="mt-1 text-base text-muted-foreground">
-            {opponents.length > 0 ? `vs ${opponents.join(" · ")}` : "Solo log"}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm text-muted-foreground tabular">
-            <span>{dayLabel(date)}</span>
-            {game.winTurn ? <span>{game.winTurn} turns</span> : null}
-            {game.bracket ? <span>bracket {game.bracket}</span> : null}
-          </div>
-        </div>
+        </button>
         <div className="flex shrink-0 items-center gap-0.5">
           {handlers.onEditGame && (
             <IconButton label="Edit game" onClick={() => handlers.onEditGame!(game.id)}>
@@ -212,22 +230,57 @@ function Node({ event, handlers }: { event: TimelineEvent; handlers: JourneyHand
           ))}
         </div>
       )}
+
+      {expanded && (
+        <div className="ml-12 mt-3 rounded-lg border border-border bg-muted/20 p-4">
+          <GameDetailPanel game={game} />
+        </div>
+      )}
     </li>
   )
 }
 
-function Spine({ events, handlers }: { events: TimelineEvent[]; handlers: JourneyHandlers }) {
+function Spine({
+  events,
+  handlers,
+  expandedId,
+  onToggle,
+}: {
+  events: TimelineEvent[]
+  handlers: JourneyHandlers
+  expandedId: string | null
+  onToggle: (id: string) => void
+}) {
   return (
     <ol className="relative">
       <span className="pointer-events-none absolute left-4 top-2 bottom-2 z-30 w-px -translate-x-1/2 bg-border" />
       {events.map((ev) => (
-        <Node key={ev.game.id} event={ev} handlers={handlers} />
+        <Node
+          key={ev.game.id}
+          event={ev}
+          handlers={handlers}
+          expanded={expandedId === ev.game.id}
+          onToggle={() => onToggle(ev.game.id)}
+        />
       ))}
     </ol>
   )
 }
 
-export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Game[] } & JourneyHandlers) {
+interface VariantJourneyProps extends JourneyHandlers {
+  games: Game[]
+  /** Game to scroll to and expand on mount — set after returning from an edit. */
+  scrollToGameId?: string | null
+  onScrollHandled?: () => void
+}
+
+export function VariantJourney({
+  games,
+  onEditGame,
+  onDeleteGame,
+  scrollToGameId,
+  onScrollHandled,
+}: VariantJourneyProps) {
   const allEvents = useMemo(() => buildTimeline(games), [games])
 
   const heroes = useMemo(() => {
@@ -241,6 +294,7 @@ export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Gam
   const [viewMode, setViewMode] = useState<ViewMode>("date")
   const [result, setResult] = useState<ResultFilter>("All")
   const [hero, setHero] = useState("all")
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const shown = useMemo(
     () =>
@@ -256,6 +310,23 @@ export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Gam
   const months = useMemo(() => groupIntoMonths(shown), [shown])
   const pods = useMemo(() => groupIntoPods(shown), [shown])
   const handlers: JourneyHandlers = { onEditGame, onDeleteGame }
+
+  function toggle(id: string) {
+    setExpandedId((prev) => (prev === id ? null : id))
+  }
+
+  useEffect(() => {
+    if (!scrollToGameId || games.length === 0) return
+    setExpandedId(scrollToGameId)
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`event-${scrollToGameId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      })
+      onScrollHandled?.()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [scrollToGameId, games, onScrollHandled])
 
   if (allEvents.length === 0) {
     return <p className="text-base text-muted-foreground">No games yet.</p>
@@ -317,7 +388,12 @@ export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Gam
                     {pod.wins}–{pod.games - pod.wins}
                   </span>
                 </div>
-                <Spine events={pod.events} handlers={handlers} />
+                <Spine
+                  events={pod.events}
+                  handlers={handlers}
+                  expandedId={expandedId}
+                  onToggle={toggle}
+                />
               </section>
             ))}
           </div>
@@ -331,7 +407,13 @@ export function VariantJourney({ games, onEditGame, onDeleteGame }: { games: Gam
                 {block.showYear && <YearDivider year={block.year} />}
                 <MonthHeader label={block.month} count={block.events.length} />
                 {block.events.map((ev) => (
-                  <Node key={ev.game.id} event={ev} handlers={handlers} />
+                  <Node
+                    key={ev.game.id}
+                    event={ev}
+                    handlers={handlers}
+                    expanded={expandedId === ev.game.id}
+                    onToggle={() => toggle(ev.game.id)}
+                  />
                 ))}
               </Fragment>
             ))}
