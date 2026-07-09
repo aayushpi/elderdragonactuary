@@ -74,7 +74,7 @@ describe("App routing smoke tests", () => {
 
   it("renders history page on /history", () => {
     const html = renderPath("/history")
-    expect(html).toContain("No games match")
+    expect(html).toContain("No games yet")
   })
 
   it("renders settings page on /settings", () => {

@@ -17,6 +17,64 @@ export interface ShortlistOccurrence {
   player: Partial<Player>
 }
 
+export interface WinconShortlistItem {
+  name: string
+  games: number
+  lastPlayedISO?: string
+}
+
+const DAY = 24 * 60 * 60 * 1000
+
+export function formatRelative(iso?: string): string | null {
+  if (!iso) return null
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / DAY)
+  if (days <= 0) return "today"
+  if (days === 1) return "yesterday"
+  if (days < 7) return `${days} days ago`
+  if (days < 14) return "last week"
+  if (days < 60) return `${Math.floor(days / 7)} weeks ago`
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+/** Fuzzy match: forgives partial words and out-of-order tokens. Lower = better;
+ *  null when any token is missing. */
+export function matchScore(name: string, query: string): number | null {
+  const n = name.toLowerCase()
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return null
+  let score = 0
+  for (const token of tokens) {
+    const idx = n.indexOf(token)
+    if (idx < 0) return null
+    score += idx
+  }
+  return score
+}
+
+/** Aggregate every key wincon card logged across game history, most used
+ *  first (recency, then name, breaks ties). */
+export function buildWinconShortlist(games: Game[]): WinconShortlistItem[] {
+  const map = new Map<string, { games: number; last: string }>()
+  for (const game of games) {
+    for (const card of game.keyWinconCards ?? []) {
+      const acc = map.get(card) ?? { games: 0, last: game.playedAt }
+      acc.games += 1
+      if (new Date(game.playedAt).getTime() > new Date(acc.last).getTime()) {
+        acc.last = game.playedAt
+      }
+      map.set(card, acc)
+    }
+  }
+  return Array.from(map.entries())
+    .map(([name, a]) => ({ name, games: a.games, lastPlayedISO: a.last }))
+    .sort(
+      (a, b) =>
+        b.games - a.games ||
+        new Date(b.lastPlayedISO ?? 0).getTime() - new Date(a.lastPlayedISO ?? 0).getTime() ||
+        a.name.localeCompare(b.name)
+    )
+}
+
 /** Collapse a player's game appearances into a recents shortlist (games, win
  *  rate, recency, color identity), ordered most-recently-played first. */
 export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderShortlistItem[] {
@@ -73,7 +131,22 @@ export function buildPlayerShortlists(games: Game[]): {
       const key = p.isMe ? "__me__" : p.displayName?.trim().toLowerCase()
       if (!key) continue
       const occ = occByKey.get(key) ?? []
-      occ.push({ playedAt: game.playedAt, won: game.winnerId === p.id, player: p })
+      const won = game.winnerId === p.id
+      occ.push({ playedAt: game.playedAt, won, player: p })
+      // Partners are commanders this player has played too — surface them in
+      // the same recents list so both pickers can offer them one-tap.
+      if (p.partnerName?.trim()) {
+        occ.push({
+          playedAt: game.playedAt,
+          won,
+          player: {
+            commanderName: p.partnerName,
+            commanderImageUri: p.partnerImageUri,
+            commanderManaCost: p.partnerManaCost,
+            commanderTypeLine: p.partnerTypeLine,
+          },
+        })
+      }
       occByKey.set(key, occ)
     }
   }
