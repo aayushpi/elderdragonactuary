@@ -116,10 +116,14 @@ function counterRotationStyle(r: CounterRotation): React.CSSProperties {
   return { transform: "rotate(180deg)", transformOrigin: "center" }
 }
 
-/* First overlay: let players get seated and set commanders before rolling. */
+/* First overlay: let players get seated and set commanders before rolling.
+ * Anchored to true screen center — same as StarterChooser right after it —
+ * because that's the one point the ring layouts never place a seat's own
+ * controls on. Bottom-center used to sit right on top of the near seat's
+ * "+ Commander" button in 2-player games. */
 function ReadyToRoll({ onReady }: { onReady: () => void }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-end justify-center pb-16">
+    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
       <div className="pointer-events-auto flex flex-col items-center gap-2">
         <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
           Drag seats · set commanders · then roll

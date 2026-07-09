@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { X } from "lucide-react"
+import { ChevronsUpDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
-import type { CommanderShortlistItem } from "@/lib/shortlist"
-import { CardSearch } from "@/components/CardSearch"
+import { buildWinconShortlist, type CommanderShortlistItem, type WinconShortlistItem } from "@/lib/shortlist"
+import { WinconCardPicker } from "@/components/WinconCardPicker"
 import { ThrowBoard } from "@/live/ThrowBoard"
 import { useLiveGame, type LiveConfig, type LivePlayer } from "@/live/engine"
 import { buildKnownPlayers, buildPlayerDecks, buildRecents, buildRichPods } from "@/live/setupData"
@@ -39,18 +40,21 @@ interface WinconSaveInfo {
 function WinconEntry({
   winner,
   players,
+  winconShortlist,
   onSave,
   onSkip,
   saving,
 }: {
   winner: LivePlayer | null
   players: LivePlayer[]
+  winconShortlist: WinconShortlistItem[]
   onSave: (info: WinconSaveInfo) => void
   onSkip: () => void
   saving?: boolean
 }) {
   const [selected, setSelected] = useState<string[]>([])
   const [keyCards, setKeyCards] = useState<string[]>([])
+  const [winconPickerOpen, setWinconPickerOpen] = useState(false)
   const [notes, setNotes] = useState("")
   const [bracket, setBracket] = useState<number | null>(null)
   const [fastMana, setFastMana] = useState<Record<string, boolean>>({})
@@ -104,11 +108,38 @@ function WinconEntry({
 
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Key wincon cards</p>
-            <CardSearch
+            {keyCards.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {keyCards.map((cardName) => (
+                  <Badge key={cardName} variant="secondary" className="flex items-center gap-1">
+                    {cardName}
+                    <button
+                      type="button"
+                      onClick={() => setKeyCards((prev) => prev.filter((c) => c !== cardName))}
+                      className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                      aria-label={`Remove ${cardName}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setWinconPickerOpen(true)}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
+            >
+              <span className="truncate text-sm text-muted-foreground">Search for key wincon cards…</span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+            <WinconCardPicker
+              open={winconPickerOpen}
+              onOpenChange={setWinconPickerOpen}
+              items={winconShortlist}
               selectedCards={keyCards}
-              onAddCard={(card) => setKeyCards((prev) => [...prev, card])}
-              onRemoveCard={(card) => setKeyCards((prev) => prev.filter((c) => c !== card))}
-              placeholder="Search for a card…"
+              onAdd={(cardName) => setKeyCards((prev) => (prev.includes(cardName) ? prev : [...prev, cardName]))}
+              onRemove={(cardName) => setKeyCards((prev) => prev.filter((c) => c !== cardName))}
             />
           </div>
 
@@ -195,6 +226,7 @@ export function LiveGamePage({
   const recents = useMemo(() => buildRecents(games), [games])
   const knownPlayers = useMemo(() => buildKnownPlayers(games), [games])
   const playerDecks = useMemo(() => buildPlayerDecks(games), [games])
+  const winconShortlist = useMemo(() => buildWinconShortlist(games), [games])
 
   const [config, setConfig] = useState<LiveConfig | null>(null)
   const [gameKey, setGameKey] = useState(0)
@@ -219,6 +251,7 @@ export function LiveGamePage({
       config={config}
       recents={recents}
       playerDecks={playerDecks}
+      winconShortlist={winconShortlist}
       onSave={onSaveGame}
       onNewSetup={() => setConfig(null)}
     />
@@ -229,12 +262,14 @@ function PlayingBoard({
   config,
   recents,
   playerDecks,
+  winconShortlist,
   onSave,
   onNewSetup,
 }: {
   config: LiveConfig
   recents: CommanderShortlistItem[]
   playerDecks: Record<string, CommanderShortlistItem[]>
+  winconShortlist: WinconShortlistItem[]
   onSave: (game: Game) => Promise<void> | void
   onNewSetup: () => void
 }) {
@@ -288,6 +323,7 @@ function PlayingBoard({
         <WinconEntry
           winner={winner}
           players={game.players}
+          winconShortlist={winconShortlist}
           saving={saving}
           onSave={(info) => void doSave(info)}
           onSkip={() => void doSave()}
