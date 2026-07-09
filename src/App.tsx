@@ -21,6 +21,7 @@ import { StatsPage } from "@/pages/StatsPage"
 import { LogGamePage } from "@/pages/LogGamePage"
 import { EditGamePage } from "@/pages/EditGamePage"
 import { HistoryPage } from "@/pages/HistoryPage"
+import { PrototypesPage } from "@/pages/PrototypesPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { useGames } from "@/hooks/useGames"
@@ -271,6 +272,18 @@ function App() {
                       await signOut()
                       navigate("/", { replace: true })
                     })()
+                  }}
+                />
+              }
+            />
+            <Route
+              path="/prototypes/history"
+              element={
+                <PrototypesPage
+                  games={games}
+                  onEditGame={openEditGameFlow}
+                  onDeleteGame={(id) => {
+                    void deleteGame(id)
                   }}
                 />
               }
