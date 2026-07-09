@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
+import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 
 interface PlayerNamePickerProps {
   open: boolean
@@ -29,6 +30,7 @@ export function PlayerNamePicker({
 }: PlayerNamePickerProps) {
   const [draft, setDraft] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const keyboardInset = useKeyboardInset()
 
   useEffect(() => {
     if (open) setDraft("")
@@ -57,7 +59,14 @@ export function PlayerNamePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={SHEET_CONTENT_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent
+        className={SHEET_CONTENT_CLASS}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          // Nothing to tap without saved names — jump straight to typing.
+          if (names.length === 0) inputRef.current?.focus()
+        }}
+      >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">Pick a player</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
@@ -70,7 +79,12 @@ export function PlayerNamePicker({
           <span className="font-mono text-[11px] text-muted-foreground">most played first</span>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
+        {/* Inset padding keeps the last rows reachable when the keyboard
+            overlays the sheet (iOS) instead of shrinking it. */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto border-t border-border"
+          style={{ paddingBottom: keyboardInset }}
+        >
           <div className="divide-y divide-border">
             {filtered.map((name) => (
               <button
@@ -91,8 +105,12 @@ export function PlayerNamePicker({
           </div>
         </div>
 
-        {/* Pinned add bar — type a new name and add it */}
-        <div className="border-t border-border px-5 py-4">
+        {/* Pinned add bar — type a new name and add it. Rides up with the
+            keyboard on iOS, where the overlay would otherwise cover it. */}
+        <div
+          className="border-t border-border bg-background px-5 py-4 transition-transform"
+          style={{ transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined }}
+        >
           <div className="flex gap-2">
             <input
               ref={inputRef}

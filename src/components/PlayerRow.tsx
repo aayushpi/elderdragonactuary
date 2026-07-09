@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/ui/form-field"
 import { InputGroup, InputGroupText } from "@/components/ui/input-group"
-import { CommanderSearch } from "@/components/CommanderSearch"
 import { CommanderPicker, type CommanderShortlistItem } from "@/components/CommanderPicker"
 import { PlayerNamePicker } from "@/components/PlayerNamePicker"
 // CommanderCard removed: using low-opacity background image instead
@@ -15,8 +14,7 @@ import { FastManaPicker } from "@/components/FastManaPicker"
 import { Badge } from "@/components/ui/badge"
 import { SeatPicker } from "@/components/SeatPicker"
 import { Separator } from "@/components/ui/separator"
-import { resolveArtCrop } from "@/lib/scryfall"
-import type { Player, SeatPosition, ScryfallCard } from "@/types"
+import type { Player, SeatPosition } from "@/types"
 
 interface FieldErrors {
   commanderName?: boolean
@@ -72,6 +70,7 @@ export function PlayerRow({
 }: PlayerRowProps) {
   const [showPartner, setShowPartner] = useState(!!player.partnerName)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [partnerPickerOpen, setPartnerPickerOpen] = useState(false)
   const [namePickerOpen, setNamePickerOpen] = useState(false)
   const [fastManaPickerOpen, setFastManaPickerOpen] = useState(false)
 
@@ -82,19 +81,6 @@ export function PlayerRow({
     const profileName = (loadProfile().displayName ?? "").trim()
     return knownPlayerNames.filter((n) => n.trim() && n.trim() !== profileName)
   })()
-
-  function handlePartnerChange(name: string, card: ScryfallCard | null) {
-    if (card) {
-      onChange({
-        partnerName: name,
-        partnerImageUri: resolveArtCrop(card),
-        partnerManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
-        partnerTypeLine: card.type_line,
-      })
-    } else {
-      onChange({ partnerName: name, partnerImageUri: undefined, partnerManaCost: undefined, partnerTypeLine: undefined })
-    }
-  }
 
   function handleRemovePartner() {
     setShowPartner(false)
@@ -412,10 +398,32 @@ export function PlayerRow({
                 Remove
               </button>
             </div>
-            <CommanderSearch
-              value={player.partnerName ?? ""}
-              onChange={handlePartnerChange}
-              placeholder="Search partner…"
+            <button
+              type="button"
+              onClick={() => setPartnerPickerOpen(true)}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className={cn("truncate", !player.partnerName && "text-muted-foreground")}>
+                {player.partnerName || "Pick a partner"}
+              </span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+            <CommanderPicker
+              open={partnerPickerOpen}
+              onOpenChange={setPartnerPickerOpen}
+              seatLabel={seatLabel}
+              title="Pick a partner"
+              label={pickerLabel ?? (isMe ? "You" : "Player")}
+              value={player.partnerName}
+              items={shortlist ?? []}
+              onPick={(pick) =>
+                onChange({
+                  partnerName: pick.commanderName,
+                  partnerImageUri: pick.commanderImageUri,
+                  partnerManaCost: pick.commanderManaCost,
+                  partnerTypeLine: pick.commanderTypeLine,
+                })
+              }
             />
           </div>
         )}

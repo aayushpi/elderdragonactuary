@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from "react"
-import { AlertCircle, ExternalLink } from "lucide-react"
+import { AlertCircle, ExternalLink, ChevronsUpDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { PlayerRow } from "@/components/PlayerRow"
-import { CardSearch } from "@/components/CardSearch"
-import { buildPlayerShortlists } from "@/lib/shortlist"
+import { WinconCardPicker } from "@/components/WinconCardPicker"
+import { buildPlayerShortlists, buildWinconShortlist } from "@/lib/shortlist"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
@@ -125,6 +126,8 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
   const [notes, setNotes] = useState(game.notes || "")
   const [winConditions, setWinConditions] = useState<string[]>(game.winConditions || [])
   const [keyWinconCards, setKeyWinconCards] = useState<string[]>(game.keyWinconCards || [])
+  const [winconPickerOpen, setWinconPickerOpen] = useState(false)
+  const winconShortlist = useMemo(() => buildWinconShortlist(games), [games])
   const [bracket, setBracket] = useState<number | null>(game.bracket ?? null)
   const [showBracketSelector, setShowBracketSelector] = useState(!!game.bracket)
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
@@ -444,11 +447,38 @@ export function EditGamePage({ game, onSave, onCancel }: EditGamePageProps) {
             Key wincon cards (Optional)
           </label>
         </div>
-        <CardSearch
+        {keyWinconCards.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {keyWinconCards.map((cardName) => (
+              <Badge key={cardName} variant="secondary" className="flex items-center gap-1">
+                {cardName}
+                <button
+                  type="button"
+                  onClick={() => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}
+                  className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                  aria-label={`Remove ${cardName}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setWinconPickerOpen(true)}
+          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
+        >
+          <span className="truncate text-sm text-muted-foreground">Search for key wincon cards…</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <WinconCardPicker
+          open={winconPickerOpen}
+          onOpenChange={setWinconPickerOpen}
+          items={winconShortlist}
           selectedCards={keyWinconCards}
-          onAddCard={(cardName) => setKeyWinconCards(prev => [...prev, cardName])}
-          onRemoveCard={(cardName) => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}
-          placeholder="Search for key wincon cards…"
+          onAdd={(cardName) => setKeyWinconCards(prev => prev.includes(cardName) ? prev : [...prev, cardName])}
+          onRemove={(cardName) => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}
         />
       </div>
 

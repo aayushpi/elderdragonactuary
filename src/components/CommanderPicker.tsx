@@ -12,7 +12,8 @@ import { extractCardData } from "@/lib/shared"
 import { ManaCost } from "@/components/ManaCost"
 import { Pips, SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
 import type { MtgColor } from "@/types"
-import type { CommanderShortlistItem } from "@/lib/shortlist"
+import { formatRelative, matchScore, type CommanderShortlistItem } from "@/lib/shortlist"
+import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 
 export type { CommanderShortlistItem } from "@/lib/shortlist"
 
@@ -31,23 +32,14 @@ interface CommanderPickerProps {
   contextLabel?: string
   /** "You" or a pod-mate's display name; drives the recents heading. */
   label?: string
+  /** Recents-mode dialog title; defaults to "Pick a commander". */
+  title?: string
   value?: string
   items: CommanderShortlistItem[]
   onPick: (pick: CommanderPick) => void
 }
 
 const DAY = 24 * 60 * 60 * 1000
-
-function formatRelative(iso?: string): string | null {
-  if (!iso) return null
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / DAY)
-  if (days <= 0) return "today"
-  if (days === 1) return "yesterday"
-  if (days < 7) return `${days} days ago`
-  if (days < 14) return "last week"
-  if (days < 60) return `${Math.floor(days / 7)} weeks ago`
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-}
 
 function shortlistSub(item: CommanderShortlistItem): string {
   const relative = formatRelative(item.lastPlayedISO)
@@ -58,21 +50,6 @@ function shortlistSub(item: CommanderShortlistItem): string {
     return recent && relative ? `${base} · ${relative}` : base
   }
   return relative ? `Played ${relative}` : "Played once"
-}
-
-/** Fuzzy match: forgives partial words and out-of-order tokens. Lower = better;
- *  null when any token is missing. */
-function matchScore(name: string, query: string): number | null {
-  const n = name.toLowerCase()
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
-  if (tokens.length === 0) return null
-  let score = 0
-  for (const token of tokens) {
-    const idx = n.indexOf(token)
-    if (idx < 0) return null
-    score += idx
-  }
-  return score
 }
 
 /** Small rounded thumbnail of the commander's art, with an initial fallback. */
@@ -99,6 +76,7 @@ export function CommanderPicker({
   seatLabel,
   contextLabel,
   label = "You",
+  title = "Pick a commander",
   value,
   items,
   onPick,
@@ -107,6 +85,7 @@ export function CommanderPicker({
   const [resolving, setResolving] = useState(false)
   const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall("commander")
   const inputRef = useRef<HTMLInputElement>(null)
+  const keyboardInset = useKeyboardInset()
 
   // Reset on open; jump straight to search when there are no recents.
   useEffect(() => {
@@ -209,7 +188,7 @@ export function CommanderPicker({
       >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">
-            {mode === "search" ? "Search commanders" : "Pick a commander"}
+            {mode === "search" ? "Search commanders" : title}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">{subtitle}</DialogDescription>
         </DialogHeader>
@@ -288,8 +267,13 @@ export function CommanderPicker({
             </div>
 
 
-            {/* Results band — sits above the keyboard, never under it */}
-            <div className="flex-1 min-h-0 overflow-y-auto border-t border-border divide-y divide-border">
+            {/* Results band — sits above the keyboard, never under it. The
+                inset padding keeps the last rows scrollable on iOS, where the
+                keyboard overlays the sheet instead of shrinking it. */}
+            <div
+              className="flex-1 min-h-0 overflow-y-auto border-t border-border divide-y divide-border"
+              style={{ paddingBottom: keyboardInset }}
+            >
               {trimmed.length === 0 ? (
                 <p className="px-5 py-6 text-center text-sm text-muted-foreground">
                   Start typing to search every commander.
