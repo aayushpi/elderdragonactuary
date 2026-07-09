@@ -32,7 +32,7 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
   return (
     <div className="min-h-[100dvh] bg-background text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border bg-[hsl(var(--background)/0.88)] backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-[hsl(var(--background)/0.88)] pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex h-[56px] max-w-[1280px] items-center justify-between gap-4 px-[clamp(14px,3.5vw,40px)]">
           <Wordmark />
           <div className="flex items-center gap-1.5">
@@ -100,7 +100,7 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-9">
+      <footer className="border-t border-border py-9 pb-[max(2.25rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-[clamp(14px,3.5vw,40px)] text-xs">
           <a href="https://aayush.fyi" target="_blank" rel="noopener noreferrer" className="text-primary transition-colors hover:text-primary">
             Made by Aayush.

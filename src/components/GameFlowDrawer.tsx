@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Minus, Maximize2, X } from "lucide-react"
+import { Minus, Maximize2, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -9,11 +9,13 @@ interface GameFlowDrawerProps {
   onMinimize: () => void
   onRestore: () => void
   onClose: () => void
+  onDelete?: () => void
   children: React.ReactNode
 }
 
-export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, children }: GameFlowDrawerProps) {
+export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClose, onDelete, children }: GameFlowDrawerProps) {
   const [isReady, setIsReady] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setIsReady(true))
@@ -38,6 +40,20 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
         >
           <p className="text-sm font-semibold">{title}</p>
           <div className="flex items-center gap-1">
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setConfirmDelete(true)
+                }}
+                aria-label="Delete game"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -71,6 +87,19 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:max-h-[85vh] sm:pb-4">{children}</div>
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60" onClick={() => setConfirmDelete(false)}>
+          <div className="w-[min(84vw,20rem)] rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold text-center">Delete this game?</p>
+            <p className="text-sm text-muted-foreground text-center">This can't be undone.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+              <Button variant="destructive" className="flex-1" onClick={() => { setConfirmDelete(false); onDelete!() }}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

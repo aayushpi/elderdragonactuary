@@ -24,10 +24,12 @@ import { HistoryPage } from "@/pages/HistoryPage"
 import { PrototypesPage } from "@/pages/PrototypesPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
+import { LiveGamePage } from "@/pages/LiveGamePage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
+import { useFeatureFlags } from "@/hooks/useFeatureFlags"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -44,6 +46,8 @@ type Theme = "light" | "dark"
 
 function App() {
   const { user, loading: authLoading, signOut } = useAuth()
+  const featureFlags = useFeatureFlags()
+  const liveGameEnabled = featureFlags.isEnabled("live-game")
   const [recentlyEditedGameId, setRecentlyEditedGameId] = useState<string | null>(null)
   const [gameFlow, setGameFlow] = useState<GameFlowState | null>(null)
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
@@ -115,6 +119,13 @@ function App() {
         // Errors are surfaced in useGames
       }
     })()
+  }
+
+  async function handleSaveLiveGame(game: Game) {
+    await addGame(game)
+    try { trackGameLogged(game) } catch { void 0 }
+    setRecentlyEditedGameId(game.id)
+    navigate("/history")
   }
 
   function handleUpdateGame(game: Game) {
@@ -204,6 +215,7 @@ function App() {
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
         onOpenLogGame={openLogGameFlow}
+        onStartLive={liveGameEnabled ? () => navigateWithFlowMinimize("/live") : undefined}
         userEmail={user.email}
         onSignOut={() => {
           void (async () => {
@@ -277,6 +289,20 @@ function App() {
               }
             />
             <Route
+              path="/live"
+              element={
+                liveGameEnabled ? (
+                  <LiveGamePage games={games} onSaveGame={handleSaveLiveGame} onExit={() => navigate("/")} />
+                ) : !featureFlags.ready ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+            <Route
               path="/prototypes/history"
               element={
                 <PrototypesPage
@@ -288,7 +314,6 @@ function App() {
                 />
               }
             />
-            {/* Map page removed */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
@@ -325,6 +350,7 @@ function App() {
           onMinimize={minimizeGameFlow}
           onRestore={restoreGameFlow}
           onClose={closeGameFlow}
+          onDelete={gameFlow.mode === "edit" && editingGame ? () => { void deleteGame(editingGame.id); closeGameFlow() } : undefined}
         >
           {gameFlow.mode === "log" ? (
             <LogGamePage
@@ -339,6 +365,10 @@ function App() {
                 game={editingGame}
                 onSave={handleUpdateGame}
                 onCancel={handleCancelGameFlow}
+                onDelete={() => {
+                  void deleteGame(editingGame.id)
+                  closeGameFlow()
+                }}
               />
             )
           )}
