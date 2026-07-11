@@ -47,6 +47,31 @@ export async function fetchCardByName(name: string): Promise<ScryfallCard> {
   return parseCardResponse(fuzzyRes)
 }
 
+/**
+ * Look up many cards at once by exact name via Scryfall's collection endpoint.
+ * Used at deck-import time to canonicalize names and pull mana cost / color
+ * identity / type line cheaply. Batches into groups of 75 (Scryfall's max) and
+ * silently drops names Scryfall can't resolve.
+ */
+export async function fetchCardCollection(names: string[]): Promise<ScryfallCard[]> {
+  const unique = Array.from(new Set(names.map((n) => n.trim()).filter(Boolean)))
+  const out: ScryfallCard[] = []
+
+  for (let i = 0; i < unique.length; i += 75) {
+    const batch = unique.slice(i, i + 75)
+    const res = await fetch(`${BASE}/cards/collection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers: batch.map((name) => ({ name })) }),
+    })
+    if (!res.ok) throw new Error("Card collection lookup failed")
+    const json = (await res.json()) as { data?: ScryfallCard[] }
+    if (Array.isArray(json.data)) out.push(...json.data)
+  }
+
+  return out
+}
+
 export function resolveArtCrop(card: ScryfallCard): string | undefined {
   // prefer art_crop (wide, minimal framing) if present, otherwise
   // fall back to the larger canonical images that were previously used.

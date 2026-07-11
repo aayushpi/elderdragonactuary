@@ -43,6 +43,9 @@ interface PlayerRowProps {
   pickerLabel?: string
   seatLabel?: string
   knownPlayerNames?: string[]
+  /** Fast-mana cards from this player's matched deck, offered as one-tap
+   *  defaults in the fast-mana picker. */
+  deckFastManaCards?: string[]
   fieldErrors?: FieldErrors
   showWinnerError?: boolean
 }
@@ -65,6 +68,7 @@ export function PlayerRow({
   pickerLabel,
   seatLabel,
   knownPlayerNames,
+  deckFastManaCards,
   fieldErrors,
   showWinnerError,
 }: PlayerRowProps) {
@@ -484,6 +488,7 @@ export function PlayerRow({
           selectedCards={selectedCards}
           onAdd={addFastManaCard}
           onRemove={removeFastManaCard}
+          deckCards={deckFastManaCards}
         />
       </div>
     </div>

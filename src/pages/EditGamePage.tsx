@@ -8,6 +8,8 @@ import { PlayerRow } from "@/components/PlayerRow"
 import { WinconCardPicker } from "@/components/WinconCardPicker"
 import { buildPlayerShortlists, buildWinconShortlist } from "@/lib/shortlist"
 import { useGames } from "@/hooks/useGames"
+import { useDecks } from "@/hooks/useDecks"
+import { findDeckForCommander } from "@/lib/decks"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
 import type { Game, Player, SeatPosition } from "@/types"
@@ -82,6 +84,7 @@ interface EditGamePageProps {
 
 export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageProps) {
   const { games } = useGames()
+  const { decks } = useDecks()
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -129,6 +132,16 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
   const [keyWinconCards, setKeyWinconCards] = useState<string[]>(game.keyWinconCards || [])
   const [winconPickerOpen, setWinconPickerOpen] = useState(false)
   const winconShortlist = useMemo(() => buildWinconShortlist(games), [games])
+  const meCommander = players.find((p) => p.isMe)?.commanderName
+  const mePartner = players.find((p) => p.isMe)?.partnerName
+  const myDeck = useMemo(
+    () => findDeckForCommander(decks, meCommander, mePartner),
+    [decks, meCommander, mePartner]
+  )
+  const myDeckWinconCards = useMemo(
+    () => myDeck?.cards.map((c) => ({ name: c.name, manaCost: c.manaCost })),
+    [myDeck]
+  )
   const [bracket, setBracket] = useState<number | null>(game.bracket ?? null)
   const [showBracketSelector, setShowBracketSelector] = useState(!!game.bracket)
   const [errors, setErrors] = useState<FormErrors>(EMPTY_ERRORS)
@@ -383,6 +396,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
                 pickerLabel={player.isMe ? "You" : player.displayName?.trim() || undefined}
                 seatLabel={player.seatPosition ? `Seat ${player.seatPosition}` : `Seat ${playerOrder}`}
                 knownPlayerNames={knownPlayerNames}
+                deckFastManaCards={player.isMe ? myDeck?.fastManaCards : undefined}
                 fieldErrors={{
                   commanderName: errors.players[originalIndex]?.commanderName,
                   seatPosition: errors.players[originalIndex]?.seatPosition,
@@ -477,6 +491,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
           open={winconPickerOpen}
           onOpenChange={setWinconPickerOpen}
           items={winconShortlist}
+          deckCards={myDeckWinconCards}
           selectedCards={keyWinconCards}
           onAdd={(cardName) => setKeyWinconCards(prev => prev.includes(cardName) ? prev : [...prev, cardName])}
           onRemove={(cardName) => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}

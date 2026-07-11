@@ -18,6 +18,9 @@ interface FastManaPickerProps {
   selectedCards: string[]
   onAdd: (card: string) => void
   onRemove: (card: string) => void
+  /** Fast-mana cards detected in this player's imported deck, shown as
+   *  one-tap defaults above the generic staples. */
+  deckCards?: string[]
 }
 
 export function FastManaPicker({
@@ -27,6 +30,7 @@ export function FastManaPicker({
   selectedCards,
   onAdd,
   onRemove,
+  deckCards,
 }: FastManaPickerProps) {
   const [mode, setMode] = useState<"popular" | "search">("popular")
   const { query, setQuery, suggestions, isLoading } = useScryfall("card")
@@ -56,13 +60,19 @@ export function FastManaPicker({
     else onAdd(card)
   }
 
-  // Popular staples plus any already-picked card that isn't a staple, so the
-  // popular view can untoggle everything currently selected.
+  const deckRows = useMemo(() => deckCards ?? [], [deckCards])
+  const deckLower = useMemo(() => new Set(deckRows.map((c) => c.toLowerCase())), [deckRows])
+
+  // Popular staples plus any already-picked card that isn't a staple or already
+  // shown in the deck section, so the popular view can untoggle selections.
   const popularRows = useMemo(() => {
     const popularLower = new Set(POPULAR_FAST_MANA.map((c) => c.toLowerCase()))
-    const extras = selectedCards.filter((c) => !popularLower.has(c.toLowerCase()))
-    return [...POPULAR_FAST_MANA, ...extras]
-  }, [selectedCards])
+    const staples = POPULAR_FAST_MANA.filter((c) => !deckLower.has(c.toLowerCase()))
+    const extras = selectedCards.filter(
+      (c) => !popularLower.has(c.toLowerCase()) && !deckLower.has(c.toLowerCase())
+    )
+    return [...staples, ...extras]
+  }, [selectedCards, deckLower])
 
   const trimmed = query.trim()
 
@@ -112,15 +122,27 @@ export function FastManaPicker({
 
         {mode === "popular" ? (
           <>
-            <div className="flex items-center justify-between px-5 pb-2 pt-1">
-              <span className={SECTION_LABEL}>Popular fast mana</span>
-              <span className="font-mono text-[11px] text-muted-foreground">one tap each</span>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-y-auto border-t border-border divide-y divide-border">
-              {popularRows.map((name) => (
-                <Row key={name} name={name} />
-              ))}
+            <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
+              {deckRows.length > 0 && (
+                <div className="divide-y divide-border">
+                  <div className="flex items-center justify-between px-5 py-2 bg-muted/30">
+                    <span className={SECTION_LABEL}>From your deck</span>
+                    <span className="font-mono text-[11px] text-muted-foreground">detected</span>
+                  </div>
+                  {deckRows.map((name) => (
+                    <Row key={`deck-${name}`} name={name} />
+                  ))}
+                </div>
+              )}
+              <div className="divide-y divide-border">
+                <div className="flex items-center justify-between px-5 py-2 bg-muted/30">
+                  <span className={SECTION_LABEL}>Popular fast mana</span>
+                  <span className="font-mono text-[11px] text-muted-foreground">one tap each</span>
+                </div>
+                {popularRows.map((name) => (
+                  <Row key={name} name={name} />
+                ))}
+              </div>
             </div>
 
             <div className="border-t border-border px-5 py-4">

@@ -1,4 +1,4 @@
-import type { Player } from "@/types"
+import type { DeckCard, DeckSource, MtgColor, Player } from "@/types"
 
 // ─── Supabase Database Types ────────────────────────────────────────────────
 
@@ -48,6 +48,46 @@ export interface GameUpdate {
   updated_at?: string
 }
 
+export interface DeckRow {
+  id: string
+  user_id: string
+  name: string
+  commander_name: string
+  partner_name: string | null
+  color_identity: MtgColor[] | null
+  source: DeckSource
+  source_url: string | null
+  cards: DeckCard[]
+  fast_mana_cards: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface DeckInsert {
+  id?: string
+  user_id?: string // set by RLS default
+  name: string
+  commander_name: string
+  partner_name?: string | null
+  color_identity?: MtgColor[] | null
+  source: DeckSource
+  source_url?: string | null
+  cards: DeckCard[]
+  fast_mana_cards: string[]
+}
+
+export interface DeckUpdate {
+  name?: string
+  commander_name?: string
+  partner_name?: string | null
+  color_identity?: MtgColor[] | null
+  source?: DeckSource
+  source_url?: string | null
+  cards?: DeckCard[]
+  fast_mana_cards?: string[]
+  updated_at?: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -55,6 +95,12 @@ export interface Database {
         Row: GameRow
         Insert: GameInsert
         Update: GameUpdate
+        Relationships: []
+      }
+      decks: {
+        Row: DeckRow
+        Insert: DeckInsert
+        Update: DeckUpdate
         Relationships: []
       }
     }
