@@ -77,6 +77,37 @@ export interface Pod {
   createdAt: string
 }
 
+// ─── Decks ────────────────────────────────────────────────────────────────────
+
+export type DeckSource = "moxfield" | "archidekt" | "text"
+
+/** A single card in a deck's pool (the commander is stored separately). */
+export interface DeckCard {
+  name: string
+  manaCost?: string
+  colorIdentity?: MtgColor[]
+  typeLine?: string
+}
+
+/**
+ * A user's imported decklist, keyed by its commander. When the logged-in user
+ * plays a commander that matches a saved deck, the deck's card pool seeds the
+ * fast-mana and wincon pickers as one-tap defaults (global search still works).
+ */
+export interface Deck {
+  id: string
+  name: string
+  commanderName: string
+  partnerName?: string
+  colorIdentity?: MtgColor[]
+  source: DeckSource
+  sourceUrl?: string
+  cards: DeckCard[]        // full pool, excluding the commander(s)
+  fastManaCards: string[]  // subset of `cards` classified as fast mana
+  createdAt: string
+  updatedAt: string
+}
+
 // ─── Stats ──────────────────────────────────────────────────────────────────
 
 export interface WinRateStat {

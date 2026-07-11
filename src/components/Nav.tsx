@@ -15,7 +15,7 @@ const NAV_ITEMS: { path: string; label: string }[] = [
   { path: "/", label: "Dashboard" },
   { path: "/stats", label: "Stats" },
   { path: "/history", label: "History" },
-  { path: "/settings", label: "Settings" },
+  { path: "/settings", label: "Profile" },
 ]
 
 function isActivePath(currentPath: string, path: string) {

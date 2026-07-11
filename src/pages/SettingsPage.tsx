@@ -1,11 +1,13 @@
 import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle } from "lucide-react"
+import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle, Plus, ExternalLink } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
 import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
-import { CARD, SECTION_LABEL } from "@/components/modern/primitives"
+import { CARD, SECTION_LABEL, Pips } from "@/components/modern/primitives"
+import { useDecks } from "@/hooks/useDecks"
+import { DeckImportDialog } from "@/components/DeckImportDialog"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
 
@@ -85,6 +87,9 @@ export function SettingsPage({
   const [shareOpen, setShareOpen] = useState(false)
   const [qrSrc, setQrSrc] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState<string>("")
+  const { decks, addDeck, deleteDeck } = useDecks()
+  const [deckImportOpen, setDeckImportOpen] = useState(false)
+  const [confirmDeckId, setConfirmDeckId] = useState<string | null>(null)
 
   useEffect(() => {
     setPlayerName(loadProfile().displayName ?? "")
@@ -243,7 +248,7 @@ export function SettingsPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
-      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
       {/* Profile */}
       <SettingsCard title="Profile">
@@ -284,6 +289,89 @@ export function SettingsPage({
               Sign out
             </button>
           )}
+        </div>
+      </SettingsCard>
+
+      {/* Decks */}
+      <SettingsCard title="Decks">
+        <p className="text-sm text-muted-foreground">
+          Import your decklists so logging a game suggests that deck's fast mana and wincon cards as
+          defaults. You can still search across every Magic card for copy/steal effects.
+        </p>
+
+        {decks.length > 0 && (
+          <div className="mt-4 divide-y divide-border rounded-md border border-border">
+            {decks.map((deck) => (
+              <div key={deck.id} className="flex items-center gap-3 px-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium">{deck.name}</span>
+                    {deck.colorIdentity && deck.colorIdentity.length > 0 && (
+                      <Pips colors={deck.colorIdentity} />
+                    )}
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {deck.commanderName}
+                    {deck.partnerName ? ` + ${deck.partnerName}` : ""} · {deck.cards.length} cards ·{" "}
+                    {deck.fastManaCards.length} fast mana
+                  </div>
+                </div>
+                {deck.sourceUrl && (
+                  <a
+                    href={deck.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Open source deck"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+                {confirmDeckId === deck.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={async () => {
+                        await deleteDeck(deck.id)
+                        setConfirmDeckId(null)
+                        toast.success("Deck removed")
+                      }}
+                      className="h-8 rounded-md bg-rose-600 px-2 text-xs font-medium text-white hover:bg-rose-700"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeckId(null)}
+                      className="h-8 rounded-md border border-input px-2 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeckId(deck.id)}
+                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-rose-600/10 hover:text-rose-600"
+                    aria-label={`Delete ${deck.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {decks.length === 0 && games.length > 0 && (
+          <div className="mt-4 rounded-md border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
+            You've logged games but haven't imported any decks yet. Import one to speed up logging —
+            until then, we'll keep suggesting cards from your history.
+          </div>
+        )}
+
+        <div className="mt-4">
+          <button onClick={() => setDeckImportOpen(true)} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            <Plus className="h-3.5 w-3.5" />
+            Import deck
+          </button>
         </div>
       </SettingsCard>
 
@@ -444,6 +532,15 @@ export function SettingsPage({
         accept=".json,application/json"
         className="hidden"
         onChange={handleImportFile}
+      />
+
+      <DeckImportDialog
+        open={deckImportOpen}
+        onOpenChange={setDeckImportOpen}
+        onSave={async (deck) => {
+          await addDeck(deck)
+          toast.success("Deck imported")
+        }}
       />
 
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>

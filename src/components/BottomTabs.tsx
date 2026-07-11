@@ -10,7 +10,7 @@ const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ clas
   { path: "/", label: "Dashboard", Icon: LayoutDashboard },
   { path: "/stats", label: "Stats", Icon: ChartSpline },
   { path: "/history", label: "History", Icon: History },
-  { path: "/settings", label: "Settings", Icon: Settings },
+  { path: "/settings", label: "Profile", Icon: Settings },
 ]
 
 function isActivePath(currentPath: string, path: string) {

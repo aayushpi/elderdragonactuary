@@ -13,11 +13,18 @@ import { formatRelative, matchScore, type WinconShortlistItem } from "@/lib/shor
 import { ManaCost } from "@/components/ManaCost"
 import { SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
 
+export interface WinconDeckCard {
+  name: string
+  manaCost?: string
+}
+
 interface WinconCardPickerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Wincon cards from game history, already ordered most-used first. */
   items: WinconShortlistItem[]
+  /** Cards from the me-player's matched deck, offered as one-tap defaults. */
+  deckCards?: WinconDeckCard[]
   selectedCards: string[]
   onAdd: (card: string) => void
   onRemove: (card: string) => void
@@ -35,6 +42,7 @@ export function WinconCardPicker({
   open,
   onOpenChange,
   items,
+  deckCards,
   selectedCards,
   onAdd,
   onRemove,
@@ -59,33 +67,44 @@ export function WinconCardPicker({
 
   const trimmed = query.trim()
 
-  // History plus any already-picked card that isn't in it, so everything
-  // currently selected can be untoggled from the same list.
+  // Deck cards not already covered by history — shown as one-tap defaults.
+  const deckRows = useMemo(() => {
+    const historyKnown = new Set(items.map((i) => i.name.toLowerCase()))
+    return (deckCards ?? [])
+      .filter((d) => !historyKnown.has(d.name.toLowerCase()))
+      .map((d): WinconShortlistItem & { manaCost?: string } => ({ name: d.name, games: 0, manaCost: d.manaCost }))
+  }, [deckCards, items])
+
+  // History plus any already-picked card not in history or the deck section, so
+  // everything currently selected can be untoggled from one of the lists.
   const historyRows = useMemo(() => {
-    const known = new Set(items.map((i) => i.name.toLowerCase()))
+    const historyKnown = new Set(items.map((i) => i.name.toLowerCase()))
+    const deckKnown = new Set((deckCards ?? []).map((d) => d.name.toLowerCase()))
     const extras = selectedCards
-      .filter((c) => !known.has(c.toLowerCase()))
+      .filter((c) => !historyKnown.has(c.toLowerCase()) && !deckKnown.has(c.toLowerCase()))
       .map((name): WinconShortlistItem => ({ name, games: 0 }))
     return [...items, ...extras]
-  }, [items, selectedCards])
+  }, [items, deckCards, selectedCards])
 
-  // Typing in the bottom search filters history and searches Scryfall at once.
-  const historyMatches = useMemo(() => {
-    if (!trimmed) return historyRows
-    return historyRows
+  const allRows = useMemo(() => [...deckRows, ...historyRows], [deckRows, historyRows])
+
+  // Typing in the bottom search filters both lists and searches Scryfall at once.
+  const filteredMatches = useMemo(() => {
+    if (!trimmed) return allRows
+    return allRows
       .map((it) => ({ it, score: matchScore(it.name, trimmed) }))
       .filter((m): m is { it: WinconShortlistItem; score: number } => m.score !== null)
       .sort((a, b) => a.score - b.score || b.it.games - a.it.games)
       .map((m) => m.it)
-  }, [historyRows, trimmed])
+  }, [allRows, trimmed])
 
   const searchMatches = useMemo(() => {
-    const known = new Set(historyRows.map((i) => i.name.toLowerCase()))
+    const known = new Set(allRows.map((i) => i.name.toLowerCase()))
     return suggestions.filter((s) => !known.has(s.name.toLowerCase()))
-  }, [suggestions, historyRows])
+  }, [suggestions, allRows])
 
   const exactMatch =
-    historyMatches.some((i) => i.name.toLowerCase() === trimmed.toLowerCase()) ||
+    allRows.some((i) => i.name.toLowerCase() === trimmed.toLowerCase()) ||
     suggestions.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())
 
   function addAndClear(card: string) {
@@ -98,7 +117,7 @@ export function WinconCardPicker({
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key !== "Enter" || !trimmed) return
     e.preventDefault()
-    if (historyMatches[0]) addAndClear(historyMatches[0].name)
+    if (filteredMatches[0]) addAndClear(filteredMatches[0].name)
     else if (searchMatches[0]) addAndClear(searchMatches[0].name)
     else addAndClear(trimmed)
   }
@@ -146,48 +165,77 @@ export function WinconCardPicker({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between px-5 pb-2 pt-1">
-          <span className={SECTION_LABEL}>{trimmed ? "Matches" : "Previously logged"}</span>
-          {!trimmed && historyRows.length > 0 && (
-            <span className="font-mono text-[11px] text-muted-foreground">most used first</span>
-          )}
-        </div>
-
         {/* Inset padding keeps the last rows reachable when the keyboard
             overlays the sheet (iOS) instead of shrinking it. */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto border-t border-border divide-y divide-border"
+          className="flex-1 min-h-0 overflow-y-auto border-t border-border"
           style={{ paddingBottom: keyboardInset }}
         >
-          {historyMatches.map((item) => (
-            <Row key={item.name} name={item.name} sub={item.games > 0 ? historySub(item) : undefined} />
-          ))}
+          {trimmed ? (
+            <div className="divide-y divide-border">
+              {filteredMatches.map((item) => (
+                <Row
+                  key={item.name}
+                  name={item.name}
+                  sub={item.games > 0 ? historySub(item) : undefined}
+                  manaCost={(item as WinconShortlistItem & { manaCost?: string }).manaCost}
+                />
+              ))}
 
-          {trimmed &&
-            searchMatches.map((s) => <Row key={s.name} name={s.name} manaCost={s.manaCost} />)}
+              {searchMatches.map((s) => (
+                <Row key={s.name} name={s.name} manaCost={s.manaCost} />
+              ))}
 
-          {trimmed && isLoading && (
-            <div className="flex items-center justify-center gap-2 px-5 py-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Searching…
+              {isLoading && (
+                <div className="flex items-center justify-center gap-2 px-5 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Searching…
+                </div>
+              )}
+
+              {/* Escape hatch — never block logging */}
+              {!isLoading && !exactMatch && (
+                <button
+                  onClick={() => addAndClear(trimmed)}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors"
+                >
+                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-base font-medium">Add “{trimmed}”</span>
+                </button>
+              )}
             </div>
-          )}
+          ) : (
+            <>
+              {deckRows.length > 0 && (
+                <div className="divide-y divide-border">
+                  <div className="flex items-center justify-between px-5 py-2 bg-muted/30">
+                    <span className={SECTION_LABEL}>From your deck</span>
+                    <span className="font-mono text-[11px] text-muted-foreground">tap to add</span>
+                  </div>
+                  {deckRows.map((item) => (
+                    <Row key={`deck-${item.name}`} name={item.name} manaCost={item.manaCost} />
+                  ))}
+                </div>
+              )}
 
-          {/* Escape hatch — never block logging */}
-          {trimmed && !isLoading && !exactMatch && (
-            <button
-              onClick={() => addAndClear(trimmed)}
-              className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors"
-            >
-              <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate text-base font-medium">Add “{trimmed}”</span>
-            </button>
-          )}
+              {historyRows.length > 0 && (
+                <div className="divide-y divide-border">
+                  <div className="flex items-center justify-between px-5 py-2 bg-muted/30">
+                    <span className={SECTION_LABEL}>Previously logged</span>
+                    <span className="font-mono text-[11px] text-muted-foreground">most used first</span>
+                  </div>
+                  {historyRows.map((item) => (
+                    <Row key={item.name} name={item.name} sub={item.games > 0 ? historySub(item) : undefined} />
+                  ))}
+                </div>
+              )}
 
-          {!trimmed && historyRows.length === 0 && (
-            <p className="px-5 py-6 text-center text-sm text-muted-foreground">
-              No wincon cards logged yet. Search below to add one.
-            </p>
+              {deckRows.length === 0 && historyRows.length === 0 && (
+                <p className="px-5 py-6 text-center text-sm text-muted-foreground">
+                  No wincon cards yet. Search below to add one, or import a deck.
+                </p>
+              )}
+            </>
           )}
         </div>
 
