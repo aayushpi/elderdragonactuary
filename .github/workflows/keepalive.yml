@@ -1,0 +1,31 @@
+name: Supabase Keepalive
+
+on:
+  # Mondays and Thursdays — a 3–4 day cadence, so one missed run still lands
+  # well inside Supabase's 7-day inactivity window. Off-the-hour minute because
+  # scheduled runs at :00 are the most likely to be delayed.
+  schedule:
+    - cron: "17 6 * * 1,4"
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          KEEPALIVE_SOURCE: github-actions
+        run: node scripts/keepalive_ping.mjs
