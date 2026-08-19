@@ -20,6 +20,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Supabase has no SIGNED_UP auth event — a successful signUp also emits
   // SIGNED_IN. Without this the same account counts as both.
   const justSignedUp = useRef(false)
+  // supabase-js can re-emit SIGNED_IN for an account that is already signed in
+  // (token refresh, tab regaining focus). Only a genuine change of account is
+  // a sign-in worth counting.
+  const identifiedUserId = useRef<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then((res: { data: { session: Session | null } }) => {
@@ -28,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null)
       setLoading(false)
       identifyFromSession(s)
+      identifiedUserId.current = s?.user?.id ?? null
       capture("app_opened", {
         app_env: import.meta.env.MODE,
         is_authenticated: Boolean(s?.user),
@@ -44,13 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (event === "SIGNED_OUT") {
         capture("user_signed_out")
+        identifiedUserId.current = null
         resetIdentity()
         return
       }
 
       identifyFromSession(s)
 
-      if (event === "SIGNED_IN") {
+      const nextUserId = s?.user?.id ?? null
+      const isNewAccount = Boolean(nextUserId) && nextUserId !== identifiedUserId.current
+      identifiedUserId.current = nextUserId
+
+      if (event === "SIGNED_IN" && isNewAccount) {
         if (justSignedUp.current) {
           justSignedUp.current = false
           return
