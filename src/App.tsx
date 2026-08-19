@@ -108,13 +108,15 @@ function App() {
     setGameFlow((prev) => (prev ? { ...prev, minimized: false } : prev))
   }
 
-  function closeGameFlow(force = false) {
+  function closeGameFlow(force = false, saved = false) {
     if (!force && gameFlow?.mode === "log" && isLogGameDirty) {
       setShowDiscardLogDialog(true)
       return
     }
 
-    if (gameFlow?.mode === "log") {
+    // `saved` matters: the save path also closes the flow, and counting that
+    // as an abandon would make the abandonment metric meaningless.
+    if (!saved && gameFlow?.mode === "log") {
       capture("game_log_abandoned", { had_unsaved_changes: isLogGameDirty })
     }
 
@@ -137,7 +139,7 @@ function App() {
       try {
         await addGame(game)
         capture("game_logged", gameShapeProps(game))
-        closeGameFlow(true)
+        closeGameFlow(true, true)
         toast.success("Game logged!")
       } catch {
         // Errors are surfaced in useGames
@@ -159,7 +161,7 @@ function App() {
         await updateGame(game.id, game)
         capture("game_updated", { pod_size: game.players.length })
         setRecentlyEditedGameId(game.id)
-        closeGameFlow(true)
+        closeGameFlow(true, true)
         navigate("/history")
         toast.success("Game updated!")
       } catch {
@@ -179,8 +181,7 @@ function App() {
       const tag = (e.target as HTMLElement).tagName.toLowerCase()
       if (tag === "input" || tag === "textarea" || tag === "select") return
       if ((e.target as HTMLElement).isContentEditable) return
-      setIsLogGameDirty(false)
-      setGameFlow({ mode: "log", minimized: false })
+      openLogGameFlow(undefined, "keyboard_shortcut")
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)

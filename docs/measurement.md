@@ -94,7 +94,7 @@ means codes are circulating publicly or someone is guessing.
 
 | Event | Fires when | Key properties |
 | --- | --- | --- |
-| `game_log_started` | Log flow opened | `entry_point`, `prefilled` |
+| `game_log_started` | Log flow opened (button *or* the `n` shortcut) | `entry_point`, `prefilled` |
 | `game_logged` | Game saved | pod size, win turn, is_win, partners, fast mana, bracket |
 | `game_log_abandoned` | Log flow closed unsaved | `had_unsaved_changes` |
 | `game_updated` | Existing game edited | `pod_size` |

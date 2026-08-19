@@ -20,6 +20,7 @@ export type LogEntryPoint =
   | 'bottom_tabs'
   | 'nav'
   | 'commander_card'
+  | 'keyboard_shortcut'
   | 'live_game'
 
 export type DeviceKind = 'mobile' | 'desktop'
