@@ -4,6 +4,7 @@ import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus,
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
+import { capture } from "@/lib/analytics"
 import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
 import { CARD, SECTION_LABEL } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
@@ -173,6 +174,7 @@ export function SettingsPage({
   }
 
   function download(content: string, mime: string, ext: string) {
+    capture("games_exported", { games_count: games.length })
     const blob = new Blob([content], { type: mime })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -192,6 +194,7 @@ export function SettingsPage({
       try {
         const result = await onImport(json)
         if (result.success) {
+          capture("games_imported", { games_count: result.count })
           toast.success(`Imported ${result.count} game${result.count !== 1 ? "s" : ""}.`)
         } else {
           toast.error(`Import failed: ${result.error}`)
@@ -291,19 +294,19 @@ export function SettingsPage({
       {isFeaturebaseEnabled() && (
         <SettingsCard title="Feedback & support">
           <div className="flex flex-wrap items-center gap-2">
-            <a href={featurebaseUrl("feedback")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            <a href={featurebaseUrl("feedback")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "feedback" })}>
               <MessageSquarePlus className="h-3.5 w-3.5" />
               Send feedback
             </a>
-            <a href={featurebaseUrl("changelog")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            <a href={featurebaseUrl("changelog")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "changelog" })}>
               <Megaphone className="h-3.5 w-3.5" />
               What's new
             </a>
-            <a href={featurebaseUrl("roadmap")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            <a href={featurebaseUrl("roadmap")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "roadmap" })}>
               <Map className="h-3.5 w-3.5" />
               Roadmap
             </a>
-            <a href={featurebaseUrl("help")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+            <a href={featurebaseUrl("help")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "help" })}>
               <HelpCircle className="h-3.5 w-3.5" />
               Help center
             </a>
@@ -322,7 +325,10 @@ export function SettingsPage({
                 return (
                   <button
                     key={m}
-                    onClick={() => onSetThemeMode(mode)}
+                    onClick={() => {
+                      capture("theme_changed", { mode })
+                      onSetThemeMode(mode)
+                    }}
                     className={cn(
                       "h-8 px-3.5 rounded-[8px] text-xs font-medium transition-colors",
                       active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
@@ -340,7 +346,10 @@ export function SettingsPage({
                 <button
                   key={name}
                   title={name}
-                  onClick={() => onSetAccent(name)}
+                  onClick={() => {
+                    capture("accent_changed", { accent: name })
+                    onSetAccent(name)
+                  }}
                   className={cn(
                     "h-7 w-7 rounded-full transition-transform",
                     accent === name
@@ -418,6 +427,7 @@ export function SettingsPage({
               <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
+                    capture("games_cleared", { games_count: games.length })
                     await onClearAll()
                     setConfirmDelete(false)
                     toast.success("All data deleted.")

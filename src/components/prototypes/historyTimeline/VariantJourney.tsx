@@ -3,6 +3,7 @@ import { Check, Pencil, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
 import { GameDetailPanel } from "@/components/GameDetailPanel"
+import { capture } from "@/lib/analytics"
 import { CommanderAvatar } from "./CommanderAvatar"
 import { MilestoneEvent } from "./MilestoneBadge"
 import {
@@ -312,6 +313,9 @@ export function VariantJourney({
   const handlers: JourneyHandlers = { onEditGame, onDeleteGame }
 
   function toggle(id: string) {
+    // Outside the updater: React may invoke an updater twice in StrictMode,
+    // which would double-count the event.
+    if (expandedId !== id) capture("game_detail_opened")
     setExpandedId((prev) => (prev === id ? null : id))
   }
 
