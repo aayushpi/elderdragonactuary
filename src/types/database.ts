@@ -48,6 +48,38 @@ export interface GameUpdate {
   updated_at?: string
 }
 
+/** One row of public.admin_account_usage(). */
+export interface AdminAccountUsageRow {
+  user_id: string
+  email: string | null
+  signed_up_at: string
+  last_sign_in_at: string | null
+  email_confirmed_at: string | null
+  games_logged: number
+  first_game_at: string | null
+  last_game_at: string | null
+  last_logged_at: string | null
+  active_days: number
+  games_last_7d: number
+  games_last_30d: number
+  avg_pod_size: number | null
+  avg_win_turn: number | null
+  wins: number
+}
+
+/** The single row returned by public.admin_usage_totals(). */
+export interface AdminUsageTotalsRow {
+  total_accounts: number
+  accounts_with_games: number
+  active_7d: number
+  active_30d: number
+  new_accounts_30d: number
+  total_games: number
+  games_7d: number
+  games_30d: number
+  median_games_per_account: number | null
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -62,7 +94,18 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      admin_account_usage: {
+        Args: Record<string, never>
+        Returns: AdminAccountUsageRow[]
+      }
+      admin_usage_totals: {
+        Args: Record<string, never>
+        Returns: AdminUsageTotalsRow[]
+      }
     }
     Enums: {
       [_ in never]: never

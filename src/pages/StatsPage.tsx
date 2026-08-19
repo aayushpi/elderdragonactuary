@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Plus, ArrowUpDown } from "lucide-react"
+import { capture } from "@/lib/analytics"
 import { EloCard } from "@/components/EloCard"
 import { CommanderStatCard } from "@/components/CommanderStatCard"
 import { BracketPie } from "@/components/stats/BracketPie"
@@ -344,14 +345,8 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   const commanderElo = useMemo(() => computeCommanderElo(games), [games])
 
   useEffect(() => {
-    import("@/lib/analytics").then((mod) => {
-      try {
-        mod.trackViewStats({ stats_view: "overall", games_played: stats.gamesPlayed })
-      } catch {
-        void 0
-      }
-    })
-  }, [stats.gamesPlayed])
+    capture("stats_viewed", { range, games_played: stats.gamesPlayed })
+  }, [range, stats.gamesPlayed])
 
   const seatRows = useMemo(() => {
     const entries: [number, WinRateStat][] = [

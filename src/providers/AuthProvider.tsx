@@ -1,12 +1,29 @@
-import { useEffect, useState, useCallback, type ReactNode } from "react"
+import { useEffect, useState, useCallback, useRef, type ReactNode } from "react"
 import type { User, Session } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 import { AuthContext } from "@/hooks/useAuth"
+import { capture, identifyUser, resetIdentity } from "@/lib/analytics"
+
+function identifyFromSession(s: Session | null) {
+  if (!s?.user?.id) return
+  identifyUser({
+    userId: s.user.id,
+    email: s.user.email ?? undefined,
+    signedUpAt: s.user.created_at ?? undefined,
+  })
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  // Supabase has no SIGNED_UP auth event — a successful signUp also emits
+  // SIGNED_IN. Without this the same account counts as both.
+  const justSignedUp = useRef(false)
+  // supabase-js can re-emit SIGNED_IN for an account that is already signed in
+  // (token refresh, tab regaining focus). Only a genuine change of account is
+  // a sign-in worth counting.
+  const identifiedUserId = useRef<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then((res: { data: { session: Session | null } }) => {
@@ -14,13 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
-      // Identify returning users (existing session) so email is set for
-      // feature-flag targeting, not just on an active sign-in.
-      if (s?.user?.id) {
-        import('@/lib/analytics').then((mod) =>
-          mod.identifyUser({ user_id: s.user!.id, email: s.user!.email ?? undefined })
-        )
-      }
+      identifyFromSession(s)
+      identifiedUserId.current = s?.user?.id ?? null
+      capture("app_opened", {
+        app_env: import.meta.env.MODE,
+        is_authenticated: Boolean(s?.user),
+        is_standalone:
+          typeof window !== "undefined" &&
+          window.matchMedia?.("(display-mode: standalone)")?.matches === true,
+      })
     }).catch(() => setLoading(false))
 
     const authResp = supabase.auth.onAuthStateChange((event: string, s: Session | null ) => {
@@ -28,19 +47,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null)
       setLoading(false)
 
-      try {
-        if (s?.user?.id) {
-          const id = s.user.id
-          const email = s.user.email ?? undefined
-          import('@/lib/analytics').then((mod) => {
-            // Always keep identity + email current (covers INITIAL_SESSION, token refresh)
-            mod.identifyUser({ user_id: id, email })
-            if (event === 'SIGNED_IN') mod.trackUserSignedIn({ user_id: id, email })
-            if (event === 'SIGNED_UP') mod.trackUserSignedUp({ user_id: id, email })
-          })
+      if (event === "SIGNED_OUT") {
+        capture("user_signed_out")
+        identifiedUserId.current = null
+        resetIdentity()
+        return
+      }
+
+      identifyFromSession(s)
+
+      const nextUserId = s?.user?.id ?? null
+      const isNewAccount = Boolean(nextUserId) && nextUserId !== identifiedUserId.current
+      identifiedUserId.current = nextUserId
+
+      if (event === "SIGNED_IN" && isNewAccount) {
+        if (justSignedUp.current) {
+          justSignedUp.current = false
+          return
         }
-      } catch {
-        // ignore analytics errors
+        capture("user_signed_in", { method: "password" })
       }
     }) as { data?: { subscription?: { unsubscribe: () => void } } } | undefined
 
@@ -55,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (email: string, password: string, inviteCode: string) => {
+    capture("signup_started")
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -64,7 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     })
-    if (!error) return { error: null }
+    if (!error) {
+      justSignedUp.current = true
+      capture("user_signed_up", { method: "password" })
+      return { error: null }
+    }
 
     // Log full error for debugging server-side trigger/database issues
     console.error("signUp error:", error, { email, inviteCode })
@@ -72,9 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Supabase/GoTrue wraps trigger exceptions as opaque "Database error" messages.
     // Surface friendlier messages for known cases.
     const msg = error.message ?? ""
-    if (/database error/i.test(msg)) {
+    if (/database error/i.test(msg) || /invite code/i.test(msg)) {
+      capture("signup_failed", { reason: "invalid_invite_code" })
       return { error: "Signup failed — please double-check your invite code and try again." }
     }
+    capture("signup_failed", { reason: "other" })
     return { error: msg }
   }, [])
 

@@ -1,4 +1,6 @@
+import { useEffect } from "react"
 import { VariantJourney } from "@/components/prototypes/historyTimeline/VariantJourney"
+import { capture } from "@/lib/analytics"
 import type { Game } from "@/types"
 
 interface HistoryPageProps {
@@ -16,6 +18,13 @@ export function HistoryPage({
   scrollToGameId,
   onScrollHandled,
 }: HistoryPageProps) {
+  useEffect(() => {
+    capture("history_viewed", { games_count: games.length })
+    // Fires once per visit, not on every add/delete — the metric is "opened
+    // history", and games.length changing under the user is not a new view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold tracking-tight">History</h1>

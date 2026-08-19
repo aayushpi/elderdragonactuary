@@ -4,8 +4,9 @@ import { AuthProvider } from '@/providers/AuthProvider'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
-import { initPostHog } from './lib/posthog'
-import { trackAppStarted } from './lib/analytics'
+import { initAnalytics } from '@/lib/analytics'
+
+initAnalytics()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -16,8 +17,3 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 )
-
-// Initialize PostHog (noop if env var not provided) and track app start
-initPostHog().then(() => {
-  trackAppStarted({ env: import.meta.env.MODE })
-})

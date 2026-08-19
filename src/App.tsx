@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
@@ -25,9 +25,13 @@ import { PrototypesPage } from "@/pages/PrototypesPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { LiveGamePage } from "@/pages/LiveGamePage"
+import { AdminPage } from "@/pages/AdminPage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
-import { trackGameLogged } from '@/lib/analytics'
+import { capture, setPersonProperties } from "@/lib/analytics"
+import { gameShapeProps } from "@/lib/analytics/gameProps"
+import type { LogEntryPoint } from "@/lib/analytics/events"
+import { usePageviews } from "@/hooks/usePageviews"
 import { useAuth } from "@/hooks/useAuth"
 import type { Game } from "@/types"
 
@@ -56,14 +60,33 @@ function App() {
   const location = useLocation()
   const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
 
+  usePageviews()
+
+  // Mirror the account's game totals onto the PostHog person so cohorts like
+  // "logged 10+ games" are a property filter rather than an event roll-up.
+  // Keyed on a signature so a re-render with the same totals sends nothing.
+  const lastPersonSignature = useRef<string | null>(null)
+  useEffect(() => {
+    if (gamesLoading || !user) return
+    const lastPlayedAt = games.reduce<string | null>(
+      (latest, g) => (!latest || g.playedAt > latest ? g.playedAt : latest),
+      null,
+    )
+    const signature = `${games.length}:${lastPlayedAt ?? ""}`
+    if (lastPersonSignature.current === signature) return
+    lastPersonSignature.current = signature
+    setPersonProperties({ games_logged: games.length, last_game_at: lastPlayedAt })
+  }, [games, gamesLoading, user])
+
   const resolvedTheme: Theme = themeMode === "system" ? systemTheme : themeMode
 
   const editingGame = gameFlow?.mode === "edit" && gameFlow.editGameId
     ? getGame(gameFlow.editGameId)
     : undefined
 
-  function openLogGameFlow(prefillCommander?: string) {
+  function openLogGameFlow(prefillCommander?: string, entryPoint: LogEntryPoint = "nav") {
     setIsLogGameDirty(false)
+    capture("game_log_started", { entry_point: entryPoint, prefilled: Boolean(prefillCommander) })
     setGameFlow({ mode: "log", minimized: false, prefillCommander })
   }
 
@@ -85,10 +108,16 @@ function App() {
     setGameFlow((prev) => (prev ? { ...prev, minimized: false } : prev))
   }
 
-  function closeGameFlow(force = false) {
+  function closeGameFlow(force = false, saved = false) {
     if (!force && gameFlow?.mode === "log" && isLogGameDirty) {
       setShowDiscardLogDialog(true)
       return
+    }
+
+    // `saved` matters: the save path also closes the flow, and counting that
+    // as an abandon would make the abandonment metric meaningless.
+    if (!saved && gameFlow?.mode === "log") {
+      capture("game_log_abandoned", { had_unsaved_changes: isLogGameDirty })
     }
 
     setShowDiscardLogDialog(false)
@@ -109,8 +138,8 @@ function App() {
     void (async () => {
       try {
         await addGame(game)
-        try { trackGameLogged(game) } catch { void 0 }
-        closeGameFlow(true)
+        capture("game_logged", gameShapeProps(game))
+        closeGameFlow(true, true)
         toast.success("Game logged!")
       } catch {
         // Errors are surfaced in useGames
@@ -120,7 +149,8 @@ function App() {
 
   async function handleSaveLiveGame(game: Game) {
     await addGame(game)
-    try { trackGameLogged(game) } catch { void 0 }
+    capture("game_logged", gameShapeProps(game))
+    capture("live_game_completed", { pod_size: game.players.length, win_turn: game.winTurn })
     setRecentlyEditedGameId(game.id)
     navigate("/history")
   }
@@ -129,8 +159,9 @@ function App() {
     void (async () => {
       try {
         await updateGame(game.id, game)
+        capture("game_updated", { pod_size: game.players.length })
         setRecentlyEditedGameId(game.id)
-        closeGameFlow(true)
+        closeGameFlow(true, true)
         navigate("/history")
         toast.success("Game updated!")
       } catch {
@@ -150,8 +181,7 @@ function App() {
       const tag = (e.target as HTMLElement).tagName.toLowerCase()
       if (tag === "input" || tag === "textarea" || tag === "select") return
       if ((e.target as HTMLElement).isContentEditable) return
-      setIsLogGameDirty(false)
-      setGameFlow({ mode: "log", minimized: false })
+      openLogGameFlow(undefined, "keyboard_shortcut")
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
@@ -211,8 +241,11 @@ function App() {
       <Nav
         currentPath={location.pathname}
         onNavigate={navigateWithFlowMinimize}
-        onOpenLogGame={openLogGameFlow}
-        onStartLive={() => navigateWithFlowMinimize("/live")}
+        onOpenLogGame={(name) => openLogGameFlow(name, "nav")}
+        onStartLive={() => {
+          capture("live_game_started")
+          navigateWithFlowMinimize("/live")
+        }}
         userEmail={user.email}
         onSignOut={() => {
           void (async () => {
@@ -235,7 +268,9 @@ function App() {
                 <DashboardPage
                   games={games}
                   onNavigate={navigateWithFlowMinimize}
-                  onOpenLogGame={openLogGameFlow}
+                  onOpenLogGame={(name) =>
+                    openLogGameFlow(name, name ? "commander_card" : "dashboard")
+                  }
                   onEditGame={openEditGameFlow}
                 />
               }
@@ -246,7 +281,7 @@ function App() {
                 <StatsPage
                   games={games}
                   onNavigate={navigateWithFlowMinimize}
-                  onOpenLogGame={openLogGameFlow}
+                  onOpenLogGame={(name) => openLogGameFlow(name, "stats")}
                 />
               }
             />
@@ -256,6 +291,7 @@ function App() {
                 <HistoryPage
                   games={games}
                   onDeleteGame={(id) => {
+                    capture("game_deleted", { surface: "history" })
                     void deleteGame(id)
                   }}
                   onEditGame={openEditGameFlow}
@@ -287,7 +323,16 @@ function App() {
             />
             <Route
               path="/live"
-              element={<LiveGamePage games={games} onSaveGame={handleSaveLiveGame} onExit={() => navigate("/")} />}
+              element={
+                <LiveGamePage
+                  games={games}
+                  onSaveGame={handleSaveLiveGame}
+                  onExit={() => {
+                    capture("live_game_abandoned")
+                    navigate("/")
+                  }}
+                />
+              }
             />
             <Route
               path="/prototypes/history"
@@ -301,6 +346,7 @@ function App() {
                 />
               }
             />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
@@ -337,7 +383,7 @@ function App() {
           onMinimize={minimizeGameFlow}
           onRestore={restoreGameFlow}
           onClose={closeGameFlow}
-          onDelete={gameFlow.mode === "edit" && editingGame ? () => { void deleteGame(editingGame.id); closeGameFlow() } : undefined}
+          onDelete={gameFlow.mode === "edit" && editingGame ? () => { capture("game_deleted", { surface: "edit_drawer" }); void deleteGame(editingGame.id); closeGameFlow() } : undefined}
         >
           {gameFlow.mode === "log" ? (
             <LogGamePage
@@ -353,6 +399,7 @@ function App() {
                 onSave={handleUpdateGame}
                 onCancel={handleCancelGameFlow}
                 onDelete={() => {
+                  capture("game_deleted", { surface: "edit_drawer" })
                   void deleteGame(editingGame.id)
                   closeGameFlow()
                 }}
