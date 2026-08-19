@@ -36,6 +36,7 @@ interface AuthStub {
 interface MinimalSupabase {
   auth: AuthStub
   from: (table: string) => PostgrestStub
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: unknown | null; error: unknown | null }>
   storage: StorageStub
 }
 
@@ -66,6 +67,7 @@ if (supabaseUrl && supabaseAnonKey) {
       signOut: async () => { /* noop */ },
     },
     from: () => postgrestFactory(),
+    rpc: async () => ({ data: null, error: null }),
     storage: { from: () => ({ upload: async () => null, download: async () => null }) },
   }
 }

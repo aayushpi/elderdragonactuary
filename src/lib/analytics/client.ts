@@ -89,6 +89,11 @@ export function withClient(fn: QueuedCall): void {
   }
 }
 
+/** Test seam: how many calls are waiting on the SDK to finish loading. */
+export function getQueueLengthForTests(): number {
+  return queue.length
+}
+
 /** Test seam: lets the suite assert the no-op contract from a clean slate. */
 export function resetAnalyticsForTests(): void {
   client = null

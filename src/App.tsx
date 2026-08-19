@@ -25,6 +25,7 @@ import { PrototypesPage } from "@/pages/PrototypesPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { LiveGamePage } from "@/pages/LiveGamePage"
+import { AdminPage } from "@/pages/AdminPage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
 import { capture, setPersonProperties } from "@/lib/analytics"
@@ -344,6 +345,7 @@ function App() {
                 />
               }
             />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

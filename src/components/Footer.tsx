@@ -1,6 +1,8 @@
-import { MessageSquarePlus, Megaphone, Map, HelpCircle, LogOut } from "lucide-react"
+import { Link } from "react-router-dom"
+import { MessageSquarePlus, Megaphone, Map, HelpCircle, LogOut, ShieldCheck } from "lucide-react"
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
 import { capture } from "@/lib/analytics"
+import { useIsAdmin } from "@/hooks/useIsAdmin"
 
 const FOOTER_LINK =
   "flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -10,6 +12,8 @@ interface FooterProps {
 }
 
 export function Footer({ onSignOut }: FooterProps) {
+  const isAdmin = useIsAdmin()
+
   return (
     <footer className="border-t bg-background mt-12">
       <div className="container mx-auto max-w-5xl px-4 py-6">
@@ -34,6 +38,12 @@ export function Footer({ onSignOut }: FooterProps) {
                   Help
                 </a>
               </>
+            )}
+            {isAdmin && (
+              <Link to="/admin" className={FOOTER_LINK}>
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Admin
+              </Link>
             )}
             {onSignOut && (
               <button type="button" onClick={onSignOut} className={FOOTER_LINK}>
