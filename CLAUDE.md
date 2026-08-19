@@ -65,10 +65,10 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 ```
 
-Optional analytics:
+Optional analytics (PostHog):
 ```
 VITE_POSTHOG_API_KEY=
-VITE_POSTHOG_API_HOST=
+VITE_POSTHOG_API_HOST=     # defaults to https://us.i.posthog.com
 ```
 
 Optional Featurebase (feedback, changelog, roadmap, help widgets):
@@ -94,6 +94,37 @@ feedback/changelog/roadmap/help open helpers. It's a no-op unless
 `VITE_FEATUREBASE_ORG` is set, and never throws when unconfigured (same contract
 as Supabase). Entry points live in `Footer` and the Settings "Feedback & support"
 card, both gated on `isFeaturebaseEnabled()`.
+
+## Analytics
+
+`src/lib/analytics/` is the only place `posthog-js` is imported. Components call
+`capture()` from `@/lib/analytics`; they never touch the SDK directly.
+
+- **Declare events first.** `events.ts` maps every event name to its property
+  shape. `capture()` will not compile for an undeclared event or a wrong
+  property, which is the point — no event reaches PostHog without being written
+  down. Document new ones in `docs/measurement.md`.
+- **Same no-op contract as Supabase and Featurebase.** With no
+  `VITE_POSTHOG_API_KEY`, nothing initialises, the SDK is never fetched, and
+  every call is inert. Nothing in `client.ts` may throw.
+- **The SDK is dynamically imported** and must stay that way — it is ~85 kB
+  gzipped and this app is opened on phones. Calls made before it loads are
+  queued in order and flushed on arrival.
+- **Never capture free text** — no notes, deck names, or player display names.
+  Pod composition is real people who did not sign up for this.
+- **Don't call `capture()` inside a `setState` updater**; React may run an
+  updater twice and double-count the event.
+
+## Admin dashboard
+
+`/admin` shows usage by account, gated on the `is_admin()` RPC. It reads
+Supabase, not PostHog: PostHog's query API needs a personal key that can't ship
+in a client bundle, and "games logged" is the `games` table itself.
+
+RLS limits every account to its own games, so the reporting functions in
+`supabase/migrations/007_admin_usage.sql` are `security definer` and check
+`public.admins` themselves. New admin queries belong there — never widen the
+RLS policies on `games` to make an admin view easier.
 
 ## Testing
 

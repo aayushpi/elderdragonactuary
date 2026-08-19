@@ -113,15 +113,28 @@ This app collects **no personal information** by default. When analytics are ena
 
 **Analytics (optional)**
 
-- The project supports PostHog for opt-in analytics. Analytics are disabled unless you provide a PostHog key.
+- The project uses PostHog. Analytics are disabled unless you provide a key — with none set, `posthog-js` is never even fetched and every call in `src/lib/analytics/` is an inert no-op.
 - Set the following environment variables in your local `.env` (Vite):
 
 ```env
 VITE_POSTHOG_API_KEY=your_posthog_project_api_key
-VITE_POSTHOG_API_HOST=https://app.posthog.com # optional, defaults to PostHog cloud
+VITE_POSTHOG_API_HOST=https://us.i.posthog.com # optional; set for EU or self-hosted
 ```
 
-Analytics are initialized only when `VITE_POSTHOG_API_KEY` is present. If you prefer to keep the app entirely local and offline, do not set these variables.
+The event taxonomy is declared in `src/lib/analytics/events.ts` — `capture()` will not compile for an undeclared event or property. What we measure and why is written up in [`docs/measurement.md`](docs/measurement.md).
+
+**Admin dashboard**
+
+Accounts listed in `public.admins` get an `/admin` route showing usage by account: games logged, last game, 7d/30d volume, active days and win rate, over headline totals for the whole roster.
+
+Access is seeded from `public.admin_bootstrap_emails` (see `supabase/migrations/007_admin_usage.sql`). To grant it to someone else, run this in the Supabase SQL editor:
+
+```sql
+insert into public.admins (user_id, note)
+select id, 'why they need it' from auth.users where email = 'them@example.com';
+```
+
+Both roster tables have RLS enabled with no policies, so admin can never be granted from the client.
 
 ## Credits & Attribution
 
