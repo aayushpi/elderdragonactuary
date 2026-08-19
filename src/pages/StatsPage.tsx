@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Plus, ArrowUpDown } from "lucide-react"
 import { EloCard } from "@/components/EloCard"
 import { CommanderStatCard } from "@/components/CommanderStatCard"
@@ -342,16 +342,6 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   const podSizes = useMemo(() => podSizeBreakdown(filtered), [filtered])
   const podEloGroups = useMemo(() => computePodElo(games), [games])
   const commanderElo = useMemo(() => computeCommanderElo(games), [games])
-
-  useEffect(() => {
-    import("@/lib/analytics").then((mod) => {
-      try {
-        mod.trackViewStats({ stats_view: "overall", games_played: stats.gamesPlayed })
-      } catch {
-        void 0
-      }
-    })
-  }, [stats.gamesPlayed])
 
   const seatRows = useMemo(() => {
     const entries: [number, WinRateStat][] = [

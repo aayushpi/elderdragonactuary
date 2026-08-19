@@ -14,34 +14,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
-      // Identify returning users (existing session) so email is set for
-      // feature-flag targeting, not just on an active sign-in.
-      if (s?.user?.id) {
-        import('@/lib/analytics').then((mod) =>
-          mod.identifyUser({ user_id: s.user!.id, email: s.user!.email ?? undefined })
-        )
-      }
     }).catch(() => setLoading(false))
 
-    const authResp = supabase.auth.onAuthStateChange((event: string, s: Session | null ) => {
+    const authResp = supabase.auth.onAuthStateChange((_event: string, s: Session | null ) => {
       setSession(s)
       setUser(s?.user ?? null)
       setLoading(false)
-
-      try {
-        if (s?.user?.id) {
-          const id = s.user.id
-          const email = s.user.email ?? undefined
-          import('@/lib/analytics').then((mod) => {
-            // Always keep identity + email current (covers INITIAL_SESSION, token refresh)
-            mod.identifyUser({ user_id: id, email })
-            if (event === 'SIGNED_IN') mod.trackUserSignedIn({ user_id: id, email })
-            if (event === 'SIGNED_UP') mod.trackUserSignedUp({ user_id: id, email })
-          })
-        }
-      } catch {
-        // ignore analytics errors
-      }
     }) as { data?: { subscription?: { unsubscribe: () => void } } } | undefined
 
     const subscription = authResp?.data?.subscription

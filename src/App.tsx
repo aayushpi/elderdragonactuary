@@ -27,7 +27,6 @@ import { LoggedOutHomePage } from "@/pages/LoggedOutHomePage"
 import { LiveGamePage } from "@/pages/LiveGamePage"
 import { useGames } from "@/hooks/useGames"
 import { type AccentName, loadAccent, saveAccent, applyAccent } from "@/lib/accent"
-import { trackGameLogged } from '@/lib/analytics'
 import { useAuth } from "@/hooks/useAuth"
 import type { Game } from "@/types"
 
@@ -109,7 +108,6 @@ function App() {
     void (async () => {
       try {
         await addGame(game)
-        try { trackGameLogged(game) } catch { void 0 }
         closeGameFlow(true)
         toast.success("Game logged!")
       } catch {
@@ -120,7 +118,6 @@ function App() {
 
   async function handleSaveLiveGame(game: Game) {
     await addGame(game)
-    try { trackGameLogged(game) } catch { void 0 }
     setRecentlyEditedGameId(game.id)
     navigate("/history")
   }

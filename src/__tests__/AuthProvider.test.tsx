@@ -24,12 +24,6 @@ vi.mock("@/lib/supabase", () => ({
   },
 }))
 
-// ── Dynamic imports (analytics) ────────────────────────────────────────
-vi.mock("@/lib/analytics", () => ({
-  trackUserSignedIn: vi.fn(),
-  trackUserSignedUp: vi.fn(),
-}))
-
 import { useAuth } from "@/hooks/useAuth"
 import { AuthProvider } from "@/providers/AuthProvider"
 
