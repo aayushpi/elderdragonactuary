@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Loader2, RefreshCw, Search, ArrowUpDown } from "lucide-react"
+import { Loader2, RefreshCw, Search, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatCard } from "@/components/StatCard"
 import { useAdminUsage } from "@/hooks/useAdminUsage"
@@ -202,7 +202,36 @@ export function AdminPage() {
         />
       </div>
 
-      {/* Narrow viewports get stacked cards — a nine-column table is unusable
+      {/* The table headers double as sort controls, but they are desktop-only,
+          so phones get an equivalent here rather than no sorting at all. */}
+      <div className="flex items-center gap-2 md:hidden">
+        <label htmlFor="admin-sort" className="sr-only">
+          Sort accounts by
+        </label>
+        <select
+          id="admin-sort"
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          className="flex-1 h-9 px-2 rounded-md border border-input bg-background text-sm"
+        >
+          {COLUMNS.map((col) => (
+            <option key={col.key} value={col.key}>
+              Sort by {col.label.toLowerCase()}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setDescending((d) => !d)}
+          className="inline-flex items-center gap-1 h-9 px-3 text-sm rounded-md border border-input hover:bg-accent transition-colors"
+          aria-label={descending ? "Sort ascending" : "Sort descending"}
+        >
+          {descending ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
+          {descending ? "Desc" : "Asc"}
+        </button>
+      </div>
+
+      {/* Narrow viewports get stacked cards — an eight-column table is unusable
           on a phone, and this app is mostly opened on one. */}
       <div className="space-y-2 md:hidden">
         {rows.map((a) => (
