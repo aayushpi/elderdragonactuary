@@ -157,7 +157,7 @@ export function Setup({
     return (
       <Shell title="Start a live game" subtitle="Tap a pod to jump in — set commanders at the table." onBack={onExit}>
         {pods.length > 0 && (
-          <section className="space-y-2">
+          <section data-tour="live-setup" className="space-y-2">
             <span className={SECTION_LABEL}>Your pods · tap to start</span>
             <div className="space-y-2">
               {pods.map((p) => (
@@ -201,7 +201,13 @@ export function Setup({
           </section>
         )}
 
-        <Button variant="outline" size="lg" className="w-full gap-2" onClick={newTable}>
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full gap-2"
+          data-tour={pods.length > 0 ? undefined : "live-setup"}
+          onClick={newTable}
+        >
           <UserPlus className="h-4 w-4" /> New table
         </Button>
       </Shell>

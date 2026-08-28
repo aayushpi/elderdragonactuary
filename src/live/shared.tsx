@@ -41,6 +41,9 @@ export function DragVector<P>({ drag, label }: { drag: DragInfo<P> | null; label
 }
 
 
+/** how long a tap burst's running total stays up; each tap restarts it */
+const TALLY_MS = 1600
+
 function vibrate(ms: number) {
   try { navigator.vibrate?.(ms) } catch { /* unsupported */ }
 }
@@ -157,6 +160,20 @@ export function SeatFrame({
   const prevLifeRef = useRef(rt.life)
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
   const [artFailed, setArtFailed] = useState(false)
+  // Running total of the taps in this burst, so five taps of − read as "−5"
+  // rather than five separate "−1"s. `seq` restarts the float animation.
+  const [tally, setTally] = useState<{ amount: number; seq: number } | null>(null)
+
+  function stepLife(delta: number) {
+    setTally((prev) => ({ amount: (prev?.amount ?? 0) - delta, seq: (prev?.seq ?? 0) + 1 }))
+    onSelfChange(delta)
+  }
+
+  useEffect(() => {
+    if (!tally) return
+    const t = window.setTimeout(() => setTally(null), TALLY_MS)
+    return () => window.clearTimeout(t)
+  }, [tally])
 
   useEffect(() => {
     const prev = prevLifeRef.current
@@ -263,9 +280,21 @@ export function SeatFrame({
               </span>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="relative flex items-center gap-3">
+              {tally && tally.amount !== 0 && (
+                <span
+                  key={tally.seq}
+                  data-testid="life-tally"
+                  className={cn(
+                    "pointer-events-none absolute -top-1 left-1/2 z-20 -translate-x-1/2 -translate-y-full rounded-full px-3 py-1 text-[clamp(1rem,3.6vmin,1.6rem)] font-black tabular-nums shadow-lg animate-life-tally",
+                    tally.amount < 0 ? "bg-red-600/90 text-white" : "bg-emerald-600/90 text-white",
+                  )}
+                >
+                  {tally.amount > 0 ? `+${tally.amount}` : tally.amount}
+                </span>
+              )}
               <HoldStepButton
-                onStep={onSelfChange}
+                onStep={stepLife}
                 shortDelta={1}
                 longDelta={10}
                 ariaLabel="lose life (hold for 10)"
@@ -286,7 +315,7 @@ export function SeatFrame({
                 {rt.life}
               </span>
               <HoldStepButton
-                onStep={onSelfChange}
+                onStep={stepLife}
                 shortDelta={-1}
                 longDelta={-10}
                 ariaLabel="gain life (hold for 10)"

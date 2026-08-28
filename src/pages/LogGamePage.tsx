@@ -547,7 +547,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       {/* Player count */}
-      <div className="space-y-2">
+      <div data-tour="log-pod" className="space-y-2">
         <h2 className={`text-sm font-semibold uppercase tracking-wide ${errors.playerCount ? "text-destructive" : "text-muted-foreground"}`}>
           How many players?
         </h2>
@@ -646,7 +646,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       >
         <>
           <Separator />
-          <div className="space-y-3">
+          <div data-tour="log-players" className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Players
             </h2>
@@ -796,7 +796,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       )}
 
       {/* Actions */}
-      <div className="flex flex-col gap-2 pt-2">
+      <div data-tour="log-save" className="flex flex-col gap-2 pt-2">
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel}>
             Cancel

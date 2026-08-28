@@ -33,6 +33,8 @@ import { gameShapeProps } from "@/lib/analytics/gameProps"
 import type { LogEntryPoint } from "@/lib/analytics/events"
 import { usePageviews } from "@/hooks/usePageviews"
 import { useAuth } from "@/hooks/useAuth"
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour"
+import { shouldShowOnboarding, saveOnboarding, type OnboardingStatus } from "@/lib/onboarding"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -54,6 +56,7 @@ function App() {
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
+  const [tourOrigin, setTourOrigin] = useState<string | null>(null)
   const [accent, setAccentState] = useState<AccentName>(() => loadAccent())
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
@@ -129,6 +132,39 @@ function App() {
     closeGameFlow(true)
   }
 
+  // The walkthrough opens and closes the log drawer itself. It deliberately
+  // bypasses openLogGameFlow/closeGameFlow so a demonstration never shows up
+  // in the logging funnel as a started-then-abandoned game.
+  const tourOpenedLog = useRef(false)
+
+  function openLogGameForTour() {
+    setGameFlow((prev) => {
+      if (prev) return prev
+      tourOpenedLog.current = true
+      return { mode: "log", minimized: false }
+    })
+  }
+
+  function closeLogGameForTour() {
+    if (!tourOpenedLog.current) return
+    tourOpenedLog.current = false
+    setIsLogGameDirty(false)
+    setGameFlow(null)
+  }
+
+  function startTour(source: "auto" | "settings") {
+    capture("onboarding_started", { source })
+    setTourOrigin(location.pathname)
+  }
+
+  function finishTour(status: OnboardingStatus) {
+    saveOnboarding(status)
+    closeLogGameForTour()
+    const origin = tourOrigin ?? "/"
+    setTourOrigin(null)
+    if (location.pathname !== origin) navigate(origin)
+  }
+
   function setAccent(next: AccentName) {
     setAccentState(next)
     saveAccent(next)
@@ -173,6 +209,18 @@ function App() {
   function handleCancelGameFlow() {
     closeGameFlow()
   }
+
+  // Every player gets the walkthrough once — new signups and existing
+  // accounts alike — as soon as their games have loaded.
+  const autoTourChecked = useRef(false)
+  useEffect(() => {
+    if (!user || gamesLoading || autoTourChecked.current) return
+    autoTourChecked.current = true
+    if (!shouldShowOnboarding()) return
+    startTour("auto")
+    // startTour reads location.pathname once, as the tour opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, gamesLoading])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -312,6 +360,7 @@ function App() {
                   accent={accent}
                   onSetAccent={setAccent}
                   userEmail={user.email}
+                  onReplayTour={() => startTour("settings")}
                   onSignOut={() => {
                     void (async () => {
                       await signOut()
@@ -375,6 +424,14 @@ function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <OnboardingTour
+        open={tourOrigin !== null}
+        onNavigate={(path) => navigate(path)}
+        onOpenLogGame={openLogGameForTour}
+        onCloseLogGame={closeLogGameForTour}
+        onFinish={finishTour}
+      />
 
       {gameFlow && (
         <GameFlowDrawer

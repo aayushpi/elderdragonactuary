@@ -116,6 +116,19 @@ Started-minus-completed is the honest measure of whether live tracking survives
 contact with an actual game. This is the feature most likely to look popular in
 a click count and fail in practice.
 
+### Onboarding
+
+| Event | Fires when | Key properties |
+| --- | --- | --- |
+| `onboarding_started` | Walkthrough opens | `source` (`auto` on first run, `settings` on replay) |
+| `onboarding_step_viewed` | Each step is shown | `step_id`, `step_index` |
+| `onboarding_completed` | Finished on the last step | `steps` |
+| `onboarding_skipped` | Skipped or dismissed | `step_id`, `step_index` |
+
+`step_viewed` is a drop-off curve: the step where people quit is the step whose
+copy or surface is not earning its place. Completed-over-started says whether
+the tour is worth its interruption at all.
+
 ### Engagement and data
 
 | Event | Fires when | Key properties |

@@ -54,6 +54,7 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLive }: Nav
             {onStartLive && (
               <button
                 onClick={onStartLive}
+                data-tour="nav-live"
                 className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm rounded-md font-medium border border-input bg-transparent text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Swords className="h-4 w-4" />
@@ -63,6 +64,7 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLive }: Nav
             )}
             <button
               onClick={() => onOpenLogGame?.()}
+              data-tour="nav-track"
               className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm rounded-md font-medium bg-primary text-primary-foreground transition-colors hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Plus className="h-4 w-4" />

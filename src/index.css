@@ -127,6 +127,19 @@
     animation: life-heal 0.35s ease-out;
   }
 
+  /* Running total of a burst of life taps: pops in, holds, then drifts away.
+     The duration matches TALLY_MS in src/live/shared.tsx. */
+  @keyframes life-tally {
+    0%   { opacity: 0; transform: translate(-50%, -80%) scale(0.8); }
+    12%  { opacity: 1; transform: translate(-50%, -100%) scale(1.08); }
+    22%  { transform: translate(-50%, -100%) scale(1); }
+    75%  { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -135%) scale(0.95); }
+  }
+  .animate-life-tally {
+    animation: life-tally 1.6s ease-out forwards;
+  }
+
   /* Striped placeholder for commander art before Scryfall resolves */
   .art-ph {
     background: repeating-linear-gradient(

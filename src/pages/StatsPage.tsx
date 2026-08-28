@@ -129,7 +129,7 @@ function podSizeBreakdown(games: Game[]): { label: string; rate: number; games: 
 
 function RangeChips({ value, onChange }: { value: Range; onChange: (r: Range) => void }) {
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+    <div data-tour="stats-range" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
       {RANGES.map((r) => (
         <button
           key={r}
@@ -375,7 +375,7 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
     return (
       <div className="space-y-6">
         <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
-        <div className={CARD + " p-12 text-center"}>
+        <div data-tour="stats-headline" className={CARD + " p-12 text-center"}>
           <p className="text-sm font-medium">No games logged yet</p>
           <p className="mt-1 text-xs text-muted-foreground">Log a game to see your stats here.</p>
           <button
@@ -403,7 +403,7 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
       </div>
 
       {/* Headline stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div data-tour="stats-headline" className="grid grid-cols-2 gap-3 sm:gap-4">
         <StatBox label="Win rate" value={overall.val} sub={overall.sub} />
         <StatBox label="Avg win turn" value={avgTurn} sub="when you win" />
         <StatBox label="With fast mana" value={withFm.val} sub={withFm.sub} />
@@ -472,7 +472,7 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
 
       {/* Commander performance */}
       {stats.byCommander.length > 0 && (
-        <div className="space-y-3">
+        <div data-tour="stats-commanders" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className={SECTION_LABEL}>Commander performance</div>
             <div className="flex items-center gap-1.5">
@@ -505,7 +505,7 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
 
       {/* ELO — computed across all games, regardless of range */}
       {(podEloGroups.length > 0 || commanderElo.length > 0) && (
-        <div className="space-y-3">
+        <div data-tour="stats-elo" className="space-y-3">
           <h2 className={SECTION_LABEL}>ELO ratings</h2>
           <EloCard podEloGroups={podEloGroups} commanders={commanderElo} />
         </div>

@@ -115,6 +115,23 @@ card, both gated on `isFeaturebaseEnabled()`.
 - **Don't call `capture()` inside a `setState` updater**; React may run an
   updater twice and double-count the event.
 
+## Onboarding walkthrough
+
+`src/components/onboarding/` holds the guided tour: `steps.ts` is the ordered
+script, `OnboardingTour.tsx` the overlay. A step can move the app to the surface
+it describes (`route`, `drawer`) and spotlight a real element by `data-tour`
+attribute; a step whose target is absent falls back to a centred card, so an
+account with no games still gets the whole tour.
+
+State lives in `src/lib/onboarding.ts` (`commando_onboarding` in localStorage).
+It runs once for every player — new and existing — and can be replayed from
+Settings → Getting started. Bump `ONBOARDING_VERSION` to re-run a materially
+changed tour for everyone.
+
+When adding a spotlight, put `data-tour` on an element that is always mounted on
+that surface; the tour drives the drawer itself and must never leave a user's
+in-progress log flow behind.
+
 ## Admin dashboard
 
 `/admin` shows usage by account, gated on the `is_admin()` RPC. It reads

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle } from "lucide-react"
+import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle, Compass } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
@@ -67,6 +67,7 @@ interface SettingsPageProps {
   onSetAccent: (accent: AccentName) => void
   userEmail?: string
   onSignOut?: () => void
+  onReplayTour?: () => void
 }
 
 export function SettingsPage({
@@ -79,6 +80,7 @@ export function SettingsPage({
   onSetAccent,
   userEmail,
   onSignOut,
+  onReplayTour,
 }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -289,6 +291,21 @@ export function SettingsPage({
           )}
         </div>
       </SettingsCard>
+
+      {/* Getting started */}
+      {onReplayTour && (
+        <SettingsCard title="Getting started">
+          <SettingRow
+            label="Replay the walkthrough"
+            sub="A guided tour of stats, tracking a game, and the live board."
+          >
+            <button onClick={onReplayTour} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+              <Compass className="h-3.5 w-3.5" />
+              Start tour
+            </button>
+          </SettingRow>
+        </SettingsCard>
+      )}
 
       {/* Feedback & support (Featurebase) */}
       {isFeaturebaseEnabled() && (
