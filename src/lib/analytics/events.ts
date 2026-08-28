@@ -25,6 +25,9 @@ export type LogEntryPoint =
 
 export type DeviceKind = 'mobile' | 'desktop'
 
+/** How the guided walkthrough was launched. */
+export type OnboardingSource = 'auto' | 'settings'
+
 export type StatsRange = 'Last 30 days' | 'Last 90 days' | 'This year' | 'All time'
 
 export interface GameShapeProps {
@@ -61,6 +64,12 @@ export interface AnalyticsEventMap {
   live_game_started: undefined
   live_game_completed: { pod_size: number; win_turn: number }
   live_game_abandoned: undefined
+
+  // ── Onboarding ─────────────────────────────────────────────────────────
+  onboarding_started: { source: OnboardingSource }
+  onboarding_step_viewed: { step_id: string; step_index: number }
+  onboarding_completed: { steps: number }
+  onboarding_skipped: { step_id: string; step_index: number }
 
   // ── Engagement ─────────────────────────────────────────────────────────
   stats_viewed: { range: StatsRange; games_played: number }

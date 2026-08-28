@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { copy } from "@/copy"
 import {
   AreaChart,
   Area,
@@ -110,7 +111,7 @@ export function CommanderEloCard({ commanders }: CommanderEloCardProps) {
     }
 
     const rows: Record<string, number | string>[] = []
-    const start: Record<string, number | string> = { game: "Start" }
+    const start: Record<string, number | string> = { game: copy.elo.startPoint }
     for (const cmd of chartCommanders) start[cmd.name] = 1500
     rows.push(start)
 

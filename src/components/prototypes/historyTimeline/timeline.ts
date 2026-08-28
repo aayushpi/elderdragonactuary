@@ -1,4 +1,5 @@
 import type { Game, MtgColor, Player } from "@/types"
+import { copy } from "@/copy"
 
 // ── Milestones ───────────────────────────────────────────────────────────────
 
@@ -36,19 +37,13 @@ export interface Milestone {
 
 /** Per-commander play-count tiers — "veteran status" for a deck you keep bringing. */
 const VETERAN_TIERS: { n: number; iconName: string; detail: string }[] = [
-  { n: 10, iconName: "Sprout", detail: "Getting comfortable" },
-  { n: 20, iconName: "Star", detail: "Seasoned pilot" },
-  { n: 50, iconName: "Medal", detail: "Grizzled veteran" },
-  { n: 100, iconName: "Gem", detail: "True master" },
+  { n: 10, iconName: "Sprout", detail: copy.milestones.veteranTiers.ten },
+  { n: 20, iconName: "Star", detail: copy.milestones.veteranTiers.twenty },
+  { n: 50, iconName: "Medal", detail: copy.milestones.veteranTiers.fifty },
+  { n: 100, iconName: "Gem", detail: copy.milestones.veteranTiers.hundred },
 ]
 
-const COLOR_NAMES: Record<MtgColor, string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-}
+const COLOR_NAMES: Record<MtgColor, string> = copy.milestones.colorNames
 const WUBRG: MtgColor[] = ["W", "U", "B", "R", "G"]
 
 function colorIdentityKey(colors: MtgColor[]): string {
@@ -57,9 +52,9 @@ function colorIdentityKey(colors: MtgColor[]): string {
 }
 
 function colorIdentityLabel(colors: MtgColor[]): string {
-  if (colors.length === 0) return "Colorless"
-  if (colors.length === 5) return "5-Color"
-  if (colors.length === 1) return `Mono-${COLOR_NAMES[colors[0]]}`
+  if (colors.length === 0) return copy.milestones.colorless
+  if (colors.length === 5) return copy.milestones.fiveColor
+  if (colors.length === 1) return copy.milestones.mono(COLOR_NAMES[colors[0]])
   return WUBRG.filter((c) => colors.includes(c)).join("")
 }
 
@@ -137,24 +132,24 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
     if (me?.commanderName) commanderPlays.set(me.commanderName, playCount)
 
     if (careerIndex === 1) {
-      milestones.push({ kind: "first-game", label: "First game logged", detail: cmdr })
+      milestones.push({ kind: "first-game", label: copy.milestones.firstGame, detail: cmdr })
     } else if (GAME_LANDMARKS.has(careerIndex)) {
-      milestones.push({ kind: "milestone-game", label: `${ordinal(careerIndex)} game played`, detail: cmdr })
+      milestones.push({ kind: "milestone-game", label: copy.milestones.milestoneGame(ordinal(careerIndex)), detail: cmdr })
     }
 
     if (me?.commanderName && playCount === 1 && careerIndex > 1) {
-      milestones.push({ kind: "debut", label: `${cmdr} debut`, detail: "First time piloting this deck" })
+      milestones.push({ kind: "debut", label: copy.milestones.debut(cmdr), detail: copy.milestones.debutDetail })
     }
     const tier = VETERAN_TIERS.find((t) => t.n === playCount)
     if (tier && me?.commanderName) {
-      milestones.push({ kind: "veteran", iconName: tier.iconName, label: `${ordinal(playCount)} game with ${cmdr}`, detail: tier.detail })
+      milestones.push({ kind: "veteran", iconName: tier.iconName, label: copy.milestones.veteranGame(ordinal(playCount), cmdr), detail: tier.detail })
     }
 
     // New rival — first ever game against a newly-seen opponent.
     if (careerIndex > 1) {
       const newcomer = opponents.find((o) => !seenOpponents.has(o.commanderName))
       if (newcomer) {
-        milestones.push({ kind: "new-rival", label: "New rival", detail: shortCommander(newcomer.commanderName) })
+        milestones.push({ kind: "new-rival", label: copy.milestones.newRival, detail: shortCommander(newcomer.commanderName) })
       }
     }
     for (const o of opponents) seenOpponents.add(o.commanderName)
@@ -168,16 +163,16 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       lossStreak = 0
 
       if (winCount === 1) {
-        milestones.push({ kind: "first-win", label: "First win", detail: cmdr })
+        milestones.push({ kind: "first-win", label: copy.milestones.firstWin, detail: cmdr })
       } else if (WIN_LANDMARKS.has(winCount)) {
-        milestones.push({ kind: "win", label: `${ordinal(winCount)} career win`, detail: cmdr })
+        milestones.push({ kind: "win", label: copy.milestones.careerWin(ordinal(winCount)), detail: cmdr })
       }
 
       if (streak >= 2) {
-        milestones.push({ kind: "streak", label: `${streak}-win streak` })
+        milestones.push({ kind: "streak", label: copy.milestones.winStreak(streak) })
       }
       if (slump >= 3) {
-        milestones.push({ kind: "comeback", label: "Comeback win", detail: `Snapped a ${slump}-loss slump` })
+        milestones.push({ kind: "comeback", label: copy.milestones.comeback, detail: copy.milestones.comebackDetail(slump) })
       }
 
       // Nemesis — beat an opponent who has beaten you 3+ times.
@@ -191,7 +186,7 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
         }
       }
       if (nemesis) {
-        milestones.push({ kind: "nemesis", label: "Nemesis slain", detail: `${shortCommander(nemesis)} had beaten you ${nemesisCount}×` })
+        milestones.push({ kind: "nemesis", label: copy.milestones.nemesis, detail: copy.milestones.nemesisDetail(shortCommander(nemesis), nemesisCount) })
       }
 
       // Color pioneer — first win in a brand-new color identity.
@@ -199,39 +194,39 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
       const ck = colorIdentityKey(identity)
       if (!wonColorIdentities.has(ck)) {
         wonColorIdentities.add(ck)
-        milestones.push({ kind: "color-pioneer", label: `First win in ${colorIdentityLabel(identity)}`, detail: "New colors on the board" })
+        milestones.push({ kind: "color-pioneer", label: copy.milestones.colorPioneer(colorIdentityLabel(identity)), detail: copy.milestones.colorPioneerDetail })
       }
 
       if (me && me.seatPosition >= 3) {
-        milestones.push({ kind: "tough-seat", label: `Won from seat ${me.seatPosition}`, detail: "Back-of-the-table win" })
+        milestones.push({ kind: "tough-seat", label: copy.milestones.toughSeat(me.seatPosition), detail: copy.milestones.toughSeatDetail })
       }
       const beatFastMana =
         !me?.fastMana?.hasFastMana &&
         game.players.some((p) => !p.isMe && p.fastMana?.hasFastMana)
       if (beatFastMana) {
-        milestones.push({ kind: "underdog", label: "Beat a fast-mana start", detail: "No fast mana of your own" })
+        milestones.push({ kind: "underdog", label: copy.milestones.underdog, detail: copy.milestones.underdogDetail })
       }
       if (game.winTurn && game.winTurn <= 5) {
-        milestones.push({ kind: "fast-win", label: `Turn-${game.winTurn} kill`, detail: cmdr })
+        milestones.push({ kind: "fast-win", label: copy.milestones.fastWin(game.winTurn), detail: cmdr })
       }
       if (game.winTurn && game.winTurn >= 12) {
-        milestones.push({ kind: "slow-burn", label: `Turn-${game.winTurn} grind`, detail: cmdr })
+        milestones.push({ kind: "slow-burn", label: copy.milestones.slowBurn(game.winTurn), detail: cmdr })
       }
       // Bracket buster — win meaningfully above your usual power level.
       if (game.bracket && priorBracketAvg !== null && bracketCount >= 3 && game.bracket > priorBracketAvg + 0.75) {
-        milestones.push({ kind: "bracket-buster", label: "Bracket buster", detail: `Won up at bracket ${game.bracket}` })
+        milestones.push({ kind: "bracket-buster", label: copy.milestones.bracketBuster, detail: copy.milestones.bracketBusterDetail(game.bracket) })
       }
       if (game.keyWinconCards && game.keyWinconCards.length > 0) {
-        milestones.push({ kind: "wincon", label: `Closed with ${game.keyWinconCards[0]}` })
+        milestones.push({ kind: "wincon", label: copy.milestones.wincon(game.keyWinconCards[0]) })
       }
     } else {
       streak = 0
       lossStreak += 1
       if (lossStreak >= 2) {
-        milestones.push({ kind: "loss-streak", label: `${lossStreak}-loss streak` })
+        milestones.push({ kind: "loss-streak", label: copy.milestones.lossStreak(lossStreak) })
       }
       if (typeof me?.knockoutTurn === "number" && me.knockoutTurn <= 6) {
-        milestones.push({ kind: "knockout", label: `Knocked out turn ${me.knockoutTurn}`, detail: cmdr })
+        milestones.push({ kind: "knockout", label: copy.milestones.knockout(me.knockoutTurn), detail: cmdr })
       }
       const winner = game.players.find((p) => p.id === game.winnerId)
       if (winner && !winner.isMe) {
@@ -243,7 +238,7 @@ export function buildTimeline(games: Game[]): TimelineEvent[] {
     const monthKey = `${date.getFullYear()}-${date.getMonth()}`
     const ma = monthAgg.get(monthKey)
     if (ma && ma.lastId === game.id && ma.count >= 3 && ma.wins === ma.count) {
-      milestones.push({ kind: "flawless-month", label: "Flawless month", detail: `${ma.count}–0 in ${ma.label}` })
+      milestones.push({ kind: "flawless-month", label: copy.milestones.flawlessMonth, detail: copy.milestones.flawlessMonthDetail(ma.count, ma.label) })
     }
 
     if (game.bracket) {

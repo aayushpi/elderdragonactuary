@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { AlertCircle, ExternalLink, ChevronsUpDown, X } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
@@ -13,6 +13,7 @@ import { WinconCardPicker } from "@/components/WinconCardPicker"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 import type { Game, Player, SeatPosition } from "@/types"
 import { saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
@@ -44,19 +45,7 @@ interface FormErrors {
   koTiming: boolean
 }
 
-const WIN_CONDITION_CATEGORIES = [
-  "Commander Damage",
-  "Lethal Combat Damage",
-  "Combat Trick",
-  "Lethal Non-Combat Damage",
-  "Players Decked Out",
-  "Alternate Wincon",
-  "Infinite Loop",
-  "Infinite Life-Gain",
-  "Infinite Mana",
-  "Asymmetric Board Wipe",
-  "Poison or Infect"
-] as const
+const WIN_CONDITION_CATEGORIES = copy.logGame.winConditions
 
 function getMirroredSeatOrder(totalPlayers: number): number[] {
   if (totalPlayers < 1) return []
@@ -96,10 +85,15 @@ interface LogGamePageProps {
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
   prefillCommander?: string
+  /** sample history the walkthrough shows instead of an empty account's own */
+  demoGames?: Game[]
 }
 
-export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
-  const { games } = useGames()
+export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander, demoGames }: LogGamePageProps) {
+  const { games: myGames } = useGames()
+  // The walkthrough hands in a sample pod so a brand-new account sees the pod
+  // picker and commander suggestions this screen is built around.
+  const games = demoGames ?? myGames
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -224,6 +218,34 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     setPlayers(newPlayers)
     setErrors(EMPTY_ERRORS)
   }
+
+  // Walkthrough only: fill the form from the sample pod's last game, so the
+  // steps about seats, winner, and saving have a filled-in form to point at
+  // instead of a collapsed empty one.
+  const demoSeeded = useRef(false)
+  useEffect(() => {
+    const sample = demoGames?.[0]
+    if (!sample || demoSeeded.current) return
+    demoSeeded.current = true
+    const seatIds = new Map<string, string>()
+    const seeded = sample.players.map((p) => {
+      const id = generateId()
+      seatIds.set(p.id, id)
+      return {
+        id,
+        isMe: p.isMe,
+        displayName: p.displayName,
+        commanderName: p.commanderName,
+        commanderColorIdentity: p.commanderColorIdentity,
+        seatPosition: p.seatPosition,
+        fastMana: p.fastMana ?? { hasFastMana: false, cards: [] },
+      } satisfies Partial<Player>
+    })
+    setPlayerCount(seeded.length)
+    setPlayers(seeded)
+    setWinnerId(seatIds.get(sample.winnerId) ?? null)
+    setWinTurn(String(sample.winTurn))
+  }, [demoGames])
 
   // Derive pods from game history: groups of named players that played together
   // Only opponent names are stored — the user is always implied.
@@ -541,15 +563,15 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
   }, [hasInProgressData, onDirtyChange])
 
   const formErrorMessage = errors.koTiming
-    ? "Winning turn can't be after all opponents are knocked out"
-    : "Please fill in all highlighted fields."
+    ? copy.logGame.errorKoTiming
+    : copy.logGame.errorGeneric
 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       {/* Player count */}
-      <div className="space-y-2">
+      <div data-tour="log-pod" className="space-y-2">
         <h2 className={`text-sm font-semibold uppercase tracking-wide ${errors.playerCount ? "text-destructive" : "text-muted-foreground"}`}>
-          How many players?
+          {copy.logGame.playerCountHeading}
         </h2>
         <div className="flex gap-2">
           {[2, 3, 4, 5, 6].map((n) => (
@@ -566,7 +588,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
         </div>
         {pods.length > 0 && (
           <div className="mt-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Or, select an existing pod</label>
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">{copy.logGame.podLabel}</label>
             <div className="mt-1">
               <button
                 type="button"
@@ -574,7 +596,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
               >
                 <span className="truncate text-sm">
-                  {selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? "Select a pod…") : "Select a pod…"}
+                  {selectedPodId ? (pods.find((p) => p.id === selectedPodId)?.label ?? copy.logGame.podPlaceholder) : copy.logGame.podPlaceholder}
                 </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 text-muted-foreground" />
               </button>
@@ -599,13 +621,13 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
             onClick={() => setShowBracketSelector(true)}
             className="w-full"
           >
-            Add game bracket (Optional)
+            {copy.logGame.addBracket}
           </Button>
         ) : (
           <>
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Select game bracket
+                {copy.logGame.bracketHeading}
               </h2>
               <a
                 href="https://magic.wizards.com/en/formats/commander#brackets"
@@ -613,7 +635,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                 rel="noopener noreferrer"
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
               >
-                About game brackets
+                {copy.logGame.bracketLink}
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
@@ -646,9 +668,9 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       >
         <>
           <Separator />
-          <div className="space-y-3">
+          <div data-tour="log-players" className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Players
+              {copy.logGame.playersHeading}
             </h2>
             <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : playerGridColumns === 3 ? "grid-cols-3" : "grid-cols-2")}>
             {playerGridEntries.map((entry, gridIndex) => {
@@ -700,7 +722,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
           <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wide">
-                Key wincon cards (Optional)
+                {copy.logGame.keyWinconCards}
               </label>
             </div>
             {keyWinconCards.length > 0 && (
@@ -712,7 +734,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
                       type="button"
                       onClick={() => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}
                       className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                      aria-label={`Remove ${cardName}`}
+                      aria-label={copy.logGame.removeCard(cardName)}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -725,7 +747,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
               onClick={() => setWinconPickerOpen(true)}
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
             >
-              <span className="truncate text-sm text-muted-foreground">Search for key wincon cards…</span>
+              <span className="truncate text-sm text-muted-foreground">{copy.logGame.winconSearchPlaceholder}</span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
             <WinconCardPicker
@@ -743,7 +765,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
           <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wide">
-                How did they win (Optional)
+                {copy.logGame.winConditionsHeading}
               </label>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -775,11 +797,11 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
           <Separator />
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground uppercase tracking-wide" htmlFor="notes">
-              Notes (optional)
+              {copy.logGame.notesLabel}
             </label>
             <Textarea
               id="notes"
-              placeholder="Any additional notes…"
+              placeholder={copy.logGame.notesPlaceholder}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -796,13 +818,13 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       )}
 
       {/* Actions */}
-      <div className="flex flex-col gap-2 pt-2">
+      <div data-tour="log-save" className="flex flex-col gap-2 pt-2">
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel}>
-            Cancel
+            {copy.logGame.cancel}
           </Button>
           <Button className="flex-1" onClick={handleSubmit} disabled={players.length === 0}>
-            Save Game
+            {copy.logGame.save}
           </Button>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { GameDetailPanel } from "@/components/GameDetailPanel"
 import { capture } from "@/lib/analytics"
 import { CommanderAvatar } from "./CommanderAvatar"
 import { MilestoneEvent } from "./MilestoneBadge"
+import { copy } from "@/copy"
 import {
   buildTimeline,
   dayLabel,
@@ -16,6 +17,12 @@ import {
 } from "./timeline"
 
 type ResultFilter = "All" | "Wins" | "Losses"
+
+const RESULT_FILTER_LABELS: Record<ResultFilter, string> = {
+  All: copy.history.filters.all,
+  Wins: copy.history.filters.wins,
+  Losses: copy.history.filters.losses,
+}
 type ViewMode = "date" | "pod"
 
 interface JourneyHandlers {
@@ -195,7 +202,7 @@ function Node({
               {highlight && <span className="h-2 w-2 rounded-full bg-amber-500" title="Has highlights" />}
             </div>
             <div className="mt-1 text-base text-muted-foreground">
-              {opponents.length > 0 ? `vs ${opponents.join(" · ")}` : "Solo log"}
+              {opponents.length > 0 ? copy.history.versus(opponents.join(" · ")) : copy.history.soloLog}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm text-muted-foreground tabular">
               <span>{dayLabel(date)}</span>
@@ -206,16 +213,16 @@ function Node({
         </button>
         <div className="flex shrink-0 items-center gap-0.5">
           {handlers.onEditGame && (
-            <IconButton label="Edit game" onClick={() => handlers.onEditGame!(game.id)}>
+            <IconButton label={copy.history.editGame} onClick={() => handlers.onEditGame!(game.id)}>
               <Pencil className="h-4 w-4" />
             </IconButton>
           )}
           {handlers.onDeleteGame && (
             <IconButton
-              label="Delete game"
+              label={copy.history.deleteGame}
               danger
               onClick={() => {
-                if (window.confirm("Delete this game?")) handlers.onDeleteGame!(game.id)
+                if (window.confirm(copy.history.confirmDelete)) handlers.onDeleteGame!(game.id)
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -333,7 +340,7 @@ export function VariantJourney({
   }, [scrollToGameId, games, onScrollHandled])
 
   if (allEvents.length === 0) {
-    return <p className="text-base text-muted-foreground">No games yet.</p>
+    return <p className="text-base text-muted-foreground">{copy.dashboard.noGamesYet}</p>
   }
 
   return (
@@ -343,8 +350,8 @@ export function VariantJourney({
           value={viewMode}
           onChange={(v) => setViewMode(v as ViewMode)}
           options={[
-            { id: "date", label: "By date" },
-            { id: "pod", label: "By pod" },
+            { id: "date", label: copy.history.groupBy.date },
+            { id: "pod", label: copy.history.groupBy.pod },
           ]}
         />
         <select
@@ -352,7 +359,7 @@ export function VariantJourney({
           onChange={(e) => setHero(e.target.value)}
           className="h-10 rounded-md border border-input bg-card px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <option value="all">All heroes</option>
+          <option value="all">{copy.history.allHeroes}</option>
           {heroes.map((name) => (
             <option key={name} value={name}>
               {shortCommander(name)}
@@ -364,15 +371,15 @@ export function VariantJourney({
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
         {(["All", "Wins", "Losses"] as ResultFilter[]).map((f) => (
           <Chip key={f} active={result === f} onClick={() => setResult(f)}>
-            {f}
+            {RESULT_FILTER_LABELS[f]}
           </Chip>
         ))}
       </div>
 
       {shown.length === 0 ? (
         <div className="rounded-lg border border-border bg-card py-12 text-center">
-          <div className="text-base font-medium">No games match</div>
-          <div className="mt-1 text-sm text-muted-foreground">Try a different filter.</div>
+          <div className="text-base font-medium">{copy.history.noMatch}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{copy.history.noMatchBody}</div>
         </div>
       ) : viewMode === "pod" ? (
         pods.length === 0 ? (

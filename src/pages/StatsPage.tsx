@@ -8,15 +8,18 @@ import { ManaCost } from "@/components/ManaCost"
 import { computeStats, computePodElo, computeCommanderElo } from "@/lib/stats"
 import { CARD, SECTION_LABEL, WrBar } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 import type { CommanderStat, Game, WinRateStat } from "@/types"
 
 interface StatsPageProps {
   games: Game[]
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
+  /** the walkthrough is showing a sample pod, not this account's games */
+  sampleData?: boolean
 }
 
-const RANGES = ["All time", "This year", "Last 90 days"] as const
+const RANGES = [copy.stats.ranges.allTime, copy.stats.ranges.thisYear, copy.stats.ranges.last90] as const
 type Range = (typeof RANGES)[number]
 
 const STAT_LABEL = "font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
@@ -26,16 +29,16 @@ type CommanderSort = "win-rate" | "win-turn" | "total-wins"
 type SortDirection = "asc" | "desc"
 
 function inRange(playedAt: string, range: Range): boolean {
-  if (range === "All time") return true
+  if (range === copy.stats.ranges.allTime) return true
   const d = new Date(playedAt)
   const now = new Date()
-  if (range === "This year") return d.getFullYear() === now.getFullYear()
+  if (range === copy.stats.ranges.thisYear) return d.getFullYear() === now.getFullYear()
   return now.getTime() - d.getTime() <= 90 * 24 * 60 * 60 * 1000
 }
 
 function fmtRate(stat: WinRateStat): { val: string; sub: string } {
-  if (stat.games === 0) return { val: "—", sub: "no games" }
-  return { val: `${Math.round(stat.rate * 100)}%`, sub: `${stat.wins} wins / ${stat.games} games` }
+  if (stat.games === 0) return { val: "—", sub: copy.stats.noGames }
+  return { val: `${Math.round(stat.rate * 100)}%`, sub: copy.stats.rateSub(stat.wins, stat.games) }
 }
 
 function colorIdentityToManaCost(colors: string[]): string {
@@ -124,12 +127,20 @@ function podSizeBreakdown(games: Game[]): { label: string; rate: number; games: 
   }
   return [...buckets.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([size, b]) => ({ label: `${size} players`, rate: b.games ? b.wins / b.games : 0, games: b.games }))
+    .map(([size, b]) => ({ label: copy.stats.podSize(size), rate: b.games ? b.wins / b.games : 0, games: b.games }))
+}
+
+export function SampleBadge() {
+  return (
+    <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+      {copy.stats.sampleBadge}
+    </span>
+  )
 }
 
 function RangeChips({ value, onChange }: { value: Range; onChange: (r: Range) => void }) {
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+    <div data-tour="stats-range" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
       {RANGES.map((r) => (
         <button
           key={r}
@@ -164,7 +175,7 @@ function WinStreakCard({ games }: { games: Game[] }) {
   return (
     <div className={CARD + " p-4 sm:p-5"}>
       <div className={STAT_LABEL}>
-        {count} {type === "loss" ? "loss" : "win"} streak
+        {copy.stats.streak(count, type === "loss" ? "loss" : "win")}
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {recent.map((r) => (
@@ -177,7 +188,7 @@ function WinStreakCard({ games }: { games: Game[] }) {
                 : "bg-rose-500/15 text-rose-600 ring-rose-500/40 dark:text-rose-400"
             )}
           >
-            {r.win ? "W" : "L"}
+            {r.win ? copy.stats.win : copy.stats.loss}
           </span>
         ))}
       </div>
@@ -188,7 +199,7 @@ function WinStreakCard({ games }: { games: Game[] }) {
 function TopWaysCard({ conditions }: { conditions: { condition: string; count: number }[] }) {
   return (
     <div className={CARD + " p-4 sm:p-5"}>
-      <div className={STAT_LABEL}>Top ways to win</div>
+      <div className={STAT_LABEL}>{copy.stats.topWaysToWin}</div>
       <div className="mt-3 flex flex-wrap gap-2">
         {conditions.map((wc) => (
           <span
@@ -207,12 +218,12 @@ function TopWaysCard({ conditions }: { conditions: { condition: string; count: n
 function StartingTurnCard({ rows }: { rows: { seat: number; stat: WinRateStat }[] }) {
   return (
     <div className="space-y-3">
-      <div className={SECTION_LABEL}>Win rate by starting turn</div>
+      <div className={SECTION_LABEL}>{copy.stats.winRateByStartingTurn}</div>
       <div className={CARD + " p-4 sm:p-5 space-y-4"}>
         {rows.map(({ seat, stat }) => (
           <div key={seat}>
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{SEAT_ORDINALS[seat]} to play</span>
+              <span className="font-medium">{copy.stats.seatToPlay(SEAT_ORDINALS[seat])}</span>
               <span className="font-mono text-xs text-muted-foreground tabular">
                 {Math.round(stat.rate * 100)}% ({stat.wins}/{stat.games})
               </span>
@@ -261,8 +272,8 @@ function TrendChart({ data }: { data: { label: string; games: number; wins: numb
   return (
     <div className={CARD + " p-4 sm:p-5"}>
       <div className="flex items-center justify-between gap-3">
-        <div className={SECTION_LABEL}>Win rate by month</div>
-        <div className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">— — 25% baseline</div>
+        <div className={SECTION_LABEL}>{copy.stats.winRateByMonth}</div>
+        <div className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">{copy.stats.baseline}</div>
       </div>
       <div className="relative mt-5 h-40">
         <div
@@ -276,7 +287,7 @@ function TrendChart({ data }: { data: { label: string; games: number; wins: numb
               <div
                 key={i}
                 className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
-                title={`${m.label}: ${m.wins} wins / ${m.games} games`}
+                title={copy.stats.monthTooltip(m.label, m.wins, m.games)}
               >
                 <div
                   className="w-full rounded-t-sm bg-primary/80 hover:bg-primary transition-colors"
@@ -313,7 +324,7 @@ function BreakdownCard({
       <div className={SECTION_LABEL}>{title}</div>
       <div className="mt-4 space-y-3">
         {rows.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No data yet.</p>
+          <p className="text-xs text-muted-foreground">{copy.stats.noData}</p>
         ) : (
           rows.map((r) => (
             <div key={r.label} className="flex items-center gap-3">
@@ -332,8 +343,8 @@ function BreakdownCard({
   )
 }
 
-export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
-  const [range, setRange] = useState<Range>("All time")
+export function StatsPage({ games, onOpenLogGame, sampleData }: StatsPageProps) {
+  const [range, setRange] = useState<Range>(copy.stats.ranges.allTime)
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
@@ -345,8 +356,9 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   const commanderElo = useMemo(() => computeCommanderElo(games), [games])
 
   useEffect(() => {
+    if (sampleData) return
     capture("stats_viewed", { range, games_played: stats.gamesPlayed })
-  }, [range, stats.gamesPlayed])
+  }, [range, stats.gamesPlayed, sampleData])
 
   const seatRows = useMemo(() => {
     const entries: [number, WinRateStat][] = [
@@ -374,16 +386,16 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   if (games.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
-        <div className={CARD + " p-12 text-center"}>
-          <p className="text-sm font-medium">No games logged yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Log a game to see your stats here.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{copy.stats.heading}</h1>
+        <div data-tour="stats-headline" className={CARD + " p-12 text-center"}>
+          <p className="text-sm font-medium">{copy.stats.empty.title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{copy.stats.empty.body}</p>
           <button
             onClick={() => onOpenLogGame()}
             className="mt-5 inline-flex items-center justify-center gap-2 h-11 px-6 text-[15px] rounded-md font-medium bg-primary text-primary-foreground hover:opacity-90 active:opacity-80 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            Track a game
+            {copy.stats.empty.cta}
           </button>
         </div>
       </div>
@@ -398,16 +410,19 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight">{copy.stats.heading}</h1>
+          {sampleData && <SampleBadge />}
+        </div>
         <RangeChips value={range} onChange={setRange} />
       </div>
 
       {/* Headline stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <StatBox label="Win rate" value={overall.val} sub={overall.sub} />
-        <StatBox label="Avg win turn" value={avgTurn} sub="when you win" />
-        <StatBox label="With fast mana" value={withFm.val} sub={withFm.sub} />
-        <StatBox label="Vs fast mana" value={vsFm.val} sub={vsFm.sub} />
+      <div data-tour="stats-headline" className="grid grid-cols-2 gap-3 sm:gap-4">
+        <StatBox label={copy.stats.winRate} value={overall.val} sub={overall.sub} />
+        <StatBox label={copy.stats.avgWinTurn} value={avgTurn} sub={copy.stats.avgWinTurnSub} />
+        <StatBox label={copy.stats.withFastMana} value={withFm.val} sub={withFm.sub} />
+        <StatBox label={copy.stats.vsFastMana} value={vsFm.val} sub={vsFm.sub} />
       </div>
 
       {/* Streak + ways to win */}
@@ -423,19 +438,19 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
       {/* Commander colors */}
       {hasColorData && (
         <div className="space-y-3">
-          <div className={SECTION_LABEL}>Commander colors</div>
+          <div className={SECTION_LABEL}>{copy.stats.commanderColors}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <ColorBox
-              label="Most played"
+              label={copy.stats.mostPlayed}
               colors={stats.mostPlayedCommanderColorIdentity?.colors ?? null}
               value={
                 stats.mostPlayedCommanderColorIdentity
-                  ? `${stats.mostPlayedCommanderColorIdentity.games} game${stats.mostPlayedCommanderColorIdentity.games !== 1 ? "s" : ""}`
+                  ? copy.stats.gamesCount(stats.mostPlayedCommanderColorIdentity.games)
                   : "—"
               }
             />
             <ColorBox
-              label="Most successful"
+              label={copy.stats.mostSuccessful}
               colors={stats.mostSuccessfulCommanderColorIdentity?.colors ?? null}
               value={
                 stats.mostSuccessfulCommanderColorIdentity
@@ -444,12 +459,12 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
               }
               sub={
                 stats.mostSuccessfulCommanderColorIdentity
-                  ? `${stats.mostSuccessfulCommanderColorIdentity.wins} wins / ${stats.mostSuccessfulCommanderColorIdentity.games} games`
+                  ? copy.stats.rateSub(stats.mostSuccessfulCommanderColorIdentity.wins, stats.mostSuccessfulCommanderColorIdentity.games)
                   : undefined
               }
             />
             <ColorBox
-              label="Archnemesis colors"
+              label={copy.stats.archnemesisColors}
               colors={stats.archnemesisCommanderColorIdentity?.colors ?? null}
               value={
                 stats.archnemesisCommanderColorIdentity
@@ -458,7 +473,7 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
               }
               sub={
                 stats.archnemesisCommanderColorIdentity
-                  ? `${stats.archnemesisCommanderColorIdentity.games - stats.archnemesisCommanderColorIdentity.wins} losses / ${stats.archnemesisCommanderColorIdentity.games} games`
+                  ? copy.stats.lossSub(stats.archnemesisCommanderColorIdentity.games - stats.archnemesisCommanderColorIdentity.wins, stats.archnemesisCommanderColorIdentity.games)
                   : undefined
               }
             />
@@ -468,30 +483,30 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
 
       <TrendChart data={trend} />
 
-      <BreakdownCard title="By pod size" rows={podSizes} />
+      <BreakdownCard title={copy.stats.byPodSize} rows={podSizes} />
 
       {/* Commander performance */}
       {stats.byCommander.length > 0 && (
-        <div className="space-y-3">
+        <div data-tour="stats-commanders" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className={SECTION_LABEL}>Commander performance</div>
+            <div className={SECTION_LABEL}>{copy.stats.commanderPerformance}</div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">Sort by</span>
+              <span className="text-xs text-muted-foreground">{copy.stats.sortBy}</span>
               <select
                 value={commanderSort}
                 onChange={(e) => setCommanderSort(e.target.value as CommanderSort)}
                 className="h-8 cursor-pointer rounded-md border border-input bg-card px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <option value="win-rate">Win rate</option>
-                <option value="win-turn">Winning turn</option>
-                <option value="total-wins">Total wins</option>
+                <option value="win-rate">{copy.stats.sortOptions.winRate}</option>
+                <option value="win-turn">{copy.stats.sortOptions.winTurn}</option>
+                <option value="total-wins">{copy.stats.sortOptions.totalWins}</option>
               </select>
               <button
                 onClick={() => setSortDirection((p) => (p === "asc" ? "desc" : "asc"))}
                 className="inline-flex h-8 items-center gap-1 rounded-md border border-input bg-card px-2 text-xs hover:bg-muted transition-colors"
               >
                 <ArrowUpDown className="h-3 w-3" />
-                {sortDirection === "asc" ? "Asc" : "Desc"}
+                {sortDirection === "asc" ? copy.stats.sortAsc : copy.stats.sortDesc}
               </button>
             </div>
           </div>
@@ -505,8 +520,8 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
 
       {/* ELO — computed across all games, regardless of range */}
       {(podEloGroups.length > 0 || commanderElo.length > 0) && (
-        <div className="space-y-3">
-          <h2 className={SECTION_LABEL}>ELO ratings</h2>
+        <div data-tour="stats-elo" className="space-y-3">
+          <h2 className={SECTION_LABEL}>{copy.stats.eloRatings}</h2>
           <EloCard podEloGroups={podEloGroups} commanders={commanderElo} />
         </div>
       )}

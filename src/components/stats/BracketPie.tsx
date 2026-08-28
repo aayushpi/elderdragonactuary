@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
+import { copy } from "@/copy"
 import { Cell, Legend, Pie, PieChart, Sector } from "recharts"
 import { type PieSectorDataItem } from "recharts/types/polar/Pie"
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart"
 import { CARD, SECTION_LABEL } from "@/components/modern/primitives"
 
 const chartConfig = {
-  wins: { label: "Wins", color: "hsl(var(--primary))" },
+  wins: { label: copy.bracketPie.wins, color: "hsl(var(--primary))" },
 } satisfies ChartConfig
 
 interface BracketPieProps {

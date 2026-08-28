@@ -8,11 +8,17 @@ import { BoardChrome } from "./BoardChrome"
 import { SeatFrame, DragVector, DamageModal, HoldStepButton } from "./shared"
 import { useDragAttack, useDragLock } from "./drag"
 import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer } from "./engine"
+import { copy } from "@/copy"
 
 /* Sentinel target id for the centre "Damage all" drop zone — the drag hit-test
  * picks it up like any seat (it carries data-seat-id), but it fans the hit out
  * to every other living player instead of one seat. */
 const DAMAGE_ALL_ID = "__damage_all__"
+
+/* Rough footprint of the damage entry card, used to keep it fully on screen.
+ * It is deliberately chunky — this is tapped mid-game, at arm's length. */
+const STEPPER_HALF = 168
+const STEPPER_HEIGHT = 300
 
 /* ============================================================================
  * ThrowBoard — "drag from any seat onto any target" core.
@@ -151,7 +157,7 @@ export function ThrowBoard({
         swapSlot={
           <button
             onPointerDown={(e) => startSwap(p.id, e)}
-            aria-label="Drag to swap seat"
+            aria-label={copy.live.board.dragToSwapLabel}
             className={cn(
               "mt-1 touch-none flex items-center gap-1.5 rounded-full px-4 py-2 text-[clamp(0.65rem,2vmin,0.8rem)] font-bold uppercase tracking-wide shadow-lg transition-colors active:scale-95",
               swapTarget === p.id
@@ -162,7 +168,7 @@ export function ThrowBoard({
             )}
           >
             <GripVertical className="h-4 w-4" />
-            Drag to swap
+            {copy.live.board.dragToSwap}
           </button>
         }
         attackSlot={
@@ -210,7 +216,7 @@ export function ThrowBoard({
         >
           <Swords className="h-7 w-7" />
           <span className="text-[11px] font-extrabold uppercase leading-tight tracking-wide">
-            Damage<br />all
+            {copy.live.board.damageAll}<br />{copy.live.board.damageAllSecondLine}
           </span>
         </div>
       )}
@@ -219,16 +225,19 @@ export function ThrowBoard({
         <>
           <div className="fixed inset-0 z-[59]" onClick={() => setPending(null)} />
           <div
-            className="fixed z-[60] -translate-x-1/2 rounded-2xl border border-border bg-popover p-3 shadow-2xl"
+            className="fixed z-[60] -translate-x-1/2 rounded-3xl border border-border bg-popover p-4 shadow-2xl"
             style={{
-              left: Math.min(window.innerWidth - 130, Math.max(130, pending.x)),
-              top: Math.min(window.innerHeight - 250, Math.max(12, pending.y - 24)),
+              left: Math.min(
+                Math.max(pending.x, STEPPER_HALF + 8),
+                Math.max(STEPPER_HALF + 8, window.innerWidth - STEPPER_HALF - 8),
+              ),
+              top: Math.max(12, Math.min(window.innerHeight - STEPPER_HEIGHT - 12, pending.y - 40)),
             }}
           >
             <StepperEntry
               key={`${pending.sourceId}-${pending.targetId}-${pending.x}`}
               sourceName={source.displayName}
-              targetName={pendingAll ? "All players" : target?.displayName ?? "?"}
+              targetName={pendingAll ? copy.live.board.allPlayers : target?.displayName ?? "?"}
               onApply={apply}
             />
           </div>
@@ -269,9 +278,9 @@ export function ThrowBoard({
         <div className="fixed inset-0 z-[64] flex items-center justify-center bg-black/70 p-4">
           <div className="w-[min(90vw,24rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
             <div className="border-b px-4 py-3">
-              <p className="text-sm font-semibold">Set commanders to save</p>
+              <p className="text-sm font-semibold">{copy.live.commanderGate.title}</p>
               <p className="text-xs text-muted-foreground">
-                Every player needs a commander so the game counts toward stats.
+                {copy.live.commanderGate.body}
               </p>
             </div>
             <div className="max-h-[55vh] divide-y divide-border overflow-y-auto">
@@ -292,7 +301,7 @@ export function ThrowBoard({
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{p.displayName}</div>
                         <div className={cn("truncate text-xs", has ? "text-muted-foreground" : "text-destructive")}>
-                          {has ? p.commanderName : "No commander — tap to set"}
+                          {has ? p.commanderName : copy.live.commanderGate.missingHint}
                         </div>
                       </div>
                       {has ? (
@@ -306,7 +315,7 @@ export function ThrowBoard({
             </div>
             <div className="flex gap-2 border-t p-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowCommanderGate(false)}>
-                Cancel
+                {copy.live.commanderGate.cancel}
               </Button>
               <Button
                 className="flex-1"
@@ -314,8 +323,8 @@ export function ThrowBoard({
                 onClick={() => { setShowCommanderGate(false); onSave() }}
               >
                 {missingCommanders.length > 0
-                  ? `${missingCommanders.length} missing`
-                  : "Save game"}
+                  ? copy.live.commanderGate.missingCount(missingCommanders.length)
+                  : copy.live.commanderGate.save}
               </Button>
             </div>
           </div>
@@ -334,7 +343,7 @@ function TargetZone({ armed }: { armed: boolean }) {
       )}
     >
       <Crosshair className="h-4 w-4" />
-      Target
+      {copy.live.board.target}
     </div>
   )
 }
@@ -352,14 +361,14 @@ function AttackPill({ onPointerDown }: { onPointerDown: (e: React.PointerEvent) 
       }}
     >
       <GripHorizontal className="h-4 w-4 opacity-80" />
-      Attack
+      {copy.live.board.attack}
     </button>
   )
 }
 
 function EntryHeader({ sourceName, targetName }: { sourceName: string; targetName: string }) {
   return (
-    <div className="mb-2 text-center text-sm font-semibold">
+    <div className="mb-3 text-center text-base font-semibold">
       <span className="text-foreground">{sourceName}</span>
       <span className="text-muted-foreground"> → </span>
       <span className="text-destructive">{targetName}</span>
@@ -368,12 +377,14 @@ function EntryHeader({ sourceName, targetName }: { sourceName: string; targetNam
 }
 
 const MODS = [
-  { key: "isCommander" as const, label: "⚔ Cmdr" },
-  { key: "isPoison" as const, label: "☠ Poison" },
-  { key: "isLifelink" as const, label: "❤ Lifelink" },
+  { key: "isCommander" as const, label: copy.live.damageEntry.commanderMod },
+  { key: "isPoison" as const, label: copy.live.damageEntry.poisonMod },
+  { key: "isLifelink" as const, label: copy.live.damageEntry.lifelinkMod },
 ]
 
-function StepperEntry({
+/* Damage entry for one hit. Exported for tests; the board renders it in the
+ * popover that follows a drop. */
+export function StepperEntry({
   sourceName,
   targetName,
   onApply,
@@ -382,7 +393,7 @@ function StepperEntry({
   targetName: string
   onApply: (amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) => void
 }) {
-  const [value, setValue] = useState(1)
+  const [value, setValue] = useState(0)
   const [mods, setMods] = useState({ isCommander: false, isPoison: false, isLifelink: false })
 
   function toggle(key: keyof typeof mods) {
@@ -390,38 +401,38 @@ function StepperEntry({
   }
 
   return (
-    <div className="w-[15rem]">
+    <div className="w-[18.5rem]">
       <EntryHeader sourceName={sourceName} targetName={targetName} />
 
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <HoldStepButton
-          onStep={(d) => setValue((v) => Math.max(1, v + d))}
+          onStep={(d) => setValue((v) => Math.max(0, v + d))}
           shortDelta={-1}
           longDelta={-10}
-          ariaLabel="minus (hold for 10)"
-          className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl bg-muted active:scale-95"
+          ariaLabel={copy.live.damageEntry.minusLabel}
+          className="flex h-[4.5rem] w-[4.5rem] touch-none items-center justify-center rounded-2xl bg-muted active:scale-95"
         >
-          <Minus className="h-7 w-7" />
+          <Minus className="h-9 w-9" />
         </HoldStepButton>
-        <span className="min-w-[2.5ch] text-center tabular-nums text-5xl font-black">{value}</span>
+        <span className="min-w-[2.5ch] text-center tabular-nums text-6xl font-black leading-none">{value}</span>
         <HoldStepButton
           onStep={(d) => setValue((v) => Math.min(99, v + d))}
           shortDelta={1}
           longDelta={10}
-          ariaLabel="plus (hold for 10)"
-          className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl bg-muted active:scale-95"
+          ariaLabel={copy.live.damageEntry.plusLabel}
+          className="flex h-[4.5rem] w-[4.5rem] touch-none items-center justify-center rounded-2xl bg-muted active:scale-95"
         >
-          <Plus className="h-7 w-7" />
+          <Plus className="h-9 w-9" />
         </HoldStepButton>
       </div>
 
-      <div className="mb-3 grid grid-cols-3 gap-1.5">
+      <div className="mb-4 grid grid-cols-3 gap-2">
         {MODS.map((m) => (
           <button
             key={m.key}
             onClick={() => toggle(m.key)}
             className={cn(
-              "h-9 rounded-lg text-[11px] font-bold transition-colors",
+              "h-11 rounded-xl text-xs font-bold transition-colors",
               mods[m.key]
                 ? m.key === "isPoison"
                   ? "bg-green-600 text-white"
@@ -438,9 +449,10 @@ function StepperEntry({
 
       <button
         onClick={() => onApply(value, mods)}
-        className="h-12 w-full rounded-xl bg-destructive text-base font-bold text-destructive-foreground active:scale-95"
+        disabled={value === 0}
+        className="h-14 w-full rounded-2xl bg-destructive text-lg font-bold text-destructive-foreground active:scale-95 disabled:opacity-40 disabled:active:scale-100"
       >
-        {mods.isPoison ? `Poison ${value}` : `Deal ${value}`}
+        {value === 0 ? copy.live.damageEntry.pickAmount : mods.isPoison ? copy.live.damageEntry.poison(value) : copy.live.damageEntry.deal(value)}
       </button>
     </div>
   )

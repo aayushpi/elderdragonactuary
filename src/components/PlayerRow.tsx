@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { copy } from "@/copy"
 import { Trophy, UserPlus, X, Minus, Plus, HelpCircle, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
@@ -127,7 +128,7 @@ export function PlayerRow({
 
   const selectedCards = player.fastMana?.cards ?? []
 
-  const ordinalLabels = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"]
+  const ordinalLabels = copy.player.seatOrdinals
   const positionLabel = ordinalLabels[playerOrder - 1] ?? `${playerOrder}th`
   const label = `${positionLabel} Player`
 
@@ -204,7 +205,7 @@ export function PlayerRow({
             onClick={onSetWinner}
           >
             <Trophy className="h-3 w-3" />
-            Winner
+            {copy.player.winner}
           </Button>
           {isWinner && (
             <div className="flex items-center gap-1 justify-end">
@@ -220,7 +221,7 @@ export function PlayerRow({
                 type="number"
                 min={1}
                 max={50}
-                placeholder="turn"
+                placeholder={copy.player.turnPlaceholder}
                 value={winTurn}
                 onChange={(e) => onWinTurnChange(e.target.value)}
                 className={`w-20 h-10 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
@@ -250,7 +251,7 @@ export function PlayerRow({
                 type="number"
                 min={1}
                 max={50}
-                placeholder="turn"
+                placeholder={copy.player.turnPlaceholder}
                 value={koTurn}
                 onChange={(e) => onKoTurnChange(e.target.value)}
                 className="w-20 h-10 text-sm text-center"
@@ -279,7 +280,7 @@ export function PlayerRow({
           onClick={onSetWinner}
         >
           <Trophy className="h-3 w-3" />
-          Winner
+          {copy.player.winner}
         </Button>
       </div>
 
@@ -298,7 +299,7 @@ export function PlayerRow({
             type="number"
             min={1}
             max={50}
-            placeholder="turn"
+            placeholder={copy.player.turnPlaceholder}
             value={winTurn}
             onChange={(e) => onWinTurnChange(e.target.value)}
             className={`w-14 h-7 text-sm text-center ${fieldErrors?.winTurn ? "border-destructive" : ""}`}
@@ -331,7 +332,7 @@ export function PlayerRow({
             type="number"
             min={1}
             max={50}
-            placeholder="turn"
+            placeholder={copy.player.turnPlaceholder}
             value={koTurn}
             onChange={(e) => onKoTurnChange(e.target.value)}
             className="w-14 h-7 text-sm text-center"
@@ -350,7 +351,7 @@ export function PlayerRow({
 
       {/* Commander */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground uppercase tracking-wide">Commander</label>
+        <label className="text-xs text-muted-foreground uppercase tracking-wide">{copy.player.commander}</label>
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
@@ -360,7 +361,7 @@ export function PlayerRow({
           )}
         >
           <span className={cn("truncate", !player.commanderName && "text-muted-foreground")}>
-            {player.commanderName || "Pick a commander"}
+            {player.commanderName || copy.player.pickCommander}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
@@ -368,7 +369,7 @@ export function PlayerRow({
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           seatLabel={seatLabel}
-          label={pickerLabel ?? (isMe ? "You" : "Player")}
+          label={pickerLabel ?? (isMe ? copy.player.you : copy.player.otherPlayer)}
           value={player.commanderName}
           items={shortlist ?? []}
           onPick={(pick) => onChange(pick)}
@@ -382,20 +383,20 @@ export function PlayerRow({
             onClick={() => setShowPartner(true)}
           >
             <UserPlus className="h-3 w-3" />
-            Add partner
+            {copy.player.addPartner}
           </button>
         )}
         {showPartner && (
           <div className="space-y-1.5 border-t border-dashed border-border pt-2 mt-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">Partner</label>
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">{copy.player.partner}</label>
               <button
                 type="button"
                 className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-destructive"
                 onClick={handleRemovePartner}
               >
                 <X className="h-3 w-3" />
-                Remove
+                {copy.player.removePartner}
               </button>
             </div>
             <button
@@ -404,7 +405,7 @@ export function PlayerRow({
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className={cn("truncate", !player.partnerName && "text-muted-foreground")}>
-                {player.partnerName || "Pick a partner"}
+                {player.partnerName || copy.player.pickPartner}
               </span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
@@ -412,8 +413,8 @@ export function PlayerRow({
               open={partnerPickerOpen}
               onOpenChange={setPartnerPickerOpen}
               seatLabel={seatLabel}
-              title="Pick a partner"
-              label={pickerLabel ?? (isMe ? "You" : "Player")}
+              title={copy.player.pickPartner}
+              label={pickerLabel ?? (isMe ? copy.player.you : copy.player.otherPlayer)}
               value={player.partnerName}
               items={shortlist ?? []}
               onPick={(pick) =>
@@ -433,7 +434,7 @@ export function PlayerRow({
 
       {/* Seat */}
       <div className="space-y-1.5">
-        <label className="text-xs text-muted-foreground uppercase tracking-wide">Seat (turn order)</label>
+        <label className="text-xs text-muted-foreground uppercase tracking-wide">{copy.player.seat}</label>
         <SeatPicker
           value={player.seatPosition ?? null}
           onChange={(seat) => onChange({ seatPosition: seat ?? undefined })}
@@ -447,7 +448,7 @@ export function PlayerRow({
 
       {/* Fast mana */}
       <div className="space-y-2">
-        <label className="text-xs text-muted-foreground uppercase tracking-wide">Fast Mana</label>
+        <label className="text-xs text-muted-foreground uppercase tracking-wide">{copy.player.fastMana}</label>
         {selectedCards.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {selectedCards.map((card) => (
@@ -472,7 +473,7 @@ export function PlayerRow({
         >
           <span className={cn(selectedCards.length === 0 && "text-muted-foreground")}>
             {selectedCards.length === 0
-              ? "Add fast mana"
+              ? copy.player.addFastMana
               : `${selectedCards.length} card${selectedCards.length > 1 ? "s" : ""} · add more`}
           </span>
           <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />

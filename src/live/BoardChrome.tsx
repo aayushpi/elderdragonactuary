@@ -7,6 +7,7 @@ import { EndGameBanner } from "./shared"
 import { SEAT_COLORS } from "./engine"
 import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
 import { useWakeLock } from "./useWakeLock"
+import { copy } from "@/copy"
 
 interface BoardChromeProps {
   game: LiveGameApi
@@ -177,10 +178,10 @@ function ReadyToRoll({ onReady }: { onReady: () => void }) {
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
       <div className="pointer-events-auto flex flex-col items-center gap-2">
         <p className="text-[11px] font-mono uppercase tracking-wider text-white/60 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
-          Drag seats · set commanders · then roll
+          {copy.live.board.preGameHint}
         </p>
         <Button onClick={onReady} size="lg" className="h-14 gap-2 rounded-full px-8 text-base shadow-2xl">
-          <Dices className="h-5 w-5" /> Ready to roll
+          <Dices className="h-5 w-5" /> {copy.live.board.readyToRoll}
         </Button>
       </div>
     </div>
@@ -212,7 +213,7 @@ function StarterChooser({
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
       <div className="pointer-events-auto flex w-[min(84vw,19rem)] flex-col items-center gap-3 rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur">
         <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
-          {pickedPlayer ? "Check their seat" : "Who goes first?"}
+          {pickedPlayer ? copy.live.board.checkTheirSeat : copy.live.board.whoGoesFirst}
         </span>
         {pickedPlayer ? (
           <div className="flex w-full flex-col gap-2">
@@ -224,14 +225,14 @@ function StarterChooser({
                 <Dices className="h-4 w-4" /> Re-roll
               </Button>
               <Button onClick={() => onPick(pickedPlayer.seatPosition)} className="flex-1">
-                Confirm
+                {copy.live.board.confirm}
               </Button>
             </div>
           </div>
         ) : (
           <Button onClick={onRoll} disabled={rolling} size="lg" className="w-full gap-2">
             <Dices className={cn("h-5 w-5", rolling && "animate-spin")} />
-            {rolling ? "Rolling…" : "High roll (D20)"}
+            {rolling ? copy.live.board.rolling : copy.live.board.highRoll}
           </Button>
         )}
         {!rolling && !pickedPlayer && (
@@ -306,17 +307,17 @@ function TurnControl({
 
   const main = !game.started ? (
     <Button onClick={game.start} className="h-12 gap-1.5 rounded-full px-5 text-base">
-      <Play className="h-4 w-4 fill-current" /> Start
+      <Play className="h-4 w-4 fill-current" /> {copy.live.board.start}
     </Button>
   ) : game.canEnd ? (
     <Button onClick={game.endGame} className="h-12 gap-1.5 rounded-full px-5 text-base">
-      <Flag className="h-4 w-4" /> End game
+      <Flag className="h-4 w-4" /> {copy.live.board.endGame}
     </Button>
   ) : (
     <Button onClick={game.endTurn} className="h-12 gap-2 rounded-full px-5 text-base tabular-nums">
       <Timer className="h-4 w-4 opacity-80" />
       {clock}
-      <span className="opacity-90">End turn</span>
+      <span className="opacity-90">{copy.live.board.endTurn}</span>
       <ChevronRight className="h-4 w-4" />
     </Button>
   )
@@ -334,7 +335,7 @@ function TurnControl({
           <button
             onClick={() => { if (game.canUndo) setShowLog(true) }}
             disabled={!game.canUndo}
-            aria-label="undo"
+            aria-label={copy.live.board.undo}
             className={cn(
               "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
               game.canUndo ? "text-foreground active:scale-95" : "cursor-not-allowed text-muted-foreground/40"
@@ -346,7 +347,7 @@ function TurnControl({
           {game.started && !game.canEnd && (
             <button
               onClick={() => setShowEndConfirm(true)}
-              aria-label="end game early"
+              aria-label={copy.live.board.endGameEarly}
               className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors active:scale-95 hover:text-foreground"
             >
               <Flag className="h-4 w-4" />
@@ -368,11 +369,11 @@ function TurnControl({
       {showEndConfirm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
           <div className="w-[min(84vw,20rem)] rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
-            <p className="font-semibold text-center">End game early?</p>
-            <p className="text-sm text-muted-foreground text-center">This will end the game even though there are still players alive.</p>
+            <p className="font-semibold text-center">{copy.live.board.endGameConfirmTitle}</p>
+            <p className="text-sm text-muted-foreground text-center">{copy.live.board.endGameConfirmBody}</p>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowEndConfirm(false)}>Cancel</Button>
-              <Button className="flex-1" onClick={() => { setShowEndConfirm(false); game.endGame() }}>End game</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setShowEndConfirm(false)}>{copy.live.board.cancel}</Button>
+              <Button className="flex-1" onClick={() => { setShowEndConfirm(false); game.endGame() }}>{copy.live.board.endGame}</Button>
             </div>
           </div>
         </div>

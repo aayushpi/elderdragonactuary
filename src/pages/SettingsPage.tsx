@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle } from "lucide-react"
+import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle, Compass } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { loadProfile, saveProfileDisplayName } from "@/lib/storage"
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
@@ -8,6 +8,7 @@ import { capture } from "@/lib/analytics"
 import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
 import { CARD, SECTION_LABEL } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 import type { Game } from "@/types"
 
 function csvEscape(value: unknown): string {
@@ -67,6 +68,7 @@ interface SettingsPageProps {
   onSetAccent: (accent: AccentName) => void
   userEmail?: string
   onSignOut?: () => void
+  onReplayTour?: () => void
 }
 
 export function SettingsPage({
@@ -79,6 +81,7 @@ export function SettingsPage({
   onSetAccent,
   userEmail,
   onSignOut,
+  onReplayTour,
 }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -131,11 +134,11 @@ export function SettingsPage({
       (m: number, g: Record<string, unknown>) => Math.max(m, (g.players as unknown[]).length),
       0
     )
-    const headers: string[] = ["Date", "Bracket"]
+    const headers: string[] = [copy.csv.date, copy.csv.bracket]
     for (let i = 1; i <= maxPlayers; i++) {
-      headers.push(`Player ${i} Commander`, `Player ${i} Fast Mana`, `Player ${i} KO Turn`)
+      headers.push(copy.csv.playerCommander(i), copy.csv.playerFastMana(i), copy.csv.playerKoTurn(i))
     }
-    headers.push("Winner", "Win Turn", "Notes", "Win Conditions", "Key Wincon Cards")
+    headers.push(copy.csv.winner, copy.csv.winTurn, copy.csv.notes, copy.csv.winConditions, copy.csv.keyWinconCards)
     const rows: string[] = [headers.join(",")]
     exportGames.forEach((g) => {
       const row: string[] = []
@@ -195,9 +198,9 @@ export function SettingsPage({
         const result = await onImport(json)
         if (result.success) {
           capture("games_imported", { games_count: result.count })
-          toast.success(`Imported ${result.count} game${result.count !== 1 ? "s" : ""}.`)
+          toast.success(copy.settings.data.imported(result.count))
         } else {
-          toast.error(`Import failed: ${result.error}`)
+          toast.error(copy.settings.data.importFailed(result.error))
         }
       } finally {
         setImportLoading(false)
@@ -212,23 +215,23 @@ export function SettingsPage({
       setImportLoading(true)
       const response = await fetch("/load-test-games.json")
       if (!response.ok) {
-        toast.error("Could not load test JSON.")
+        toast.error(copy.settings.data.testJsonUnavailable)
         return
       }
       const json = await response.text()
       const trimmed = json.trim()
       if (trimmed.startsWith("<!doctype") || trimmed.startsWith("<html")) {
-        toast.error("Load test JSON file was not found or is not valid JSON.")
+        toast.error(copy.settings.data.testJsonInvalid)
         return
       }
       const result = await onImport(json)
       if (result.success) {
-        toast.success(`Loaded test JSON with ${result.count} game${result.count !== 1 ? "s" : ""}.`)
+        toast.success(copy.settings.data.testJsonLoaded(result.count))
       } else {
-        toast.error(`Load test JSON failed: ${result.error}`)
+        toast.error(copy.settings.data.testJsonFailed(result.error))
       }
     } catch {
-      toast.error("Could not load test JSON.")
+      toast.error(copy.settings.data.testJsonUnavailable)
     } finally {
       setImportLoading(false)
     }
@@ -246,10 +249,10 @@ export function SettingsPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
-      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{copy.settings.heading}</h1>
 
       {/* Profile */}
-      <SettingsCard title="Profile">
+      <SettingsCard title={copy.settings.profile.cardTitle}>
         <div className="flex items-center gap-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-raised font-mono text-sm font-semibold uppercase">
             {initials}
@@ -263,7 +266,7 @@ export function SettingsPage({
             <input
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Display name"
+              placeholder={copy.settings.profile.displayNamePlaceholder}
               className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
@@ -272,55 +275,70 @@ export function SettingsPage({
           <button
             onClick={() => {
               saveProfileDisplayName(playerName)
-              toast.success("Display name saved")
+              toast.success(copy.settings.profile.saved)
             }}
             className="inline-flex items-center justify-center h-9 px-4 text-sm rounded-md font-medium bg-primary text-primary-foreground hover:opacity-90 active:opacity-80 transition-colors"
           >
-            Save
+            {copy.settings.profile.save}
           </button>
           <button onClick={() => setShareOpen(true)} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
-            Share invite
+            {copy.settings.profile.shareInvite}
           </button>
           {onSignOut && (
             <button onClick={onSignOut} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
               <LogOut className="h-3.5 w-3.5" />
-              Sign out
+              {copy.settings.profile.signOut}
             </button>
           )}
         </div>
       </SettingsCard>
 
+      {/* Getting started */}
+      {onReplayTour && (
+        <SettingsCard title={copy.settings.gettingStarted.cardTitle}>
+          <SettingRow
+            label={copy.settings.gettingStarted.replayLabel}
+            sub={copy.settings.gettingStarted.replaySub}
+          >
+            <button onClick={onReplayTour} className={BTN_OUTLINE + " h-9 px-4 text-sm"}>
+              <Compass className="h-3.5 w-3.5" />
+              {copy.settings.gettingStarted.replayButton}
+            </button>
+          </SettingRow>
+        </SettingsCard>
+      )}
+
       {/* Feedback & support (Featurebase) */}
       {isFeaturebaseEnabled() && (
-        <SettingsCard title="Feedback & support">
+        <SettingsCard title={copy.settings.feedback.cardTitle}>
           <div className="flex flex-wrap items-center gap-2">
             <a href={featurebaseUrl("feedback")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "feedback" })}>
               <MessageSquarePlus className="h-3.5 w-3.5" />
-              Send feedback
+              {copy.settings.feedback.sendFeedback}
             </a>
             <a href={featurebaseUrl("changelog")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "changelog" })}>
               <Megaphone className="h-3.5 w-3.5" />
-              What's new
+              {copy.settings.feedback.changelog}
             </a>
             <a href={featurebaseUrl("roadmap")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "roadmap" })}>
               <Map className="h-3.5 w-3.5" />
-              Roadmap
+              {copy.settings.feedback.roadmap}
             </a>
             <a href={featurebaseUrl("help")} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE + " h-9 px-4 text-sm"} onClick={() => capture("feedback_opened", { surface: "settings", widget: "help" })}>
               <HelpCircle className="h-3.5 w-3.5" />
-              Help center
+              {copy.settings.feedback.helpCenter}
             </a>
           </div>
         </SettingsCard>
       )}
 
       {/* Appearance */}
-      <SettingsCard title="Appearance">
+      <SettingsCard title={copy.settings.appearance.cardTitle}>
         <div className="divide-y divide-border [&>*]:py-3.5">
-          <SettingRow label="Mode" sub="System follows your device appearance.">
+          <SettingRow label={copy.settings.appearance.modeLabel} sub={copy.settings.appearance.modeSub}>
             <div className="inline-flex rounded-md border border-input p-0.5 gap-0.5">
-              {(["System", "Light", "Dark"] as const).map((m) => {
-                const mode = m.toLowerCase() as "system" | "light" | "dark"
+              {(["system", "light", "dark"] as const).map((mode) => {
+                const m = copy.settings.appearance.modes[mode]
                 const active = themeMode === mode
                 return (
                   <button
@@ -340,7 +358,7 @@ export function SettingsPage({
               })}
             </div>
           </SettingRow>
-          <SettingRow label="Accent" sub="Used for actions, wins, and highlights.">
+          <SettingRow label={copy.settings.appearance.accentLabel} sub={copy.settings.appearance.accentSub}>
             <div className="flex items-center gap-2">
               {ACCENT_NAMES.map((name) => (
                 <button
@@ -365,29 +383,29 @@ export function SettingsPage({
       </SettingsCard>
 
       {/* Data */}
-      <SettingsCard title="Data">
+      <SettingsCard title={copy.settings.data.cardTitle}>
         <div className="divide-y divide-border [&>*]:py-3.5">
-          <SettingRow label="Export games" sub={`Download all ${games.length} games as JSON or CSV.`}>
+          <SettingRow label={copy.settings.data.exportLabel} sub={copy.settings.data.exportSub(games.length)}>
             <div className="flex gap-2">
               <button
                 onClick={() => download(buildBackupJson(), "application/json", "json")}
                 className={BTN_OUTLINE + " h-9 px-4 text-sm"}
               >
                 <Download className="h-3.5 w-3.5" />
-                JSON
+                {copy.settings.data.exportJson}
               </button>
               <button
                 onClick={() => download(buildCsv(), "text/csv", "csv")}
                 className={BTN_OUTLINE + " h-9 px-4 text-sm"}
               >
                 <FileText className="h-3.5 w-3.5" />
-                CSV
+                {copy.settings.data.exportCsv}
               </button>
             </div>
           </SettingRow>
           <SettingRow
-            label="Restore from backup"
-            sub="Import a previously exported JSON. Replaces all cloud data."
+            label={copy.settings.data.restoreLabel}
+            sub={copy.settings.data.restoreSub}
           >
             <div className="flex gap-2">
               {isDevOrLocalhost && (
@@ -397,7 +415,7 @@ export function SettingsPage({
                   className={BTN_OUTLINE + " h-9 px-4 text-sm"}
                 >
                   {importLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Test JSON
+                  {copy.settings.data.restoreTestJson}
                 </button>
               )}
               <button
@@ -410,18 +428,18 @@ export function SettingsPage({
                 ) : (
                   <Upload className="h-3.5 w-3.5" />
                 )}
-                Restore
+                {copy.settings.data.restoreButton}
               </button>
             </div>
           </SettingRow>
-          <SettingRow label="Delete all data" sub="Permanently removes every logged game.">
+          <SettingRow label={copy.settings.data.deleteLabel} sub={copy.settings.data.deleteSub}>
             {!confirmDelete ? (
               <button
                 onClick={() => setConfirmDelete(true)}
                 className="inline-flex items-center gap-2 h-9 px-4 text-sm rounded-md font-medium border border-rose-600/30 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Delete…
+                {copy.settings.data.deleteButton}
               </button>
             ) : (
               <div className="flex items-center gap-2">
@@ -430,17 +448,17 @@ export function SettingsPage({
                     capture("games_cleared", { games_count: games.length })
                     await onClearAll()
                     setConfirmDelete(false)
-                    toast.success("All data deleted.")
+                    toast.success(copy.settings.data.deleted)
                   }}
                   className="inline-flex items-center h-9 px-4 text-sm rounded-md font-medium bg-rose-600 text-white hover:bg-rose-700 transition-colors"
                 >
-                  Confirm
+                  {copy.settings.data.deleteConfirm}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
                   className={BTN_OUTLINE + " h-9 px-4 text-sm"}
                 >
-                  Cancel
+                  {copy.settings.data.deleteCancel}
                 </button>
               </div>
             )}
@@ -459,12 +477,12 @@ export function SettingsPage({
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-sm">
           <div className="text-center">
-            <h3 className="text-lg font-semibold mb-4">Invite someone!</h3>
+            <h3 className="text-lg font-semibold mb-4">{copy.settings.profile.inviteTitle}</h3>
             {qrSrc ? (
-              <img src={qrSrc} alt="Invite QR code" className="mx-auto mb-4 w-72 h-72" />
+              <img src={qrSrc} alt={copy.settings.profile.inviteQrAlt} className="mx-auto mb-4 w-72 h-72" />
             ) : (
               <div className="h-72 w-72 mx-auto bg-muted/30 flex items-center justify-center">
-                QR unavailable
+                {copy.settings.profile.inviteQrUnavailable}
               </div>
             )}
           </div>

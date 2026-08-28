@@ -10,6 +10,7 @@ import { buildPlayerShortlists, buildWinconShortlist } from "@/lib/shortlist"
 import { useGames } from "@/hooks/useGames"
 import { hasInvalidKoTiming } from "@/lib/validation"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 import type { Game, Player, SeatPosition } from "@/types"
 import { createPodIfMissing, saveProfileDisplayName, loadProfile } from "@/lib/storage"
 
@@ -26,19 +27,7 @@ interface FormErrors {
   koTiming: boolean
 }
 
-const WIN_CONDITION_CATEGORIES = [
-  "Commander Damage",
-  "Lethal Combat Damage",
-  "Combat Trick",
-  "Lethal Non-Combat Damage",
-  "Players Decked Out",
-  "Alternate Wincon",
-  "Infinite Loop",
-  "Infinite Life-Gain",
-  "Infinite Mana",
-  "Asymmetric Board Wipe",
-  "Poison or Infect"
-] as const
+const WIN_CONDITION_CATEGORIES = copy.logGame.winConditions
 
 function getMirroredSeatOrder(totalPlayers: number): number[] {
   if (totalPlayers < 1) return []
@@ -335,8 +324,8 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
     || errors.koTiming
 
   const formErrorMessage = errors.koTiming
-    ? "Winning turn can't be after all opponents are knocked out"
-    : "Please fill in all highlighted fields."
+    ? copy.logGame.errorKoTiming
+    : copy.logGame.errorGeneric
 
   return (
     <div className="space-y-6 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
@@ -348,7 +337,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
       {/* Player rows */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Players
+          {copy.logGame.playersHeading}
         </h2>
         <div className={cn("grid gap-3", isMobile ? "grid-cols-1" : playerGridColumns === 3 ? "grid-cols-3" : "grid-cols-2")}>
           {playerGridEntries.map((entry, gridIndex) => {
@@ -381,7 +370,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
                       : undefined
                 }
                 pickerLabel={player.isMe ? "You" : player.displayName?.trim() || undefined}
-                seatLabel={player.seatPosition ? `Seat ${player.seatPosition}` : `Seat ${playerOrder}`}
+                seatLabel={copy.logGame.seatLabel(player.seatPosition ?? playerOrder)}
                 knownPlayerNames={knownPlayerNames}
                 fieldErrors={{
                   commanderName: errors.players[originalIndex]?.commanderName,
@@ -405,13 +394,13 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
             onClick={() => setShowBracketSelector(true)}
             className="w-full"
           >
-            Add game bracket (Optional)
+            {copy.logGame.addBracket}
           </Button>
         ) : (
           <>
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Select game bracket
+                {copy.logGame.bracketHeading}
               </h2>
               <a
                 href="https://magic.wizards.com/en/formats/commander#brackets"
@@ -419,7 +408,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
                 rel="noopener noreferrer"
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
               >
-                About game brackets
+                {copy.logGame.bracketLink}
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
@@ -445,7 +434,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
       <div className="space-y-3">
         <div>
           <label className="text-xs text-muted-foreground uppercase tracking-wide">
-            Key wincon cards (Optional)
+            {copy.logGame.keyWinconCards}
           </label>
         </div>
         {keyWinconCards.length > 0 && (
@@ -457,7 +446,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
                   type="button"
                   onClick={() => setKeyWinconCards(prev => prev.filter(c => c !== cardName))}
                   className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                  aria-label={`Remove ${cardName}`}
+                  aria-label={copy.logGame.removeCard(cardName)}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -488,7 +477,7 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
       <div className="space-y-3">
         <div>
           <label className="text-xs text-muted-foreground uppercase tracking-wide">
-            How did they win (Optional)
+            {copy.logGame.winConditionsHeading}
           </label>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -520,11 +509,11 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
       <Separator />
       <div className="space-y-1.5">
         <label className="text-xs text-muted-foreground uppercase tracking-wide" htmlFor="notes">
-          Notes (optional)
+          {copy.logGame.notesLabel}
         </label>
         <Textarea
           id="notes"
-          placeholder="Any additional notes…"
+          placeholder={copy.logGame.notesPlaceholder}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
@@ -541,10 +530,10 @@ export function EditGamePage({ game, onSave, onCancel, onDelete }: EditGamePageP
       {/* Actions */}
       <div className="flex gap-2 pt-2">
         <Button variant="outline" className="flex-1" onClick={onCancel}>
-          Cancel
+          {copy.logGame.cancel}
         </Button>
         <Button className="flex-1" onClick={handleSubmit}>
-          Save Changes
+          {copy.logGame.saveEdit}
         </Button>
       </div>
       {onDelete && (

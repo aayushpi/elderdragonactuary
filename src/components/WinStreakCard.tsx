@@ -1,11 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card"
+import { copy } from "@/copy"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Game } from "@/types"
 
 function commanderDisplayName(game: Game, playerId: string | undefined): string {
-  if (!playerId) return "Unknown Commander"
+  if (!playerId) return copy.player.unknownCommanderTitle
   const player = game.players.find((p) => p.id === playerId)
-  if (!player) return "Unknown Commander"
+  if (!player) return copy.player.unknownCommanderTitle
   return player.partnerName
     ? `${player.commanderName} // ${player.partnerName}`
     : player.commanderName

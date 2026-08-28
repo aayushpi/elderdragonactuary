@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react"
+import { copy } from "@/copy"
 import { Search, Check, Plus, Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -28,7 +29,7 @@ function historySub(item: WinconShortlistItem): string {
   if (item.games >= 2) {
     return `${item.games} games${relative ? ` · ${relative}` : ""}`
   }
-  return relative ? `Logged ${relative}` : "Logged once"
+  return relative ? copy.pickers.loggedRelative(relative) : copy.pickers.loggedOnce
 }
 
 export function WinconCardPicker({
@@ -205,7 +206,7 @@ export function WinconCardPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Search any card…"
+                placeholder={copy.pickers.cardSearchPlaceholder}
                 className="h-12 w-full rounded-lg border border-input bg-card pl-10 pr-10 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               {query && (
@@ -215,7 +216,7 @@ export function WinconCardPicker({
                     inputRef.current?.focus()
                   }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 grid place-items-center rounded text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
+                  aria-label={copy.pickers.clearSearch}
                 >
                   <span className="text-base">×</span>
                 </button>

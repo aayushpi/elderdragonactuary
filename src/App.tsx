@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
@@ -33,6 +33,10 @@ import { gameShapeProps } from "@/lib/analytics/gameProps"
 import type { LogEntryPoint } from "@/lib/analytics/events"
 import { usePageviews } from "@/hooks/usePageviews"
 import { useAuth } from "@/hooks/useAuth"
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour"
+import { shouldShowOnboarding, saveOnboarding, type OnboardingStatus } from "@/lib/onboarding"
+import { buildDemoGames } from "@/components/home/demoData"
+import { copy } from "@/copy"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -54,11 +58,20 @@ function App() {
   const [isLogGameDirty, setIsLogGameDirty] = useState(false)
   const [showDiscardLogDialog, setShowDiscardLogDialog] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>("system")
+  const [tourOrigin, setTourOrigin] = useState<string | null>(null)
   const [accent, setAccentState] = useState<AccentName>(() => loadAccent())
   const [systemTheme, setSystemTheme] = useState<Theme>("light")
   const navigate = useNavigate()
   const location = useLocation()
   const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
+
+  // A brand-new account has nothing to look at, which makes the walkthrough a
+  // tour of empty states. While it runs, an empty account borrows the same
+  // sample pod the marketing page uses, so every step describes a screen with
+  // something on it. Nothing is written anywhere — it reverts when the tour ends.
+  const sampleGames = useMemo(() => buildDemoGames(new Date()), [])
+  const showingSample = tourOrigin !== null && games.length === 0
+  const displayGames = showingSample ? sampleGames : games
 
   usePageviews()
 
@@ -129,6 +142,39 @@ function App() {
     closeGameFlow(true)
   }
 
+  // The walkthrough opens and closes the log drawer itself. It deliberately
+  // bypasses openLogGameFlow/closeGameFlow so a demonstration never shows up
+  // in the logging funnel as a started-then-abandoned game.
+  const tourOpenedLog = useRef(false)
+
+  function openLogGameForTour() {
+    setGameFlow((prev) => {
+      if (prev) return prev
+      tourOpenedLog.current = true
+      return { mode: "log", minimized: false }
+    })
+  }
+
+  function closeLogGameForTour() {
+    if (!tourOpenedLog.current) return
+    tourOpenedLog.current = false
+    setIsLogGameDirty(false)
+    setGameFlow(null)
+  }
+
+  function startTour(source: "auto" | "settings") {
+    capture("onboarding_started", { source })
+    setTourOrigin(location.pathname)
+  }
+
+  function finishTour(status: OnboardingStatus) {
+    saveOnboarding(status)
+    closeLogGameForTour()
+    const origin = tourOrigin ?? "/"
+    setTourOrigin(null)
+    if (location.pathname !== origin) navigate(origin)
+  }
+
   function setAccent(next: AccentName) {
     setAccentState(next)
     saveAccent(next)
@@ -140,7 +186,7 @@ function App() {
         await addGame(game)
         capture("game_logged", gameShapeProps(game))
         closeGameFlow(true, true)
-        toast.success("Game logged!")
+        toast.success(copy.toasts.gameLogged)
       } catch {
         // Errors are surfaced in useGames
       }
@@ -163,7 +209,7 @@ function App() {
         setRecentlyEditedGameId(game.id)
         closeGameFlow(true, true)
         navigate("/history")
-        toast.success("Game updated!")
+        toast.success(copy.toasts.gameUpdated)
       } catch {
         // Errors are surfaced in useGames
       }
@@ -173,6 +219,18 @@ function App() {
   function handleCancelGameFlow() {
     closeGameFlow()
   }
+
+  // Every player gets the walkthrough once — new signups and existing
+  // accounts alike — as soon as their games have loaded.
+  const autoTourChecked = useRef(false)
+  useEffect(() => {
+    if (!user || gamesLoading || autoTourChecked.current) return
+    autoTourChecked.current = true
+    if (!shouldShowOnboarding()) return
+    startTour("auto")
+    // startTour reads location.pathname once, as the tour opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, gamesLoading])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -192,7 +250,7 @@ function App() {
     if (editingGame) return
 
     setGameFlow(null)
-    toast.error("Could not find that game to edit.")
+    toast.error(copy.toasts.gameNotFound)
   }, [gameFlow, editingGame])
 
   useEffect(() => {
@@ -258,7 +316,7 @@ function App() {
         {gamesLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading games…</span>
+            <span className="ml-2 text-sm text-muted-foreground">{copy.toasts.loadingGames}</span>
           </div>
         ) : (
           <Routes>
@@ -266,7 +324,7 @@ function App() {
               path="/"
               element={
                 <DashboardPage
-                  games={games}
+                  games={displayGames}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={(name) =>
                     openLogGameFlow(name, name ? "commander_card" : "dashboard")
@@ -279,7 +337,8 @@ function App() {
               path="/stats"
               element={
                 <StatsPage
-                  games={games}
+                  games={displayGames}
+                  sampleData={showingSample}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={(name) => openLogGameFlow(name, "stats")}
                 />
@@ -289,7 +348,7 @@ function App() {
               path="/history"
               element={
                 <HistoryPage
-                  games={games}
+                  games={displayGames}
                   onDeleteGame={(id) => {
                     capture("game_deleted", { surface: "history" })
                     void deleteGame(id)
@@ -312,6 +371,7 @@ function App() {
                   accent={accent}
                   onSetAccent={setAccent}
                   userEmail={user.email}
+                  onReplayTour={() => startTour("settings")}
                   onSignOut={() => {
                     void (async () => {
                       await signOut()
@@ -325,7 +385,7 @@ function App() {
               path="/live"
               element={
                 <LiveGamePage
-                  games={games}
+                  games={displayGames}
                   onSaveGame={handleSaveLiveGame}
                   onExit={() => {
                     capture("live_game_abandoned")
@@ -364,21 +424,28 @@ function App() {
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard in-progress game log?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes in Log Game. Closing now will lose your progress.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{copy.gameFlow.discardTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.gameFlow.discardBody}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscardLogGame}>Discard</AlertDialogAction>
+            <AlertDialogCancel>{copy.gameFlow.discardKeepEditing}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscardLogGame}>{copy.gameFlow.discardConfirm}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      <OnboardingTour
+        open={tourOrigin !== null}
+        sampleData={showingSample}
+        onNavigate={(path) => navigate(path)}
+        onOpenLogGame={openLogGameForTour}
+        onCloseLogGame={closeLogGameForTour}
+        onFinish={finishTour}
+      />
+
       {gameFlow && (
         <GameFlowDrawer
-          title={gameFlow.mode === "log" ? "Log Game" : "Edit Game"}
+          title={gameFlow.mode === "log" ? copy.gameFlow.logTitle : copy.gameFlow.editTitle}
           minimized={gameFlow.minimized}
           onMinimize={minimizeGameFlow}
           onRestore={restoreGameFlow}
@@ -388,6 +455,7 @@ function App() {
           {gameFlow.mode === "log" ? (
             <LogGamePage
               prefillCommander={gameFlow.prefillCommander}
+              demoGames={showingSample ? sampleGames : undefined}
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}

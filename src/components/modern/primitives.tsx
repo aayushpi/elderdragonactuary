@@ -1,4 +1,5 @@
 import type { MtgColor } from "@/types"
+import { copy } from "@/copy"
 import { LogoMark } from "@/components/modern/LogoMark"
 
 /* ====== Shared class strings (Modern UI design language) ====== */
@@ -50,7 +51,7 @@ export function ResultBadge({ won }: { won: boolean }) {
         (won ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")
       }
     >
-      {won ? "Won" : "Lost"}
+      {won ? copy.gameDetail.won : copy.gameDetail.lost}
     </span>
   )
 }

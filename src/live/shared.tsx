@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LETHAL_COMMANDER, LETHAL_POISON, SEAT_COLORS, type LivePlayer, type PlayerRuntime } from "./engine"
 import type { DragInfo } from "./drag"
+import { copy } from "@/copy"
 
 /* The live attack vector drawn from the source handle to the finger. Lives here
  * (with the other components) so drag.tsx stays a hooks-only module. */
@@ -40,6 +41,9 @@ export function DragVector<P>({ drag, label }: { drag: DragInfo<P> | null; label
   )
 }
 
+
+/** how long a tap burst's running total stays up; each tap restarts it */
+const TALLY_MS = 1600
 
 function vibrate(ms: number) {
   try { navigator.vibrate?.(ms) } catch { /* unsupported */ }
@@ -157,6 +161,20 @@ export function SeatFrame({
   const prevLifeRef = useRef(rt.life)
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
   const [artFailed, setArtFailed] = useState(false)
+  // Running total of the taps in this burst, so five taps of − read as "−5"
+  // rather than five separate "−1"s. `seq` restarts the float animation.
+  const [tally, setTally] = useState<{ amount: number; seq: number } | null>(null)
+
+  function stepLife(delta: number) {
+    setTally((prev) => ({ amount: (prev?.amount ?? 0) - delta, seq: (prev?.seq ?? 0) + 1 }))
+    onSelfChange(delta)
+  }
+
+  useEffect(() => {
+    if (!tally) return
+    const t = window.setTimeout(() => setTally(null), TALLY_MS)
+    return () => window.clearTimeout(t)
+  }, [tally])
 
   useEffect(() => {
     const prev = prevLifeRef.current
@@ -226,7 +244,7 @@ export function SeatFrame({
               onClick={onSetCommander}
               className="flex items-center gap-1.5 rounded-full border-2 border-dashed border-white/70 bg-black/30 px-4 py-2 text-[clamp(0.75rem,2.4vmin,1rem)] font-extrabold uppercase tracking-wider text-white active:scale-95"
             >
-              <Plus className="h-4 w-4" /> Set commander
+              <Plus className="h-4 w-4" /> {copy.live.board.setCommander}
             </button>
           )}
           {swapSlot}
@@ -244,7 +262,7 @@ export function SeatFrame({
                 onClick={onSetCommander}
                 className="flex h-9 items-center gap-1.5 rounded-full border-2 border-dashed border-white/60 bg-black/30 px-3.5 text-[11px] font-extrabold uppercase tracking-wider text-white active:scale-95"
               >
-                <Plus className="h-4 w-4" /> Commander
+                <Plus className="h-4 w-4" /> {copy.live.board.commander}
               </button>
             )}
           </div>
@@ -263,12 +281,24 @@ export function SeatFrame({
               </span>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="relative flex items-center gap-3">
+              {tally && tally.amount !== 0 && (
+                <span
+                  key={tally.seq}
+                  data-testid="life-tally"
+                  className={cn(
+                    "pointer-events-none absolute -top-1 left-1/2 z-20 -translate-x-1/2 -translate-y-full rounded-full px-3 py-1 text-[clamp(1rem,3.6vmin,1.6rem)] font-black tabular-nums shadow-lg animate-life-tally",
+                    tally.amount < 0 ? "bg-red-600/90 text-white" : "bg-emerald-600/90 text-white",
+                  )}
+                >
+                  {tally.amount > 0 ? `+${tally.amount}` : tally.amount}
+                </span>
+              )}
               <HoldStepButton
-                onStep={onSelfChange}
+                onStep={stepLife}
                 shortDelta={1}
                 longDelta={10}
-                ariaLabel="lose life (hold for 10)"
+                ariaLabel={copy.live.board.loseLifeLabel}
                 className="flex h-16 w-16 touch-none items-center justify-center rounded-full bg-black/25 text-white active:scale-95"
               >
                 <Minus className="h-7 w-7" />
@@ -286,10 +316,10 @@ export function SeatFrame({
                 {rt.life}
               </span>
               <HoldStepButton
-                onStep={onSelfChange}
+                onStep={stepLife}
                 shortDelta={-1}
                 longDelta={-10}
-                ariaLabel="gain life (hold for 10)"
+                ariaLabel={copy.live.board.gainLifeLabel}
                 className="flex h-16 w-16 touch-none items-center justify-center rounded-full bg-black/25 text-white active:scale-95"
               >
                 <Plus className="h-7 w-7" />
@@ -299,7 +329,7 @@ export function SeatFrame({
             {hasDamageInfo && (
               <button
                 onClick={() => onShowDamage?.()}
-                aria-label="View commander and poison damage"
+                aria-label={copy.live.board.viewDamageLabel}
                 className="flex items-center gap-1.5 rounded-full bg-black/35 px-3 py-1 text-[11px] font-bold text-white/90 active:scale-95"
               >
                 {totalCommanderDmg > 0 && (
@@ -348,7 +378,7 @@ export function SeatFrame({
             {rollHighlight === "picked" ? (
               <>
                 <Crown className="h-16 w-16 drop-shadow-lg" />
-                <span className="text-2xl font-black uppercase tracking-wider">Starts here</span>
+                <span className="text-2xl font-black uppercase tracking-wider">{copy.live.board.startsHere}</span>
               </>
             ) : (
               <Dices className="h-9 w-9 animate-spin" />
@@ -380,7 +410,7 @@ export function KnockoutControl({
         onClick={onRevive}
         className="gap-1.5"
       >
-        <Heart className="h-4 w-4" /> Revive
+        <Heart className="h-4 w-4" /> {copy.live.board.revive}
       </Button>
     )
   }
@@ -389,7 +419,7 @@ export function KnockoutControl({
       onClick={onKnockout}
       className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white/80 hover:bg-destructive hover:text-white transition-colors active:scale-95"
     >
-      <Skull className="h-3.5 w-3.5" /> KO
+      <Skull className="h-3.5 w-3.5" /> {copy.live.board.knockout}
     </button>
   )
 }
@@ -413,20 +443,20 @@ export function EndGameBanner({
       <div className="flex items-center gap-2">
         <Trophy className="h-5 w-5 text-primary" />
         <span className="font-semibold">
-          {winner ? `${winner.displayName} wins!` : "Game over"}
+          {winner ? copy.live.board.winnerBanner(winner.displayName) : copy.live.board.gameOver}
         </span>
       </div>
       <div className="flex gap-2">
         <Button onClick={onSave} disabled={saving} className="flex-1 gap-1.5">
-          <Save className="h-4 w-4" /> Save game
+          <Save className="h-4 w-4" /> {copy.live.board.saveGame}
         </Button>
         <Button onClick={onRematch} variant="outline" className="flex-1 gap-1.5">
-          <RotateCcw className="h-4 w-4" /> Rematch
+          <RotateCcw className="h-4 w-4" /> {copy.live.board.rematch}
         </Button>
       </div>
       {onDiscard && (
         <Button onClick={onDiscard} variant="ghost" className="w-full gap-1.5 text-muted-foreground hover:text-destructive">
-          <Trash2 className="h-3.5 w-3.5" /> Discard game
+          <Trash2 className="h-3.5 w-3.5" /> {copy.live.board.discardGame}
         </Button>
       )}
     </div>
@@ -455,7 +485,7 @@ export function DamageModal({
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="min-w-0">
             <p className="truncate font-semibold text-sm">{player.displayName}</p>
-            <p className="text-xs text-muted-foreground">Damage taken</p>
+            <p className="text-xs text-muted-foreground">{copy.live.damageModal.subtitle}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
@@ -463,12 +493,12 @@ export function DamageModal({
         </div>
         <div className="p-4 space-y-3">
           {!hasAny && (
-            <p className="py-4 text-center text-sm text-muted-foreground">No commander or poison damage yet</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">{copy.live.damageModal.empty}</p>
           )}
 
           {commanderSources.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commander damage</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{copy.live.damageModal.commanderDamage}</p>
               {commanderSources.map((s) => (
                 <div key={s.name} className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
                   <span className="truncate font-medium">⚔ {s.name}</span>
@@ -482,9 +512,9 @@ export function DamageModal({
 
           {poison > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Poison</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{copy.live.damageModal.poison}</p>
               <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
-                <span className="font-medium">☠ Poison counters</span>
+                <span className="font-medium">{copy.live.damageModal.poisonCounters}</span>
                 <span className={cn("tabular-nums font-bold", poison >= LETHAL_POISON ? "text-green-600 dark:text-green-400" : "text-foreground")}>
                   {poison} / {LETHAL_POISON}
                 </span>

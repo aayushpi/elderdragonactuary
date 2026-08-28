@@ -78,6 +78,20 @@ VITE_FEATUREBASE_ORG=     # the "<org>" in <org>.featurebase.app
 
 Copy `.env.example` to `.env` and fill in values for local development. Never commit `.env`.
 
+## Copy
+
+Every user-facing string lives in `src/copy.ts`, grouped by surface. Components
+import `copy` and never hold literals of their own — edit the words there and
+they change everywhere. Strings that need a value are functions
+(`copy.settings.data.exportSub(22)`), so the whole sentence stays in one place
+instead of being assembled in JSX.
+
+Adding UI? Put its words in `copy.ts` first. `src/lib/__tests__/copy.test.ts`
+guards against empty strings and walkthrough steps drifting out of sync.
+
+Not covered: `src/components/ui/` (Radix primitives), `AppMockups.tsx` (the
+marketing page's screen replicas), and the unused history prototypes.
+
 ## Coding conventions
 
 - **No comments** unless the WHY is non-obvious. Well-named identifiers are enough.
@@ -114,6 +128,29 @@ card, both gated on `isFeaturebaseEnabled()`.
   Pod composition is real people who did not sign up for this.
 - **Don't call `capture()` inside a `setState` updater**; React may run an
   updater twice and double-count the event.
+
+## Onboarding walkthrough
+
+`src/components/onboarding/` holds the guided tour: `steps.ts` is the ordered
+script, `OnboardingTour.tsx` the overlay. A step can move the app to the surface
+it describes (`route`, `drawer`) and spotlight a real element by `data-tour`
+attribute; a step whose target is absent falls back to a centred card, so an
+account with no games still gets the whole tour.
+
+A brand-new account has nothing to look at, so while the tour runs on an empty
+account the app renders the same sample pod the marketing page uses
+(`buildDemoGames` in `src/components/home/demoData.ts`), the log form is
+pre-filled from it, and both the tour card and the stats page carry a "Sample
+data" badge. Nothing is written anywhere — it reverts when the tour ends.
+
+State lives in `src/lib/onboarding.ts` (`commando_onboarding` in localStorage).
+It runs once for every player — new and existing — and can be replayed from
+Settings → Getting started. Bump `ONBOARDING_VERSION` to re-run a materially
+changed tour for everyone.
+
+When adding a spotlight, put `data-tour` on an element that is always mounted on
+that surface; the tour drives the drawer itself and must never leave a user's
+in-progress log flow behind.
 
 ## Admin dashboard
 

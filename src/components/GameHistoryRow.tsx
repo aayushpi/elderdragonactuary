@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react"
+import { copy } from "@/copy"
 import { Badge } from "@/components/ui/badge"
 import { loadPods } from "@/lib/storage"
 import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
@@ -135,7 +136,7 @@ export function GameHistoryRow({ game }: GameHistoryRowProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Badge variant={iWon ? "default" : "secondary"} className="text-xs shrink-0">
-            {iWon ? "Win" : "Loss"}
+            {iWon ? copy.gameDetail.win : copy.gameDetail.loss}
           </Badge>
           {me && (
             <>
