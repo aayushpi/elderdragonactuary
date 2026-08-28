@@ -78,6 +78,20 @@ VITE_FEATUREBASE_ORG=     # the "<org>" in <org>.featurebase.app
 
 Copy `.env.example` to `.env` and fill in values for local development. Never commit `.env`.
 
+## Copy
+
+Every user-facing string lives in `src/copy.ts`, grouped by surface. Components
+import `copy` and never hold literals of their own — edit the words there and
+they change everywhere. Strings that need a value are functions
+(`copy.settings.data.exportSub(22)`), so the whole sentence stays in one place
+instead of being assembled in JSX.
+
+Adding UI? Put its words in `copy.ts` first. `src/lib/__tests__/copy.test.ts`
+guards against empty strings and walkthrough steps drifting out of sync.
+
+Not covered: `src/components/ui/` (Radix primitives), `AppMockups.tsx` (the
+marketing page's screen replicas), and the unused history prototypes.
+
 ## Coding conventions
 
 - **No comments** unless the WHY is non-obvious. Well-named identifiers are enough.

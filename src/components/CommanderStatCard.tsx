@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { copy } from "@/copy"
 import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -373,13 +374,13 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
 
       {/* Floating stat cards grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <MiniStatCard label="Win Rate" value={overall.val} sub={overall.sub} />
+        <MiniStatCard label={copy.commanderStats.winRate} value={overall.val} sub={overall.sub} />
         <MiniStatCard
-          label="Avg Win Turn"
+          label={copy.commanderStats.avgWinTurn}
           value={avgTurn}
           sub={stat.wins > 0 ? `${stat.wins} win${stat.wins !== 1 ? "s" : ""}` : "no wins"}
         />
-        <MiniStatCard label="With Fast Mana" value={withFm.val} sub={withFm.sub} />
+        <MiniStatCard label={copy.commanderStats.withFastMana} value={withFm.val} sub={withFm.sub} />
         <MiniStatCard label="vs Fast Mana" value={vsFm.val} sub={vsFm.sub} />
         <RecentResultsCard results={stat.recentResults} />
         <KeyCardsStatCard cards={stat.keyCards} />

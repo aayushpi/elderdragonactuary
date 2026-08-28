@@ -3,6 +3,7 @@ import { MessageSquarePlus, Megaphone, Map, HelpCircle, LogOut, ShieldCheck } fr
 import { isFeaturebaseEnabled, featurebaseUrl } from "@/lib/featurebase"
 import { capture } from "@/lib/analytics"
 import { useIsAdmin } from "@/hooks/useIsAdmin"
+import { copy } from "@/copy"
 
 const FOOTER_LINK =
   "flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -23,32 +24,32 @@ export function Footer({ onSignOut }: FooterProps) {
               <>
                 <a href={featurebaseUrl("feedback")} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK} onClick={() => capture("feedback_opened", { surface: "footer", widget: "feedback" })}>
                   <MessageSquarePlus className="h-3.5 w-3.5" />
-                  Feedback
+                  {copy.footer.feedback}
                 </a>
                 <a href={featurebaseUrl("changelog")} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK} onClick={() => capture("feedback_opened", { surface: "footer", widget: "changelog" })}>
                   <Megaphone className="h-3.5 w-3.5" />
-                  What's new
+                  {copy.footer.changelog}
                 </a>
                 <a href={featurebaseUrl("roadmap")} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK} onClick={() => capture("feedback_opened", { surface: "footer", widget: "roadmap" })}>
                   <Map className="h-3.5 w-3.5" />
-                  Roadmap
+                  {copy.footer.roadmap}
                 </a>
                 <a href={featurebaseUrl("help")} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK} onClick={() => capture("feedback_opened", { surface: "footer", widget: "help" })}>
                   <HelpCircle className="h-3.5 w-3.5" />
-                  Help
+                  {copy.footer.help}
                 </a>
               </>
             )}
             {isAdmin && (
               <Link to="/admin" className={FOOTER_LINK}>
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Admin
+                {copy.footer.admin}
               </Link>
             )}
             {onSignOut && (
               <button type="button" onClick={onSignOut} className={FOOTER_LINK}>
                 <LogOut className="h-3.5 w-3.5" />
-                Sign out
+                {copy.footer.signOut}
               </button>
             )}
           </div>
@@ -59,7 +60,7 @@ export function Footer({ onSignOut }: FooterProps) {
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            Made by Aayush
+            {copy.footer.madeBy}
           </a>
 
         </div>

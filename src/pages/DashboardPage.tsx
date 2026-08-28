@@ -5,6 +5,7 @@ import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import { CARD, SECTION_LABEL, Pips } from "@/components/modern/primitives"
 import { GameRow } from "@/components/modern/GameRow"
 import { CommanderSearch } from "@/components/CommanderSearch"
+import { copy } from "@/copy"
 import type { Game, MtgColor } from "@/types"
 
 interface DashboardPageProps {
@@ -110,7 +111,7 @@ function FavoriteCard({
           className="mt-3 inline-flex items-center justify-center gap-2 h-9 w-full text-sm rounded-md font-medium border border-input bg-transparent text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Plus className="h-4 w-4" />
-          Track game
+          {copy.dashboard.trackGame}
         </button>
       </div>
     </div>
@@ -159,17 +160,17 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
         <CommanderSearch
           value=""
           onChange={(name) => name && onOpenLogGame(name)}
-          placeholder="Search a commander to log a game…"
+          placeholder={copy.dashboard.searchPlaceholder}
         />
         <div className={CARD + " p-12 text-center"}>
-          <p className="text-sm font-medium">No games logged yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Track a game to see your stats here.</p>
+          <p className="text-sm font-medium">{copy.dashboard.empty.title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{copy.dashboard.empty.body}</p>
           <button
             onClick={() => onOpenLogGame()}
             className="mt-5 inline-flex items-center justify-center gap-2 h-11 px-6 text-[15px] rounded-md font-medium bg-primary text-primary-foreground hover:opacity-90 active:opacity-80 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            Track a game
+            {copy.dashboard.empty.cta}
           </button>
         </div>
       </div>
@@ -182,30 +183,30 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
       <CommanderSearch
         value=""
         onChange={(name) => name && onOpenLogGame(name)}
-        placeholder="Search a commander to log a game…"
+        placeholder={copy.dashboard.searchPlaceholder}
       />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Games" value={String(stats.gamesPlayed)} sub="all-time" />
+        <StatCard label={copy.dashboard.games} value={String(stats.gamesPlayed)} sub={copy.dashboard.gamesSub} />
         <StatCard
-          label="Win rate"
+          label={copy.dashboard.winRate}
           value={stats.overall.games ? `${Math.round(stats.overall.rate * 100)}%` : "—"}
-          sub={`${stats.overall.wins} of ${stats.overall.games} games`}
+          sub={copy.dashboard.winRateSub(stats.overall.wins, stats.overall.games)}
           highlight
         />
         <StatCard
-          label="Best seat"
+          label={copy.dashboard.bestSeat}
           value={bestSeat ? String(bestSeat.seat) : "—"}
-          sub={bestSeat ? `${Math.round(bestSeat.rate * 100)}% ${SEAT_ORDINAL[bestSeat.seat]} to play` : "no seat data"}
+          sub={bestSeat ? copy.dashboard.bestSeatSub(Math.round(bestSeat.rate * 100), SEAT_ORDINAL[bestSeat.seat]) : copy.dashboard.noSeatData}
         />
         <StatCard
-          label="Top commander"
+          label={copy.dashboard.topCommander}
           value={topCommander ? topCommander.name.split(",")[0] : "—"}
           sub={
             topCommander
-              ? `${Math.round(topCommander.rate * 100)}% over ${topCommander.games} games`
-              : "no games"
+              ? copy.dashboard.topCommanderSub(Math.round(topCommander.rate * 100), topCommander.games)
+              : copy.stats.noGames
           }
         />
       </div>
@@ -213,7 +214,7 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
       {/* Favorites */}
       {topCommanders.length > 0 && (
         <section>
-          <h2 className={SECTION_LABEL}>Favorite commanders</h2>
+          <h2 className={SECTION_LABEL}>{copy.dashboard.favoriteCommanders}</h2>
           <div className="mt-3 flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
             {topCommanders.map((c) => (
               <FavoriteCard
@@ -232,16 +233,16 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
       {/* Recent games */}
       <section>
         <div className="flex items-center justify-between">
-          <h2 className={SECTION_LABEL}>Recent games</h2>
+          <h2 className={SECTION_LABEL}>{copy.dashboard.recentGames}</h2>
           <button
             onClick={() => onNavigate("/history")}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
-            Game history <ArrowRight className="h-3.5 w-3.5" />
+            {copy.dashboard.gameHistory} <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
         {recentGames.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">No games yet.</p>
+          <p className="mt-3 text-sm text-muted-foreground">{copy.dashboard.noGamesYet}</p>
         ) : (
           <div className={CARD + " mt-3 divide-y divide-border overflow-hidden"}>
             {recentGames.map((g) => (

@@ -36,6 +36,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour"
 import { shouldShowOnboarding, saveOnboarding, type OnboardingStatus } from "@/lib/onboarding"
 import { buildDemoGames } from "@/components/home/demoData"
+import { copy } from "@/copy"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -185,7 +186,7 @@ function App() {
         await addGame(game)
         capture("game_logged", gameShapeProps(game))
         closeGameFlow(true, true)
-        toast.success("Game logged!")
+        toast.success(copy.toasts.gameLogged)
       } catch {
         // Errors are surfaced in useGames
       }
@@ -208,7 +209,7 @@ function App() {
         setRecentlyEditedGameId(game.id)
         closeGameFlow(true, true)
         navigate("/history")
-        toast.success("Game updated!")
+        toast.success(copy.toasts.gameUpdated)
       } catch {
         // Errors are surfaced in useGames
       }
@@ -249,7 +250,7 @@ function App() {
     if (editingGame) return
 
     setGameFlow(null)
-    toast.error("Could not find that game to edit.")
+    toast.error(copy.toasts.gameNotFound)
   }, [gameFlow, editingGame])
 
   useEffect(() => {
@@ -315,7 +316,7 @@ function App() {
         {gamesLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading games…</span>
+            <span className="ml-2 text-sm text-muted-foreground">{copy.toasts.loadingGames}</span>
           </div>
         ) : (
           <Routes>
@@ -423,14 +424,12 @@ function App() {
       <AlertDialog open={showDiscardLogDialog} onOpenChange={setShowDiscardLogDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard in-progress game log?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes in Log Game. Closing now will lose your progress.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{copy.gameFlow.discardTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.gameFlow.discardBody}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscardLogGame}>Discard</AlertDialogAction>
+            <AlertDialogCancel>{copy.gameFlow.discardKeepEditing}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscardLogGame}>{copy.gameFlow.discardConfirm}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -446,7 +445,7 @@ function App() {
 
       {gameFlow && (
         <GameFlowDrawer
-          title={gameFlow.mode === "log" ? "Log Game" : "Edit Game"}
+          title={gameFlow.mode === "log" ? copy.gameFlow.logTitle : copy.gameFlow.editTitle}
           minimized={gameFlow.minimized}
           onMinimize={minimizeGameFlow}
           onRestore={restoreGameFlow}

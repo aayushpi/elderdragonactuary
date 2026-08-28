@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { copy } from "@/copy"
 import { Loader2, RefreshCw, Search, ArrowUpDown, ArrowDown, ArrowUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatCard } from "@/components/StatCard"
@@ -69,14 +70,14 @@ function sortValue(account: AdminAccount, key: SortKey): string | number {
 }
 
 const COLUMNS: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
-  { key: "email", label: "Account" },
-  { key: "gamesLogged", label: "Games", numeric: true },
-  { key: "lastGameAt", label: "Last game", numeric: true },
+  { key: "email", label: copy.admin.columns.account },
+  { key: "gamesLogged", label: copy.admin.columns.games, numeric: true },
+  { key: "lastGameAt", label: copy.admin.columns.lastGame, numeric: true },
   { key: "gamesLast7d", label: "7d", numeric: true },
   { key: "gamesLast30d", label: "30d", numeric: true },
-  { key: "activeDays", label: "Active days", numeric: true },
-  { key: "winRate", label: "Win rate", numeric: true },
-  { key: "signedUpAt", label: "Joined", numeric: true },
+  { key: "activeDays", label: copy.admin.columns.activeDays, numeric: true },
+  { key: "winRate", label: copy.admin.columns.winRate, numeric: true },
+  { key: "signedUpAt", label: copy.admin.columns.joined, numeric: true },
 ]
 
 export function AdminPage() {
@@ -128,7 +129,7 @@ export function AdminPage() {
       <Card>
         <CardContent className="py-10 text-center">
           <p className="text-sm text-muted-foreground">
-            This page is only available to administrators.
+            {copy.admin.notAdmin}
           </p>
         </CardContent>
       </Card>
@@ -150,7 +151,7 @@ export function AdminPage() {
           className="inline-flex items-center gap-2 h-9 px-3 text-sm rounded-md border border-input hover:bg-accent transition-colors"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          Refresh
+          {copy.admin.refresh}
         </button>
       </div>
 
@@ -165,12 +166,12 @@ export function AdminPage() {
       {totals && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
-            label="Accounts"
+            label={copy.admin.accounts}
             value={totals.totalAccounts}
             description={`${totals.newAccounts30d} new in 30d`}
           />
           <StatCard
-            label="Activated"
+            label={copy.admin.activated}
             value={totals.accountsWithGames}
             description={
               totals.totalAccounts > 0
@@ -179,12 +180,12 @@ export function AdminPage() {
             }
           />
           <StatCard
-            label="Active (30d)"
+            label={copy.admin.active30d}
             value={totals.active30d}
             description={`${totals.active7d} in the last 7d`}
           />
           <StatCard
-            label="Games"
+            label={copy.admin.columns.games}
             value={totals.totalGames}
             description={`${totals.games30d} in 30d · median ${decimal(totals.medianGamesPerAccount)}/account`}
           />
@@ -197,7 +198,7 @@ export function AdminPage() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by email…"
+          placeholder={copy.admin.filterPlaceholder}
           className="w-full h-10 pl-9 pr-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
@@ -206,7 +207,7 @@ export function AdminPage() {
           so phones get an equivalent here rather than no sorting at all. */}
       <div className="flex items-center gap-2 md:hidden">
         <label htmlFor="admin-sort" className="sr-only">
-          Sort accounts by
+          {copy.admin.sortAccountsBy}
         </label>
         <select
           id="admin-sort"
@@ -224,7 +225,7 @@ export function AdminPage() {
           type="button"
           onClick={() => setDescending((d) => !d)}
           className="inline-flex items-center gap-1 h-9 px-3 text-sm rounded-md border border-input hover:bg-accent transition-colors"
-          aria-label={descending ? "Sort ascending" : "Sort descending"}
+          aria-label={descending ? copy.admin.sortAscending : copy.admin.sortDescending}
         >
           {descending ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
           {descending ? "Desc" : "Asc"}
@@ -244,7 +245,7 @@ export function AdminPage() {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span>Last game</span>
+                <span>{copy.admin.columns.lastGame}</span>
                 <span className={`text-right tabular-nums ${activityTone(a)}`}>
                   {relativeDays(a.lastGameAt)}
                 </span>
@@ -252,11 +253,11 @@ export function AdminPage() {
                 <span className="text-right tabular-nums">
                   {a.gamesLast7d} / {a.gamesLast30d}
                 </span>
-                <span>Active days</span>
+                <span>{copy.admin.columns.activeDays}</span>
                 <span className="text-right tabular-nums">{a.activeDays}</span>
-                <span>Win rate</span>
+                <span>{copy.admin.columns.winRate}</span>
                 <span className="text-right tabular-nums">{percent(a.winRate)}</span>
-                <span>Joined</span>
+                <span>{copy.admin.columns.joined}</span>
                 <span className="text-right tabular-nums">{shortDate(a.signedUpAt)}</span>
               </div>
             </CardContent>
@@ -321,7 +322,7 @@ export function AdminPage() {
         <Card>
           <CardContent className="py-10 text-center">
             <p className="text-sm text-muted-foreground">
-              {query ? "No accounts match that filter." : "No accounts yet."}
+              {query ? copy.admin.noMatch : copy.admin.noAccounts}
             </p>
           </CardContent>
         </Card>

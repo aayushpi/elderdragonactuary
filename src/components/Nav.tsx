@@ -1,6 +1,7 @@
 import { Plus, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Wordmark } from "@/components/modern/primitives"
+import { copy } from "@/copy"
 
 interface NavProps {
   currentPath: string
@@ -12,10 +13,10 @@ interface NavProps {
 }
 
 const NAV_ITEMS: { path: string; label: string }[] = [
-  { path: "/", label: "Dashboard" },
-  { path: "/stats", label: "Stats" },
-  { path: "/history", label: "History" },
-  { path: "/settings", label: "Settings" },
+  { path: "/", label: copy.nav.dashboard },
+  { path: "/stats", label: copy.nav.stats },
+  { path: "/history", label: copy.nav.history },
+  { path: "/settings", label: copy.nav.settings },
 ]
 
 function isActivePath(currentPath: string, path: string) {
@@ -58,8 +59,8 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLive }: Nav
                 className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm rounded-md font-medium border border-input bg-transparent text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Swords className="h-4 w-4" />
-                <span className="hidden sm:inline">Live game</span>
-                <span className="sm:hidden">Live</span>
+                <span className="hidden sm:inline">{copy.nav.liveGame}</span>
+                <span className="sm:hidden">{copy.nav.liveGameShort}</span>
               </button>
             )}
             <button
@@ -68,8 +69,8 @@ export function Nav({ currentPath, onNavigate, onOpenLogGame, onStartLive }: Nav
               className="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm rounded-md font-medium bg-primary text-primary-foreground transition-colors hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Track a game</span>
-              <span className="sm:hidden">Track</span>
+              <span className="hidden sm:inline">{copy.nav.trackGame}</span>
+              <span className="sm:hidden">{copy.nav.trackGameShort}</span>
             </button>
           </div>
         </div>

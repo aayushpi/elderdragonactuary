@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { copy } from "@/copy"
 import { Search, Sparkles, Check, Plus, Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -98,7 +99,7 @@ export function FastManaPicker({
       <DialogContent className={SHEET_CONTENT_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">
-            {mode === "search" ? "Search fast mana" : "Add fast mana"}
+            {mode === "search" ? copy.pickers.fastManaSearchTitle : copy.pickers.fastManaTitle}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             {[
@@ -142,7 +143,7 @@ export function FastManaPicker({
                   ref={inputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search a card…"
+                  placeholder={copy.pickers.fastManaSearchPlaceholder}
                   className="h-12 w-full rounded-lg border border-input bg-card pl-10 pr-10 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 {query && (
@@ -152,7 +153,7 @@ export function FastManaPicker({
                       inputRef.current?.focus()
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 grid place-items-center rounded text-muted-foreground hover:text-foreground"
-                    aria-label="Clear search"
+                    aria-label={copy.pickers.clearSearch}
                   >
                     <span className="text-base">×</span>
                   </button>

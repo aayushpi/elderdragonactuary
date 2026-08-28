@@ -1,5 +1,6 @@
 import { LayoutDashboard, ChartSpline, History, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 
 interface BottomTabsProps {
   currentPath: string
@@ -7,10 +8,10 @@ interface BottomTabsProps {
 }
 
 const NAV_ITEMS: { path: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { path: "/", label: "Dashboard", Icon: LayoutDashboard },
-  { path: "/stats", label: "Stats", Icon: ChartSpline },
-  { path: "/history", label: "History", Icon: History },
-  { path: "/settings", label: "Settings", Icon: Settings },
+  { path: "/", label: copy.nav.dashboard, Icon: LayoutDashboard },
+  { path: "/stats", label: copy.nav.stats, Icon: ChartSpline },
+  { path: "/history", label: copy.nav.history, Icon: History },
+  { path: "/settings", label: copy.nav.settings, Icon: Settings },
 ]
 
 function isActivePath(currentPath: string, path: string) {

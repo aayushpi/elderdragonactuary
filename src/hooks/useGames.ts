@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react"
+import { copy } from "@/copy"
 import { toast } from "sonner"
 import type { Game } from "@/types"
 import { useAuth } from "@/hooks/useAuth"
@@ -72,7 +73,7 @@ export function useGames() {
       })
       .catch((err) => {
         console.error("Failed to fetch games:", err)
-        toast.error("Failed to load games from the server.")
+        toast.error(copy.toasts.loadFailed)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -88,7 +89,7 @@ export function useGames() {
       setGames((prev) => [saved, ...prev])
     } catch (err) {
       console.error("Failed to save game:", err)
-      toast.error("Failed to save game.")
+      toast.error(copy.toasts.saveFailed)
       throw err
     }
   }, [])
@@ -99,7 +100,7 @@ export function useGames() {
       setGames((prev) => prev.map((g) => (g.id === id ? updated : g)))
     } catch (err) {
       console.error("Failed to update game:", err)
-      toast.error("Failed to update game.")
+      toast.error(copy.toasts.updateFailed)
       throw err
     }
   }, [])
@@ -110,7 +111,7 @@ export function useGames() {
       setGames((prev) => prev.filter((g) => g.id !== id))
     } catch (err) {
       console.error("Failed to delete game:", err)
-      toast.error("Failed to delete game.")
+      toast.error(copy.toasts.deleteFailed)
       throw err
     }
   }, [])
@@ -131,7 +132,7 @@ export function useGames() {
       return { success: true, count: cloudGames.length }
     } catch (err) {
       console.error("Failed to import games:", err)
-      toast.error("Failed to import games to the server.")
+      toast.error(copy.toasts.importFailed)
       return { success: false, count: 0, error: "Server error during import." }
     }
   }, [])
@@ -142,7 +143,7 @@ export function useGames() {
       setGames([])
     } catch (err) {
       console.error("Failed to clear games:", err)
-      toast.error("Failed to clear games from the server.")
+      toast.error(copy.toasts.clearFailed)
     }
   }, [])
 

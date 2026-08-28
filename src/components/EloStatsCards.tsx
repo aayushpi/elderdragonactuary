@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { copy } from "@/copy"
 import {
   LineChart,
   Line,
@@ -73,7 +74,7 @@ export default function EloStatsCards({
       {/* Overall ELO */}
       <Card>
         <CardHeader>
-          <CardTitle>Overall ELO</CardTitle>
+          <CardTitle>{copy.elo.overall}</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer id="overall" config={{}}
@@ -97,7 +98,7 @@ export default function EloStatsCards({
         <CardHeader>
           <div className="flex items-center justify-between w-full">
             <div>
-              <CardTitle>Per-Commander ELO</CardTitle>
+              <CardTitle>{copy.elo.perCommander}</CardTitle>
             </div>
             <select
               value={selectedCommanderPlayer ?? ""}
@@ -131,7 +132,7 @@ export default function EloStatsCards({
         <CardHeader>
           <div className="flex items-center justify-between w-full">
             <div>
-              <CardTitle>Pod ELO</CardTitle>
+              <CardTitle>{copy.elo.pod}</CardTitle>
             </div>
             <select
               value={selectedPod ?? ""}

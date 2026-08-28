@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { copy } from "@/copy"
 import { User, Check, Plus } from "lucide-react"
 import {
   Dialog,
@@ -99,7 +100,7 @@ export function PlayerNamePicker({
             ))}
             {filtered.length === 0 && (
               <p className="px-5 py-6 text-center text-sm text-muted-foreground">
-                {names.length === 0 ? "No saved players yet." : "No saved players match."}
+                {names.length === 0 ? copy.pickers.playerNames.empty : copy.pickers.playerNames.noMatch}
               </p>
             )}
           </div>
@@ -122,7 +123,7 @@ export function PlayerNamePicker({
                   addDraft()
                 }
               }}
-              placeholder="Add a new name…"
+              placeholder={copy.pickers.playerNames.addPlaceholder}
               className="h-12 flex-1 rounded-lg border border-input bg-card px-3.5 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <button

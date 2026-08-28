@@ -1,4 +1,5 @@
 import { Pencil } from "lucide-react"
+import { copy } from "@/copy"
 import type { Game, MtgColor } from "@/types"
 import { Pips, ResultBadge } from "@/components/modern/primitives"
 
@@ -10,7 +11,7 @@ interface GameRowProps {
 export function GameRow({ game, onEdit }: GameRowProps) {
   const me = game.players.find((p) => p.isMe)
   const won = !!me && game.winnerId === me.id
-  const cmdr = me?.commanderName ?? "Unknown commander"
+  const cmdr = me?.commanderName ?? copy.player.unknownCommander
   const colors = (me?.commanderColorIdentity ?? []) as MtgColor[]
   const seat = me?.seatPosition
   const vs = game.players
@@ -53,7 +54,7 @@ export function GameRow({ game, onEdit }: GameRowProps) {
             onEdit(game.id)
           }}
           className="h-9 w-9 grid place-items-center rounded-md shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted sm:opacity-0 sm:group-hover:opacity-100 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          title="Edit game"
+          title={copy.gameDetail.editGameLabel}
         >
           <Pencil className="h-4 w-4" />
         </button>

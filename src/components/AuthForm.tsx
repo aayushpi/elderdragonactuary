@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { LogIn, UserPlus, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
+import { copy } from "@/copy"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -26,22 +27,22 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
     setInfo(null)
 
     if (!email.trim() || !password.trim()) {
-      setError("Email and password are required.")
+      setError(copy.auth.errors.missingCredentials)
       return
     }
 
     if (mode === "signup" && password !== confirmPassword) {
-      setError("Passwords do not match.")
+      setError(copy.auth.errors.passwordMismatch)
       return
     }
 
     if (mode === "signup" && !inviteCode.trim()) {
-      setError("Invite code is required.")
+      setError(copy.auth.errors.missingInvite)
       return
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.")
+      setError(copy.auth.errors.passwordTooShort)
       return
     }
 
@@ -59,7 +60,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
         if (err) {
           setError(err)
         } else {
-          setInfo("Check your email for a confirmation link, then sign in.")
+          setInfo(copy.auth.confirmEmail)
           setMode("login")
         }
       }
@@ -84,7 +85,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
     <div className="mx-auto w-full max-w-sm space-y-6">
       <div className="text-center space-y-1">
         <h1 className="text-2xl font-bold">
-          {mode === "login" ? "Sign in to your account" : "Create a new account"}
+          {mode === "login" ? copy.auth.signInTitle : copy.auth.signUpTitle}
                 </h1>
         
       </div>
@@ -95,7 +96,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
           <Input
             id="email"
             type="email"
-            placeholder="you@example.com"
+            placeholder={copy.auth.emailPlaceholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
@@ -108,7 +109,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
           <Input
             id="password"
             type="password"
-            placeholder="••••••••"
+            placeholder={copy.auth.passwordPlaceholder}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -123,7 +124,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
               <Input
                 id="confirm-password"
                 type="password"
-                placeholder="••••••••"
+                placeholder={copy.auth.passwordPlaceholder}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
@@ -135,7 +136,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
               <Input
                 id="invite-code"
                 type="text"
-                placeholder="Invite code"
+                placeholder={copy.auth.invitePlaceholder}
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 autoComplete="off"
@@ -156,7 +157,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
           ) : (
             <UserPlus className="h-4 w-4" />
           )}
-          {mode === "login" ? "Sign In" : "Create Account"}
+          {mode === "login" ? copy.auth.signInButton : copy.auth.signUpButton}
         </Button>
       </form>
 
@@ -174,7 +175,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
               }}
               className="text-primary underline underline-offset-4 hover:text-primary/80"
             >
-              Sign up
+              {copy.auth.switchToSignUp}
             </button>
           </>
         ) : (
@@ -190,7 +191,7 @@ export function AuthForm({ onSignedIn, defaultMode = "login" }: AuthFormProps) {
               }}
               className="text-primary underline underline-offset-4 hover:text-primary/80"
             >
-              Sign in
+              {copy.auth.switchToSignIn}
             </button>
           </>
         )}

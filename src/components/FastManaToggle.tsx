@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { copy } from "@/copy"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import type { FastManaInfo } from "@/types"
@@ -38,7 +39,7 @@ export function FastManaToggle({ value, onChange }: FastManaToggleProps) {
       </div>
       {value.hasFastMana && (
         <Input
-          placeholder="Sol Ring, Mana Crypt… (optional)"
+          placeholder={copy.player.fastManaPlaceholder}
           value={cardInput}
           onChange={(e) => setCardInput(e.target.value)}
           onBlur={handleCardsBlur}

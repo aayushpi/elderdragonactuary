@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { copy } from "@/copy"
 import {
   AreaChart,
   Area,
@@ -73,7 +74,7 @@ export function PodEloCard({ podEloGroups }: PodEloCardProps) {
 
     // Build an initial row at index 0 (starting rating)
     const rows: Record<string, number | string>[] = []
-    const start: Record<string, number | string> = { game: "Start" }
+    const start: Record<string, number | string> = { game: copy.elo.startPoint }
     for (const player of pod.players) start[player.name] = 1500
     rows.push(start)
 

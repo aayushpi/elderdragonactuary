@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import { copy } from "@/copy"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -86,7 +87,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
     <div className="space-y-4">
       {/* ── Opponents with seat positions and commanders ─────────────────────────────────────────────── */}
       <div className="space-y-2">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Opponents</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.gameDetail.opponents}</p>
         {sortedPlayers.map((player) => (
           <div key={player.id} className="space-y-1">
             <div className="flex items-center gap-2">
@@ -113,7 +114,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                   )}
                 </div>
                 {game.winnerId === player.id && (
-                  <Badge className="text-xs shrink-0">Win</Badge>
+                  <Badge className="text-xs shrink-0">{copy.gameDetail.win}</Badge>
                 )}
                 {game.winnerId !== player.id && typeof player.knockoutTurn === "number" && (
                   <Badge variant="outline" className="text-xs shrink-0">KO ON TURN {player.knockoutTurn}</Badge>
@@ -134,7 +135,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
         <>
           <Separator />
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{copy.gameDetail.notes}</p>
             <p className="text-sm">{game.notes}</p>
           </div>
         </>
@@ -148,7 +149,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
             {/* Win conditions column */}
             {game.winConditions && game.winConditions.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Win Conditions</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{copy.gameDetail.winConditions}</p>
                 <div className="flex flex-wrap gap-1">
                   {game.winConditions.map((condition) => (
                     <Badge key={condition} variant="outline" className="text-xs">
@@ -237,7 +238,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                 onClick={onEdit}
               >
                 <Pencil className="h-4 w-4 mr-2" />
-                Edit Game
+                {copy.gameDetail.editGame}
               </Button>
             )}
             {onDelete && (
@@ -248,7 +249,7 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                 onClick={onDelete}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Game
+                {copy.gameDetail.deleteGame}
               </Button>
             )}
           </div>

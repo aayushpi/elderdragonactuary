@@ -8,6 +8,7 @@ import type { SeatPosition } from "@/types"
 import { genId, type LiveConfig } from "@/live/engine"
 import type { RichPod } from "./setupData"
 import { type DraftSeat, blankSeat, podToRoster, randomStarter, toConfig } from "./setupShared"
+import { copy } from "@/copy"
 
 /* ============================================================================
  * Variant A — "Pod & table" (commanders are chosen in-game)
@@ -155,10 +156,10 @@ export function Setup({
   // ---- Landing ----
   if (!seats) {
     return (
-      <Shell title="Start a live game" subtitle="Tap a pod to jump in — set commanders at the table." onBack={onExit}>
+      <Shell title={copy.live.setup.startTitle} subtitle={copy.live.setup.startSubtitle} onBack={onExit}>
         {pods.length > 0 && (
           <section data-tour="live-setup" className="space-y-2">
-            <span className={SECTION_LABEL}>Your pods · tap to start</span>
+            <span className={SECTION_LABEL}>{copy.live.setup.yourPods}</span>
             <div className="space-y-2">
               {pods.map((p) => (
                 <div
@@ -190,7 +191,7 @@ export function Setup({
                   </button>
                   <button
                     onClick={() => openPod(p)}
-                    aria-label="Edit roster"
+                    aria-label={copy.live.setup.editRoster}
                     className="flex w-11 shrink-0 items-center justify-center border-l border-border text-muted-foreground hover:bg-muted/60"
                   >
                     <Pencil className="h-4 w-4" />
@@ -208,7 +209,7 @@ export function Setup({
           data-tour={pods.length > 0 ? undefined : "live-setup"}
           onClick={newTable}
         >
-          <UserPlus className="h-4 w-4" /> New table
+          <UserPlus className="h-4 w-4" /> {copy.live.setup.newTable}
         </Button>
       </Shell>
     )
@@ -221,14 +222,14 @@ export function Setup({
 
   return (
     <Shell
-      title={pod ? "Tonight's table" : "Who's playing?"}
-      subtitle="Add, remove, or rename players. Commanders are set at the table."
+      title={pod ? copy.live.setup.rosterTitlePod : copy.live.setup.rosterTitleNew}
+      subtitle={copy.live.setup.rosterSubtitle}
       onBack={() => setSeats(null)}
     >
       <section className="space-y-2">
         <span className={SECTION_LABEL}>
-          Players · {seats.length}
-          {seats.length >= 6 && " (max)"}
+          {copy.live.setup.playersCount(seats.length)}
+          {seats.length >= 6 && copy.live.setup.playersMax}
         </span>
         <div className="space-y-2">
           {seats.map((s, i) => (
@@ -242,7 +243,7 @@ export function Setup({
             >
               <button
                 onPointerDown={(e) => startDrag(s.id, e)}
-                aria-label="Drag to reorder"
+                aria-label={copy.live.setup.dragToReorder}
                 className="flex h-7 w-6 shrink-0 touch-none cursor-grab items-center justify-center rounded text-muted-foreground active:cursor-grabbing"
               >
                 <GripVertical className="h-4 w-4" />
@@ -272,7 +273,7 @@ export function Setup({
               <button
                 onClick={() => removePlayer(s.id)}
                 disabled={seats.length <= 2}
-                aria-label="Remove player"
+                aria-label={copy.live.setup.removePlayer}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-destructive disabled:opacity-30"
               >
                 <X className="h-4 w-4" />
@@ -288,7 +289,7 @@ export function Setup({
             <Input
               ref={addRef}
               value={newName}
-              placeholder="Add player — type a name, press Enter"
+              placeholder={copy.live.setup.addPlayerPlaceholder}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && commitNew()}
               className="h-8 flex-1 border-0 bg-transparent px-0 focus-visible:ring-0"
@@ -344,13 +345,13 @@ export function Setup({
       )}
 
       <section className="space-y-2">
-        <span className={SECTION_LABEL}>Table layout</span>
+        <span className={SECTION_LABEL}>{copy.live.setup.tableLayout}</span>
         <TableLayoutIcon count={seats.length} />
       </section>
 
       <div className="mt-auto">
         <Button size="lg" className="w-full gap-2" onClick={() => onStart(toConfig(seats, randomStarter(seats), pod ?? undefined))}>
-          Start game <ArrowRight className="h-4 w-4" />
+          {copy.live.setup.startGame} <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </Shell>
@@ -434,7 +435,7 @@ export function Shell({
       <header className="space-y-1">
         {onBack && (
           <button onClick={onBack} className="mb-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <ChevronLeft className="h-4 w-4" /> Back
+            <ChevronLeft className="h-4 w-4" /> {copy.live.setup.back}
           </button>
         )}
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>

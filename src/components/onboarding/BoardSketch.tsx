@@ -1,9 +1,12 @@
 import { SEAT_COLORS } from "@/live/engine"
+import { copy } from "@/copy"
 
 /* A miniature of the live board for the walkthrough step that describes it.
  * The board itself only exists once a game is running, so a new player would
  * otherwise be reading about seats, taps, and attack drags with nothing on
  * screen to attach them to. */
+const sketch = copy.tour.sketch
+
 export function BoardSketch() {
   return (
     <div className="relative mt-3 h-44 overflow-hidden rounded-xl border border-border" aria-hidden>
@@ -11,23 +14,23 @@ export function BoardSketch() {
         style={{ backgroundColor: SEAT_COLORS[2] }}
         className="absolute inset-x-0 top-0 flex h-1/2 rotate-180 flex-col items-center justify-center text-white"
       >
-        <SeatLabel>Player 2</SeatLabel>
-        <LifeRow life={33} />
+        <SeatLabel>{sketch.opponentName}</SeatLabel>
+        <LifeRow life={sketch.opponentLife} />
       </div>
 
       <div
         style={{ backgroundColor: SEAT_COLORS[1] }}
         className="absolute inset-x-0 bottom-0 flex h-1/2 flex-col items-center justify-center text-white"
       >
-        <SeatLabel>You</SeatLabel>
+        <SeatLabel>{sketch.youName}</SeatLabel>
         <div className="relative">
           <span className="absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full rounded-full bg-red-700 px-2 py-0.5 text-[11px] font-black leading-none shadow-lg">
-            −5
+            {sketch.tally}
           </span>
-          <LifeRow life={35} />
+          <LifeRow life={sketch.yourLife} />
         </div>
         <span className="absolute left-3 top-2 rounded-full bg-black/70 px-2 py-1 text-[8px] font-extrabold uppercase tracking-wider">
-          Attack
+          {sketch.attack}
         </span>
       </div>
 

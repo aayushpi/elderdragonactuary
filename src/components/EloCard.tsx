@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react"
+import { copy } from "@/copy"
 import {
   AreaChart,
   Area,
@@ -114,7 +115,7 @@ export function EloCard({ commanders, podEloGroups }: EloCardProps) {
     }
 
     const rows: Record<string, number | string>[] = []
-    const start: Record<string, number | string> = { game: "Start" }
+    const start: Record<string, number | string> = { game: copy.elo.startPoint }
     for (const cmd of chartCommanders) start[cmd.name] = 1500
     rows.push(start)
 
@@ -173,8 +174,8 @@ export function EloCard({ commanders, podEloGroups }: EloCardProps) {
         <CardContent className="pt-2 pb-2">
           <Tabs defaultValue="commander">
             <TabsList>
-              <TabsTrigger value="commander">Commander ELO</TabsTrigger>
-              <TabsTrigger value="pod">Pod ELO</TabsTrigger>
+              <TabsTrigger value="commander">{copy.elo.commanderTab}</TabsTrigger>
+              <TabsTrigger value="pod">{copy.elo.podTab}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="commander">
@@ -307,7 +308,7 @@ export function EloCard({ commanders, podEloGroups }: EloCardProps) {
                     const indices = [...allIndices].sort((a, b) => a - b)
 
                     const rows: Record<string, number | string>[] = []
-                    const start: Record<string, number | string> = { game: "Start" }
+                    const start: Record<string, number | string> = { game: copy.elo.startPoint }
                     for (const player of pod.players) start[player.name] = 1500
                     rows.push(start)
 

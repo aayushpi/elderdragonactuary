@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 import type { Game } from "@/types"
 import { buildWinconShortlist, type CommanderShortlistItem, type WinconShortlistItem } from "@/lib/shortlist"
 import { WinconCardPicker } from "@/components/WinconCardPicker"
@@ -13,19 +14,7 @@ import { useLiveGame, type LiveConfig, type LivePlayer } from "@/live/engine"
 import { buildKnownPlayers, buildPlayerDecks, buildRecents, buildRichPods } from "@/live/setupData"
 import { Setup } from "@/live/Setup"
 
-const WINCON_OPTIONS = [
-  "Commander Damage",
-  "Lethal Combat Damage",
-  "Combat Trick",
-  "Lethal Non-Combat Damage",
-  "Players Decked Out",
-  "Alternate Wincon",
-  "Infinite Loop",
-  "Infinite Life-Gain",
-  "Infinite Mana",
-  "Asymmetric Board Wipe",
-  "Poison or Infect",
-]
+const WINCON_OPTIONS = copy.logGame.winConditions
 
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5]
 
@@ -78,8 +67,8 @@ function WinconEntry({
       <div className="my-4 w-[min(90vw,22rem)] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
-            <p className="font-semibold text-sm">How did {winner?.displayName ?? "the winner"} win?</p>
-            <p className="text-xs text-muted-foreground">Optional — helps track win patterns</p>
+            <p className="font-semibold text-sm">{copy.live.wincon.title(winner?.displayName ?? copy.live.wincon.fallbackWinner)}</p>
+            <p className="text-xs text-muted-foreground">{copy.live.wincon.subtitle}</p>
           </div>
           <button onClick={onSkip} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
@@ -87,7 +76,7 @@ function WinconEntry({
         </div>
         <div className="p-4 space-y-4">
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Win conditions</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{copy.live.wincon.winConditions}</p>
             <div className="flex flex-wrap gap-2">
               {WINCON_OPTIONS.map((option) => (
                 <button
@@ -107,7 +96,7 @@ function WinconEntry({
           </div>
 
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Key wincon cards</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{copy.live.wincon.keyWinconCards}</p>
             {keyCards.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {keyCards.map((cardName) => (
@@ -117,7 +106,7 @@ function WinconEntry({
                       type="button"
                       onClick={() => setKeyCards((prev) => prev.filter((c) => c !== cardName))}
                       className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                      aria-label={`Remove ${cardName}`}
+                      aria-label={copy.logGame.removeCard(cardName)}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -130,7 +119,7 @@ function WinconEntry({
               onClick={() => setWinconPickerOpen(true)}
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left transition-colors hover:bg-muted/60"
             >
-              <span className="truncate text-sm text-muted-foreground">Search for key wincon cards…</span>
+              <span className="truncate text-sm text-muted-foreground">{copy.live.wincon.searchPlaceholder}</span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
             <WinconCardPicker
@@ -145,7 +134,7 @@ function WinconEntry({
 
           {players.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Fast mana</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{copy.live.wincon.fastMana}</p>
               <div className="flex flex-wrap gap-2">
                 {players.map((p) => (
                   <button
@@ -167,7 +156,7 @@ function WinconEntry({
 
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              Game bracket (optional)
+              {copy.live.wincon.bracket}
             </p>
             <div className="flex gap-1.5">
               {BRACKET_OPTIONS.map((b) => (
@@ -188,21 +177,21 @@ function WinconEntry({
           </div>
 
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Notes (optional)</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{copy.live.wincon.notes}</p>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any notes about this game…"
+              placeholder={copy.live.wincon.notesPlaceholder}
               className="min-h-[72px] resize-none text-sm"
             />
           </div>
 
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={onSkip}>
-              Skip
+              {copy.live.wincon.skip}
             </Button>
             <Button className="flex-1" onClick={handleSave} disabled={saving}>
-              Save & continue
+              {copy.live.wincon.save}
             </Button>
           </div>
         </div>
@@ -294,9 +283,9 @@ function PlayingBoard({
           : built.players,
       }
       await onSave(final)
-      toast.success("Game saved!")
+      toast.success(copy.toasts.gameSaved)
     } catch {
-      toast.error("Couldn't save game")
+      toast.error(copy.toasts.gameSaveFailed)
     }
     setSaving(false)
     setPendingWincon(false)

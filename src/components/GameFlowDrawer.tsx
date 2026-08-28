@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Minus, Maximize2, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 
 interface GameFlowDrawerProps {
   title: string
@@ -52,7 +53,7 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
                   event.stopPropagation()
                   setConfirmDelete(true)
                 }}
-                aria-label="Delete game"
+                aria-label={copy.gameFlow.deleteGameLabel}
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
@@ -69,7 +70,7 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
                 }
                 onMinimize()
               }}
-              aria-label={minimized ? "Restore panel" : "Minimize panel"}
+              aria-label={minimized ? copy.gameFlow.restorePanelLabel : copy.gameFlow.minimizePanelLabel}
               className="h-8 w-8 p-0"
             >
               {minimized ? <Maximize2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
@@ -81,7 +82,7 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
                 event.stopPropagation()
                 onClose()
               }}
-              aria-label="Close panel"
+              aria-label={copy.gameFlow.closePanelLabel}
               className="h-8 w-8 p-0"
             >
               <X className="h-4 w-4" />
@@ -95,11 +96,11 @@ export function GameFlowDrawer({ title, minimized, onMinimize, onRestore, onClos
       {confirmDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60" onClick={() => setConfirmDelete(false)}>
           <div className="w-[min(84vw,20rem)] rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4" onClick={(e) => e.stopPropagation()}>
-            <p className="font-semibold text-center">Delete this game?</p>
-            <p className="text-sm text-muted-foreground text-center">This can't be undone.</p>
+            <p className="font-semibold text-center">{copy.gameFlow.confirmDeleteTitle}</p>
+            <p className="text-sm text-muted-foreground text-center">{copy.gameFlow.confirmDeleteBody}</p>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-              <Button variant="destructive" className="flex-1" onClick={() => { setConfirmDelete(false); onDelete!() }}>Delete</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)}>{copy.gameFlow.confirmDeleteCancel}</Button>
+              <Button variant="destructive" className="flex-1" onClick={() => { setConfirmDelete(false); onDelete!() }}>{copy.gameFlow.confirmDeleteConfirm}</Button>
             </div>
           </div>
         </div>

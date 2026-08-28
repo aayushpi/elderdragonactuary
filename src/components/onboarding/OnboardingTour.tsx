@@ -3,6 +3,7 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { capture } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 import type { OnboardingStatus } from "@/lib/onboarding"
 import { TOUR_STEPS } from "./steps"
 import { BoardSketch } from "./BoardSketch"
@@ -198,7 +199,7 @@ export function OnboardingTour({
   }
 
   return (
-    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="App walkthrough">
+    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label={copy.tour.dialogLabel}>
       {/* Click shield — the tour drives the app itself, so taps behind it are
           swallowed rather than half-completing a flow mid-step. */}
       <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
@@ -227,11 +228,11 @@ export function OnboardingTour({
         <div className="mb-2 flex items-start justify-between gap-3">
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Step {index + 1} of {TOUR_STEPS.length}
+              {copy.tour.stepCounter(index + 1, TOUR_STEPS.length)}
             </span>
             {sampleData && (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
-                Sample data
+                {copy.tour.sampleBadge}
               </span>
             )}
           </span>
@@ -239,7 +240,7 @@ export function OnboardingTour({
             onClick={() => finish("skipped")}
             className="-mr-1 -mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
-            Skip tour
+            {copy.tour.skip}
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -248,8 +249,7 @@ export function OnboardingTour({
         <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
         {sampleData && index === 0 && (
           <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-            Your account is empty, so the screens behind this are filled with a sample pod. Your own
-            games replace it the moment you log one.
+            {copy.tour.sampleExplainer}
           </p>
         )}
         {step.sketch === "live-board" && <BoardSketch />}
@@ -283,13 +283,13 @@ export function OnboardingTour({
             disabled={index === 0}
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
           >
-            Back
+            {copy.tour.back}
           </Button>
           <Button
             className="flex-1"
             onClick={() => (isLast ? finish("completed") : setIndex((i) => i + 1))}
           >
-            {isLast ? "Finish" : "Next"}
+            {isLast ? copy.tour.finish : copy.tour.next}
           </Button>
         </div>
       </div>

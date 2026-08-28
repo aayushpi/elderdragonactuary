@@ -4,6 +4,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { AppSimulation } from "@/components/home/AppMockups"
 import { Wordmark } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
+import { copy } from "@/copy"
 
 interface LoggedOutHomePageProps {
   defaultSignInOpen?: boolean
@@ -37,10 +38,10 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
           <Wordmark />
           <div className="flex items-center gap-1.5">
             <button onClick={() => openAuth("login")} className={cn(BTN, BTN_MD, BTN_GHOST)}>
-              Sign in
+              {copy.marketing.signIn}
             </button>
             <button onClick={() => openAuth("signup")} className={cn(BTN, BTN_MD, BTN_PRIMARY)}>
-              Track your first game
+              {copy.marketing.cta}
             </button>
           </div>
         </div>
@@ -55,22 +56,20 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
           <section className="pt-[clamp(40px,7vw,84px)] text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              The actuary for your playgroup
+              {copy.marketing.eyebrow}
             </span>
             <h1 className="mx-auto mt-5 max-w-[18ch] text-[clamp(36px,5.6vw,68px)] font-bold leading-[1.05] tracking-[-0.035em] [text-wrap:balance]">
-              Shuffle, Ramp, Study, Send.
+              {copy.marketing.headline}
             </h1>
             <p className="mx-auto mt-5 max-w-[56ch] text-[clamp(16px,1.6vw,19px)] text-muted-foreground [text-wrap:pretty]">
-              Log Commander games in two taps and unlock in-depth statistics — win rates by seat and
-              commander, performance across your pods, the cards that actually close games, and a lot
-              more. Free, and it works at any table.
+              {copy.marketing.subhead}
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button onClick={() => openAuth("signup")} className={cn(BTN, BTN_LG, BTN_PRIMARY)}>
-                Track your first game
+                {copy.marketing.cta}
               </button>
               <a href="#demo" className={cn(BTN, BTN_LG, BTN_OUTLINE)}>
-                Explore the demo
+                {copy.marketing.demoCta}
               </a>
             </div>
           </section>
@@ -88,13 +87,13 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
       <section className="border-t border-border py-[clamp(48px,7vw,96px)] text-center">
         <div className="mx-auto max-w-[1280px] px-[clamp(14px,3.5vw,40px)]">
           <h2 className="mx-auto max-w-[20ch] text-[clamp(26px,3.4vw,42px)] font-bold leading-[1.1] tracking-[-0.025em] [text-wrap:balance]">
-            Politics is temporary. Variance is forever.
+            {copy.marketing.closingHeadline}
           </h2>
           <p className="mx-auto mt-4 max-w-[44ch] text-[clamp(15px,1.6vw,18px)] text-muted-foreground [text-wrap:pretty]">
-            Start your ledger now — the numbers will be more embarrassing than you think.
+            {copy.marketing.closingBody}
           </p>
           <button onClick={() => openAuth("signup")} className={cn(BTN, BTN_LG, BTN_PRIMARY, "mt-8")}>
-            Track your first game
+            {copy.marketing.cta}
           </button>
         </div>
       </section>
@@ -103,9 +102,9 @@ export function LoggedOutHomePage({ defaultSignInOpen = false }: LoggedOutHomePa
       <footer className="border-t border-border py-9 pb-[max(2.25rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-[clamp(14px,3.5vw,40px)] text-xs">
           <a href="https://aayush.fyi" target="_blank" rel="noopener noreferrer" className="text-primary transition-colors hover:text-primary">
-            Made by Aayush.
+            {copy.marketing.madeBy}
           </a>
-          Be kind, scoop at sorcery speed.
+          {copy.marketing.signOff}
         </div>
       </footer>
 

@@ -1,4 +1,5 @@
 import { useState, useRef } from "react"
+import { copy } from "@/copy"
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -21,7 +22,7 @@ interface CommanderSearchProps {
 export function CommanderSearch({
   value,
   onChange,
-  placeholder = "Search commander…",
+  placeholder = copy.pickers.commanderInline.placeholder,
   disabled,
   hasError,
   recentCommanders,
@@ -72,7 +73,7 @@ export function CommanderSearch({
           disabled={disabled || loadingCard}
         >
           <span className={cn("truncate", !value && "text-muted-foreground")}>
-            {loadingCard ? "Loading…" : value || placeholder}
+            {loadingCard ? copy.pickers.commanderInline.loading : value || placeholder}
           </span>
           {loadingCard ? (
             <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
@@ -84,14 +85,14 @@ export function CommanderSearch({
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Type a commander name…"
+            placeholder={copy.pickers.commanderInline.typePlaceholder}
             value={query}
             onValueChange={setQuery}
           />
           <CommandList>
             {/* Recent commanders (shown when query is empty and recents exist) */}
             {showRecents && (
-              <CommandGroup heading="Recent">
+              <CommandGroup heading={copy.pickers.commanderInline.recentHeading}>
                 {recentCommanders!.map((rc) => (
                   <CommandItem
                     key={rc.name}
@@ -122,7 +123,7 @@ export function CommanderSearch({
               </div>
             )}
             {!isLoading && query.length >= 2 && suggestions.length === 0 && (
-              <CommandEmpty>No commanders found.</CommandEmpty>
+              <CommandEmpty>{copy.pickers.commanderInline.noResults}</CommandEmpty>
             )}
             {!isLoading && suggestions.length > 0 && query.length >= 2 && (
               <CommandGroup>
