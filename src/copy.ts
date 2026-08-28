@@ -40,11 +40,11 @@ export const copy = {
     minimizePanelLabel: "Minimize panel",
     closePanelLabel: "Close panel",
     confirmDeleteTitle: "Delete this game?",
-    confirmDeleteBody: "This can't be undone.",
+    confirmDeleteBody: "This can't be undone",
     confirmDeleteCancel: "Cancel",
     confirmDeleteConfirm: "Delete",
     discardTitle: "Discard in-progress game log?",
-    discardBody: "You have unsaved changes in Log Game. Closing now will lose your progress.",
+    discardBody: "You have unsaved changes that will be lost",
     discardKeepEditing: "Keep Editing",
     discardConfirm: "Discard",
   },
@@ -73,7 +73,7 @@ export const copy = {
     finish: "Finish",
     sampleBadge: "Sample data",
     sampleExplainer:
-      "Your account is empty, so the screens behind this are filled with a sample pod. Your own games replace it the moment you log one.",
+      "(These are example games)",
     dialogLabel: "App walkthrough",
     sketch: {
       opponentName: "Player 2",
@@ -86,51 +86,51 @@ export const copy = {
     steps: {
       welcome: {
         title: "Welcome to Elder Dragon Actuary",
-        body: "A one-minute tour of the three screens you'll use most: your stats, tracking a finished game, and running a game at the table.",
+        body: "Welcome! Here's a quick tour of the three screens you'll use most: your stats, tracking a finished game, and running a game at the table.",
       },
       stats_overview: {
-        title: "Your numbers, up top",
-        body: "Win rate, average winning turn, and how you do with — and against — fast mana. Everything here is computed from the games you log.",
+        title: "Your game performance",
+        body: "Win rate, average winning turn, and other top line performance stats",
       },
       stats_range: {
-        title: "Change the window",
-        body: "All time, this year, or the last 90 days. Every stat below re-reads for the range you pick.",
+        title: "Measure over time",
+        body: "Choose your stats across different time periods here",
       },
       stats_commanders: {
         title: "Deck by deck",
-        body: "Every commander you've sleeved up, sortable by win rate, winning turn, or total wins — so you can see which deck is actually carrying you.",
+        body: "Every commander you've sleeved up, sortable by win rate, winning turn, or total wins",
       },
       stats_elo: {
         title: "ELO ratings",
-        body: "Your pods and commanders each carry a rating that moves after every game, so beating a stacked table counts for more than beating a jank one.",
+        body: "Your pods and commanders each carry a rating that moves after every game, so beating a stacked table counts for more than beating a jank one",
       },
       track_entry: {
         title: "Track a finished game",
-        body: "Tap here to log a game you've already played. It opens in a panel you can minimise and come back to.",
+        body: "Tap here to log a game you've already played",
       },
       track_pod: {
         title: "Start with the table",
-        body: "Pick how many players, or reuse a pod you've logged before to fill every seat in one tap.",
+        body: "Pick players, or reuse an old pod",
       },
       track_players: {
         title: "Seats, commanders, winner",
-        body: "Give each player a commander and a seat, then mark whoever won. Everything else — brackets, wincon cards, notes — is optional.",
+        body: "Give each player a commander and a seat, then mark the winner",
       },
       track_save: {
         title: "Save it",
-        body: "Saving drops the game straight into your history, stats, and ELO.",
+        body: "Saving drops the game straight into your history. This computes stats and ELO",
       },
       live_entry: {
         title: "Playing right now?",
-        body: "Live game turns your phone into the table's life tracker, and logs the game for you when it ends.",
+        body: "Live game turns your device into the table's life tracker, and logs the game when it ends.",
       },
       live_setup: {
         title: "Pick the table",
-        body: "Tap a recent pod to jump straight in, or build the roster by hand. Commanders can wait — you can set them on the board.",
+        body: "Tap a recent pod to jump straight in, or build from scratch. Commanders can be set on the board",
       },
       live_board: {
         title: "On the board",
-        body: "Each player gets a seat, rotated so it reads right way up from where they're sitting.",
+        body: "Move players to the right seat before you start!",
         bullets: [
           "Tap − or + to change life — a running total shows what you've tapped so far.",
           "Hold either button for ±10.",
@@ -140,7 +140,7 @@ export const copy = {
       },
       done: {
         title: "That's the tour",
-        body: "Save the live game when one player is left and it lands in your history with the winning turn already filled in. You can replay this walkthrough any time from Settings → Getting started.",
+        body: "Save the live game when one player is left and it lands in your history with the winning turn already filled in.",
       },
     },
   },
