@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
@@ -35,6 +35,7 @@ import { usePageviews } from "@/hooks/usePageviews"
 import { useAuth } from "@/hooks/useAuth"
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour"
 import { shouldShowOnboarding, saveOnboarding, type OnboardingStatus } from "@/lib/onboarding"
+import { buildDemoGames } from "@/components/home/demoData"
 import type { Game } from "@/types"
 
 type GameFlowMode = "log" | "edit"
@@ -62,6 +63,14 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const { games, loading: gamesLoading, addGame, updateGame, deleteGame, getGame, replaceGames, clearGames } = useGames()
+
+  // A brand-new account has nothing to look at, which makes the walkthrough a
+  // tour of empty states. While it runs, an empty account borrows the same
+  // sample pod the marketing page uses, so every step describes a screen with
+  // something on it. Nothing is written anywhere — it reverts when the tour ends.
+  const sampleGames = useMemo(() => buildDemoGames(new Date()), [])
+  const showingSample = tourOrigin !== null && games.length === 0
+  const displayGames = showingSample ? sampleGames : games
 
   usePageviews()
 
@@ -314,7 +323,7 @@ function App() {
               path="/"
               element={
                 <DashboardPage
-                  games={games}
+                  games={displayGames}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={(name) =>
                     openLogGameFlow(name, name ? "commander_card" : "dashboard")
@@ -327,7 +336,8 @@ function App() {
               path="/stats"
               element={
                 <StatsPage
-                  games={games}
+                  games={displayGames}
+                  sampleData={showingSample}
                   onNavigate={navigateWithFlowMinimize}
                   onOpenLogGame={(name) => openLogGameFlow(name, "stats")}
                 />
@@ -337,7 +347,7 @@ function App() {
               path="/history"
               element={
                 <HistoryPage
-                  games={games}
+                  games={displayGames}
                   onDeleteGame={(id) => {
                     capture("game_deleted", { surface: "history" })
                     void deleteGame(id)
@@ -374,7 +384,7 @@ function App() {
               path="/live"
               element={
                 <LiveGamePage
-                  games={games}
+                  games={displayGames}
                   onSaveGame={handleSaveLiveGame}
                   onExit={() => {
                     capture("live_game_abandoned")
@@ -427,6 +437,7 @@ function App() {
 
       <OnboardingTour
         open={tourOrigin !== null}
+        sampleData={showingSample}
         onNavigate={(path) => navigate(path)}
         onOpenLogGame={openLogGameForTour}
         onCloseLogGame={closeLogGameForTour}
@@ -445,6 +456,7 @@ function App() {
           {gameFlow.mode === "log" ? (
             <LogGamePage
               prefillCommander={gameFlow.prefillCommander}
+              demoGames={showingSample ? sampleGames : undefined}
               onSave={handleSaveGame}
               onCancel={handleCancelGameFlow}
               onDirtyChange={setIsLogGameDirty}

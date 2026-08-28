@@ -17,6 +17,8 @@ export interface TourStep {
   route?: string
   /** open ("log") or close ("none") the track-a-game drawer before showing */
   drawer?: "log" | "none"
+  /** a drawn stand-in for a surface that doesn't exist until a game is running */
+  sketch?: "live-board"
 }
 
 export const TOUR_STEPS: TourStep[] = [
@@ -95,6 +97,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "live_board",
     title: "On the board",
     body: "Each player gets a seat, rotated so it reads right way up from where they're sitting.",
+    sketch: "live-board",
     bullets: [
       "Tap − or + to change life — a running total shows what you've tapped so far.",
       "Hold either button for ±10.",

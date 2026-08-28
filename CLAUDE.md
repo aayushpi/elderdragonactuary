@@ -123,6 +123,12 @@ it describes (`route`, `drawer`) and spotlight a real element by `data-tour`
 attribute; a step whose target is absent falls back to a centred card, so an
 account with no games still gets the whole tour.
 
+A brand-new account has nothing to look at, so while the tour runs on an empty
+account the app renders the same sample pod the marketing page uses
+(`buildDemoGames` in `src/components/home/demoData.ts`), the log form is
+pre-filled from it, and both the tour card and the stats page carry a "Sample
+data" badge. Nothing is written anywhere — it reverts when the tour ends.
+
 State lives in `src/lib/onboarding.ts` (`commando_onboarding` in localStorage).
 It runs once for every player — new and existing — and can be replayed from
 Settings → Getting started. Bump `ONBOARDING_VERSION` to re-run a materially

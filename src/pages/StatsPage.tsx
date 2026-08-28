@@ -14,6 +14,8 @@ interface StatsPageProps {
   games: Game[]
   onNavigate: (path: string) => void
   onOpenLogGame: (commanderName?: string) => void
+  /** the walkthrough is showing a sample pod, not this account's games */
+  sampleData?: boolean
 }
 
 const RANGES = ["All time", "This year", "Last 90 days"] as const
@@ -125,6 +127,14 @@ function podSizeBreakdown(games: Game[]): { label: string; rate: number; games: 
   return [...buckets.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([size, b]) => ({ label: `${size} players`, rate: b.games ? b.wins / b.games : 0, games: b.games }))
+}
+
+export function SampleBadge() {
+  return (
+    <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+      Sample data
+    </span>
+  )
 }
 
 function RangeChips({ value, onChange }: { value: Range; onChange: (r: Range) => void }) {
@@ -332,7 +342,7 @@ function BreakdownCard({
   )
 }
 
-export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
+export function StatsPage({ games, onOpenLogGame, sampleData }: StatsPageProps) {
   const [range, setRange] = useState<Range>("All time")
   const [commanderSort, setCommanderSort] = useState<CommanderSort>("win-rate")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
@@ -345,8 +355,9 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   const commanderElo = useMemo(() => computeCommanderElo(games), [games])
 
   useEffect(() => {
+    if (sampleData) return
     capture("stats_viewed", { range, games_played: stats.gamesPlayed })
-  }, [range, stats.gamesPlayed])
+  }, [range, stats.gamesPlayed, sampleData])
 
   const seatRows = useMemo(() => {
     const entries: [number, WinRateStat][] = [
@@ -398,7 +409,10 @@ export function StatsPage({ games, onOpenLogGame }: StatsPageProps) {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight">Stats</h1>
+          {sampleData && <SampleBadge />}
+        </div>
         <RangeChips value={range} onChange={setRange} />
       </div>
 

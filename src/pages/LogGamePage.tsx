@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { AlertCircle, ExternalLink, ChevronsUpDown, X } from "lucide-react"
 import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import type { MtgColor } from "@/types"
@@ -96,10 +96,15 @@ interface LogGamePageProps {
   onCancel: () => void
   onDirtyChange?: (dirty: boolean) => void
   prefillCommander?: string
+  /** sample history the walkthrough shows instead of an empty account's own */
+  demoGames?: Game[]
 }
 
-export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander }: LogGamePageProps) {
-  const { games } = useGames()
+export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander, demoGames }: LogGamePageProps) {
+  const { games: myGames } = useGames()
+  // The walkthrough hands in a sample pod so a brand-new account sees the pod
+  // picker and commander suggestions this screen is built around.
+  const games = demoGames ?? myGames
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -224,6 +229,34 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     setPlayers(newPlayers)
     setErrors(EMPTY_ERRORS)
   }
+
+  // Walkthrough only: fill the form from the sample pod's last game, so the
+  // steps about seats, winner, and saving have a filled-in form to point at
+  // instead of a collapsed empty one.
+  const demoSeeded = useRef(false)
+  useEffect(() => {
+    const sample = demoGames?.[0]
+    if (!sample || demoSeeded.current) return
+    demoSeeded.current = true
+    const seatIds = new Map<string, string>()
+    const seeded = sample.players.map((p) => {
+      const id = generateId()
+      seatIds.set(p.id, id)
+      return {
+        id,
+        isMe: p.isMe,
+        displayName: p.displayName,
+        commanderName: p.commanderName,
+        commanderColorIdentity: p.commanderColorIdentity,
+        seatPosition: p.seatPosition,
+        fastMana: p.fastMana ?? { hasFastMana: false, cards: [] },
+      } satisfies Partial<Player>
+    })
+    setPlayerCount(seeded.length)
+    setPlayers(seeded)
+    setWinnerId(seatIds.get(sample.winnerId) ?? null)
+    setWinTurn(String(sample.winTurn))
+  }, [demoGames])
 
   // Derive pods from game history: groups of named players that played together
   // Only opponent names are stored — the user is always implied.

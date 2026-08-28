@@ -5,6 +5,7 @@ import { capture } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 import type { OnboardingStatus } from "@/lib/onboarding"
 import { TOUR_STEPS } from "./steps"
+import { BoardSketch } from "./BoardSketch"
 
 interface Box {
   top: number
@@ -42,12 +43,15 @@ function prefersReducedMotion(): boolean {
  * and live-game surfaces, driving the app there itself as it goes. */
 export function OnboardingTour({
   open,
+  sampleData,
   onNavigate,
   onOpenLogGame,
   onCloseLogGame,
   onFinish,
 }: {
   open: boolean
+  /** the app behind the tour is showing a sample pod, not the user's games */
+  sampleData?: boolean
   onNavigate: (path: string) => void
   onOpenLogGame: () => void
   onCloseLogGame: () => void
@@ -221,8 +225,15 @@ export function OnboardingTour({
         style={cardStyle}
       >
         <div className="mb-2 flex items-start justify-between gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            Step {index + 1} of {TOUR_STEPS.length}
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              Step {index + 1} of {TOUR_STEPS.length}
+            </span>
+            {sampleData && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+                Sample data
+              </span>
+            )}
           </span>
           <button
             onClick={() => finish("skipped")}
@@ -235,6 +246,13 @@ export function OnboardingTour({
 
         <h2 className="text-base font-semibold tracking-tight">{step.title}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
+        {sampleData && index === 0 && (
+          <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Your account is empty, so the screens behind this are filled with a sample pod. Your own
+            games replace it the moment you log one.
+          </p>
+        )}
+        {step.sketch === "live-board" && <BoardSketch />}
         {step.bullets && (
           <ul className="mt-2.5 space-y-1.5">
             {step.bullets.map((b) => (

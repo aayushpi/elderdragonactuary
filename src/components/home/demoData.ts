@@ -1,8 +1,11 @@
 import type { Game, MtgColor, Player, SeatPosition } from "@/types"
 
-/* Deterministic demo games that drive the logged-out app simulation. These
-   feed the *real* Dashboard / Stats / History pages, so the marketing page
-   shows exactly what the product renders — just with sample data. */
+/* Deterministic demo games that drive the logged-out app simulation and the
+   onboarding walkthrough. These feed the *real* Dashboard / Stats / History
+   pages, so both show exactly what the product renders — just with sample
+   data. The anchor date is a parameter because the marketing page wants a
+   fixed, reproducible history while the walkthrough wants games recent enough
+   to land inside the stats page's date ranges. */
 
 interface Cmdr {
   name: string
@@ -52,14 +55,16 @@ const ME_RESULTS = [
   true, false, false, true, true, false, false, true, false, false, false,
 ]
 
-function daysAgo(n: number): string {
-  const d = new Date(2026, 5, 19)
-  d.setDate(d.getDate() - n)
-  d.setHours(20, 30, 0, 0)
-  return d.toISOString()
-}
+const FIXED_ANCHOR = new Date(2026, 5, 19)
 
-function buildGames(): Game[] {
+export function buildDemoGames(anchor: Date = FIXED_ANCHOR): Game[] {
+  function daysAgo(n: number): string {
+    const d = new Date(anchor)
+    d.setDate(d.getDate() - n)
+    d.setHours(20, 30, 0, 0)
+    return d.toISOString()
+  }
+
   const games: Game[] = []
   let day = 1
 
@@ -132,4 +137,4 @@ function buildGames(): Game[] {
   return games
 }
 
-export const DEMO_GAMES: Game[] = buildGames()
+export const DEMO_GAMES: Game[] = buildDemoGames()
