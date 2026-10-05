@@ -275,6 +275,7 @@ export function SeatFrame({
               </HoldStepButton>
               <span
                 key={flash}
+                data-life
                 style={{ fontSize: "clamp(3rem, 12vmin, 7.5rem)" }}
                 className={cn(
                   "tabular-nums font-black leading-none",

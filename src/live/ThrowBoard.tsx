@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { Crosshair, GripHorizontal, GripVertical, Minus, Plus, Pencil, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -7,12 +7,30 @@ import type { CommanderShortlistItem } from "@/lib/shortlist"
 import { BoardChrome } from "./BoardChrome"
 import { SeatFrame, DragVector, DamageModal, HoldStepButton } from "./shared"
 import { useDragAttack, useDragLock } from "./drag"
-import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer } from "./engine"
+import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer, type PlayerRuntime } from "./engine"
+import { rectCenter, screenDown, type HitKind } from "./fx/engine"
+import { useDotFx } from "./fx/useDotFx"
 
 /* Sentinel target id for the centre "Damage all" drop zone — the drag hit-test
  * picks it up like any seat (it carries data-seat-id), but it fans the hit out
  * to every other living player instead of one seat. */
 const DAMAGE_ALL_ID = "__damage_all__"
+
+function seatEl(id: string) {
+  return document.querySelector(`[data-seat-id="${CSS.escape(id)}"]`)
+}
+
+/* The big life number when the seat is in play, else the seat itself. */
+function lifeEl(id: string) {
+  const seat = seatEl(id)
+  return seat?.querySelector("[data-life]") ?? seat
+}
+
+function lifeAnchor(id: string) {
+  const el = lifeEl(id)
+  if (!el) return null
+  return { key: id, at: rectCenter(el.getBoundingClientRect()), down: screenDown(el) }
+}
 
 /* ============================================================================
  * ThrowBoard — "drag from any seat onto any target" core.
@@ -69,6 +87,59 @@ export function ThrowBoard({
   })
   useDragLock(!!drag)
 
+  const { fx, canvasRef } = useDotFx()
+  const zoneRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!fx) return
+    if (!drag) {
+      fx.setDrag(null)
+      return
+    }
+    const zone = zoneRef.current?.getBoundingClientRect()
+    fx.setDrag({
+      source: { x: drag.startX, y: drag.startY },
+      pointer: { x: drag.x, y: drag.y },
+      armed: drag.targetId != null,
+      zone: zone
+        ? { center: rectCenter(zone), radius: zone.width / 2, armed: drag.targetId === DAMAGE_ALL_ID }
+        : undefined,
+    })
+  }, [fx, drag])
+
+  // Every life change and knockout on the board gets its dots, whatever caused
+  // it (± buttons, a thrown hit, undo, rematch). Thrown hits mark their landing
+  // seat incoming, so the burst happens on impact instead of here.
+  const seenRef = useRef<Record<string, PlayerRuntime> | null>(null)
+  useEffect(() => {
+    const prev = seenRef.current
+    seenRef.current = game.runtime
+    if (!fx || !prev) return
+    for (const p of game.players) {
+      const was = prev[p.id]
+      const now = game.runtime[p.id]
+      if (!was || !now) continue
+      if (now.knockedOut && !was.knockedOut) {
+        const seat = seatEl(p.id)
+        if (seat) {
+          fx.dissolve(
+            seat.getBoundingClientRect(),
+            screenDown(seat),
+            SEAT_COLORS[p.seatPosition] ?? "#64748B",
+            fx.isIncoming(p.id) ? 0.4 : 0
+          )
+        }
+        continue
+      }
+      const delta = now.life - was.life
+      if (delta === 0 || now.knockedOut || fx.isIncoming(p.id)) continue
+      const el = lifeEl(p.id)
+      if (!el) continue
+      if (delta < 0) fx.shed(el.getBoundingClientRect(), screenDown(el), delta)
+      else fx.gather(el.getBoundingClientRect(), delta)
+    }
+  }, [fx, game.runtime, game.players])
+
   const swappingRef = useRef<string | null>(null)
   const swapTargetRef = useRef<string | null>(null)
   const [swapping, setSwapping] = useState<string | null>(null)
@@ -110,6 +181,19 @@ export function ThrowBoard({
   function apply(amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) {
     if (!pending) return
     try { navigator.vibrate?.(opts.isPoison ? 60 : 40) } catch { /* unsupported */ }
+    if (fx) {
+      const targetIds = pending.targetId === DAMAGE_ALL_ID
+        ? game.players
+            .filter((p) => p.id !== pending.sourceId && !game.runtime[p.id]?.knockedOut)
+            .map((p) => p.id)
+        : [pending.targetId]
+      const from = lifeAnchor(pending.sourceId)
+      const targets = targetIds.map(lifeAnchor).filter((t) => t !== null)
+      const kind: HitKind = opts.isPoison ? "poison" : opts.isCommander ? "commander" : "damage"
+      if (from && targets.length > 0) {
+        fx.attack({ from: from.at, targets, kind, amount, lifelink: opts.isLifelink ? from : undefined })
+      }
+    }
     if (pending.targetId === DAMAGE_ALL_ID) {
       // Fan out to every living opponent. Each applyDamage call is independent,
       // so commander damage, poison, and lifelink (one heal per hit) all tally
@@ -195,11 +279,13 @@ export function ThrowBoard({
         onDiscard={onDiscard}
         saving={saving}
       />
-      <DragVector drag={drag} />
+      {!fx && <DragVector drag={drag} />}
+      <canvas ref={canvasRef} aria-hidden className="pointer-events-none fixed inset-0 z-[57] h-full w-full" />
 
       {/* Centre "Damage all" drop zone — only present while an attack is in flight */}
       {drag && (
         <div
+          ref={zoneRef}
           data-seat-id={DAMAGE_ALL_ID}
           className={cn(
             "fixed left-1/2 top-1/2 z-[56] flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 touch-none flex-col items-center justify-center gap-1 rounded-full border-2 text-center text-white transition-all",
