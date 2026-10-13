@@ -247,9 +247,11 @@ export function CommanderPicker({
         {mode === "recents" ? (
           <>
             {/* Full played list — most played first, scrollable */}
-            <div className="flex items-center justify-between px-5 pb-2 pt-1">
-              <span className={SECTION_LABEL}>{recentsHeading}</span>
-            </div>
+            {playedSorted.length > 0 && (
+              <div className="flex items-center justify-between px-5 pb-2 pt-1">
+                <span className={SECTION_LABEL}>{recentsHeading}</span>
+              </div>
+            )}
 
             <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
               <div className="divide-y divide-border">
