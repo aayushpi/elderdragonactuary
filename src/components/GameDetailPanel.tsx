@@ -120,6 +120,9 @@ export function GameDetailPanel({ game, onEdit, onDelete }: GameDetailPanelProps
                 )}
               </div>
             </div>
+            {player.companionName && (
+              <p className="text-xs text-muted-foreground ml-2">Companion: {player.companionName}</p>
+            )}
             {player.fastMana.hasFastMana && (
               <p className="text-xs text-muted-foreground ml-2">
                 Fast mana{player.fastMana.cards.length > 0 ? `: ${player.fastMana.cards.join(", ")}` : ""}

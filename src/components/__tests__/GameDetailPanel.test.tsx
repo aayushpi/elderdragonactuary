@@ -33,6 +33,13 @@ function makeGame(players: Player[], winnerId: string): Game {
 }
 
 describe("GameDetailPanel history details", () => {
+  it("shows an opponent's companion", () => {
+    const me = makePlayer({ id: "me", isMe: true, commanderName: "Atraxa", seatPosition: 1 })
+    const opponent = { ...makePlayer({ id: "opp1", commanderName: "Kinnan", seatPosition: 2 }), companionName: "Lurrus of the Dream-Den" }
+    const html = renderToStaticMarkup(<GameDetailPanel game={makeGame([me, opponent], me.id)} />)
+    expect(html).toContain("Companion: Lurrus of the Dream-Den")
+  })
+
   it("shows KO badge for losing opponents with knockout turn", () => {
     const me = makePlayer({ id: "me", isMe: true, commanderName: "Atraxa", seatPosition: 1 })
     const opponent = makePlayer({ id: "opp1", commanderName: "Kinnan", seatPosition: 2, knockoutTurn: 6 })

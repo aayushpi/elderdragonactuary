@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "re
 import { Play, Timer, ChevronRight, Flag, Undo2, Dices, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
+import { commanderSourceKey, commanderSourceLabel, ringGrid, useTurnClock, type GameEvent, type LiveGameApi, type LivePlayer } from "./engine"
 import { EndGameBanner } from "./shared"
 import { SEAT_COLORS } from "./engine"
 import { useOrientationLock, type CounterRotation } from "./useOrientationLock"
@@ -400,7 +400,9 @@ function UndoLog({
     if (ev.kind === "turn") return `— End of turn ${ev.turn} —`
     const target = nameById[ev.targetId] ?? "?"
     if (ev.sourceId) {
-      const src = nameById[ev.sourceId] ?? "?"
+      const src = ev.isCommander
+        ? commanderSourceLabel(players, commanderSourceKey(ev.sourceId, ev.commanderSlot))
+        : nameById[ev.sourceId] ?? "?"
       const type = ev.isCommander ? " (cmdr)" : ev.isPoison ? " (poison)" : ""
       return `${src} → ${target}: ${ev.amount > 0 ? "+" : ""}${ev.amount}${type}`
     }

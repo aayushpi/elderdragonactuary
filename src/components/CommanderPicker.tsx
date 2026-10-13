@@ -19,7 +19,7 @@ import {
 import { ManaCost } from "@/components/ManaCost"
 import { Pips, SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
 import type { MtgColor } from "@/types"
-import { formatRelative, matchScore, type CommanderShortlistItem } from "@/lib/shortlist"
+import { formatRelative, matchScore, shortlistItemToDeck, type CommanderShortlistItem } from "@/lib/shortlist"
 import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 
 export type { CommanderShortlistItem } from "@/lib/shortlist"
@@ -39,14 +39,14 @@ export interface CommanderPick {
 }
 
 /** A pick that replaces the whole deck: a single commander clears any partner. */
-function deckPick(base: Omit<CommanderPick, `partner${string}`>, partner?: CommanderShortlistItem["partner"]): CommanderPick {
+function deckPick(base: Omit<CommanderPick, `partner${string}`>): CommanderPick {
   return {
     ...base,
-    partnerName: partner?.name,
-    partnerImageUri: partner?.imageUri,
-    partnerColorIdentity: partner?.colorIdentity,
-    partnerManaCost: partner?.manaCost,
-    partnerTypeLine: partner?.typeLine,
+    partnerName: undefined,
+    partnerImageUri: undefined,
+    partnerColorIdentity: undefined,
+    partnerManaCost: undefined,
+    partnerTypeLine: undefined,
   }
 }
 
@@ -196,18 +196,7 @@ export function CommanderPicker({
   }, [legalBrowse, items, pairWith])
 
   function pickItem(item: CommanderShortlistItem) {
-    onPick(
-      deckPick(
-        {
-          commanderName: item.commanderName ?? item.name,
-          commanderImageUri: item.imageUri,
-          commanderColorIdentity: item.colorIdentity,
-          commanderManaCost: item.manaCost,
-          commanderTypeLine: item.typeLine,
-        },
-        item.partner,
-      )
-    )
+    onPick(shortlistItemToDeck(item))
     onOpenChange(false)
   }
 

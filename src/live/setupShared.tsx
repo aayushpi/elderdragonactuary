@@ -1,5 +1,5 @@
 import type { CommanderPick } from "@/components/CommanderPicker"
-import type { CommanderShortlistItem } from "@/lib/shortlist"
+import { shortlistItemToDeck, type CommanderShortlistItem } from "@/lib/shortlist"
 import type { SeatPosition } from "@/types"
 import { genId, type LiveConfig, type LivePlayer } from "@/live/engine"
 import type { PodMember, RichPod } from "./setupData"
@@ -29,11 +29,7 @@ function memberToSeat(m: PodMember, i: number): DraftSeat {
     seatPosition: (i + 1) as SeatPosition,
     isMe: m.isMe,
     displayName: m.isMe ? "You" : m.name,
-    commanderName: m.commander?.name ?? "",
-    commanderImageUri: m.commander?.imageUri,
-    commanderColorIdentity: m.commander?.colorIdentity,
-    commanderManaCost: m.commander?.manaCost,
-    commanderTypeLine: m.commander?.typeLine,
+    ...(m.commander ? shortlistItemToDeck(m.commander) : { commanderName: "" }),
   }
 }
 
@@ -62,14 +58,7 @@ export function podToRoster(pod: RichPod): {
 }
 
 export function applyShortlist(seat: DraftSeat, item: CommanderShortlistItem): DraftSeat {
-  return {
-    ...seat,
-    commanderName: item.name,
-    commanderImageUri: item.imageUri,
-    commanderColorIdentity: item.colorIdentity,
-    commanderManaCost: item.manaCost,
-    commanderTypeLine: item.typeLine,
-  }
+  return { ...seat, ...shortlistItemToDeck(item) }
 }
 
 export function randomStarter(seats: DraftSeat[]): SeatPosition {
@@ -84,6 +73,11 @@ export function applyPick(seat: DraftSeat, pick: CommanderPick): DraftSeat {
     commanderColorIdentity: pick.commanderColorIdentity,
     commanderManaCost: pick.commanderManaCost,
     commanderTypeLine: pick.commanderTypeLine,
+    partnerName: pick.partnerName,
+    partnerImageUri: pick.partnerImageUri,
+    partnerColorIdentity: pick.partnerColorIdentity,
+    partnerManaCost: pick.partnerManaCost,
+    partnerTypeLine: pick.partnerTypeLine,
   }
 }
 
@@ -95,6 +89,11 @@ export function clearCommander(seat: DraftSeat): DraftSeat {
     commanderColorIdentity: undefined,
     commanderManaCost: undefined,
     commanderTypeLine: undefined,
+    partnerName: undefined,
+    partnerImageUri: undefined,
+    partnerColorIdentity: undefined,
+    partnerManaCost: undefined,
+    partnerTypeLine: undefined,
   }
 }
 

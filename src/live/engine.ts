@@ -41,6 +41,38 @@ export interface LivePlayer {
   commanderColorIdentity?: MtgColor[]
   commanderManaCost?: string
   commanderTypeLine?: string
+  partnerName?: string
+  partnerImageUri?: string
+  partnerColorIdentity?: MtgColor[]
+  partnerManaCost?: string
+  partnerTypeLine?: string
+  companionName?: string
+  companionImageUri?: string
+  companionManaCost?: string
+  companionTypeLine?: string
+}
+
+/** Which of a player's commanders dealt commander damage: 0 = the first,
+ *  1 = the partner. Each counts toward 21 on its own. */
+export type CommanderSlot = 0 | 1
+
+/** Key into `commanderFrom`. Slot 0 is the bare player id. */
+export function commanderSourceKey(sourceId: string, slot: CommanderSlot = 0): string {
+  return slot === 1 ? `${sourceId}:1` : sourceId
+}
+
+export function parseCommanderSourceKey(key: string): { playerId: string; slot: CommanderSlot } {
+  return key.endsWith(":1") ? { playerId: key.slice(0, -2), slot: 1 } : { playerId: key, slot: 0 }
+}
+
+/** "Alex", or "Alex · Thrasios" when that player has two commanders. */
+export function commanderSourceLabel(players: LivePlayer[], key: string): string {
+  const { playerId, slot } = parseCommanderSourceKey(key)
+  const p = players.find((pl) => pl.id === playerId)
+  if (!p) return "?"
+  if (!p.partnerName?.trim()) return p.displayName
+  const cmdr = slot === 1 ? p.partnerName : p.commanderName
+  return `${p.displayName} · ${cmdr.split(",")[0]}`
 }
 
 /** One entry in the damage ledger. `sourceId === null` = an undirected change
@@ -55,6 +87,8 @@ export interface DamageEvent {
   targetId: string
   amount: number
   isCommander: boolean
+  /** which of the source's commanders, when isCommander */
+  commanderSlot?: CommanderSlot
   isLifelink: boolean
   isPoison: boolean
   ts: number
@@ -82,7 +116,7 @@ export interface LiveConfig {
 
 export interface PlayerRuntime {
   life: number
-  /** commander damage taken, keyed by source player id */
+  /** commander damage taken, keyed by commanderSourceKey(source, slot) */
   commanderFrom: Record<string, number>
   /** poison counters (10 = lethal) */
   poison: number
@@ -97,6 +131,7 @@ export interface PlayerRuntime {
 export interface DamageOpts {
   sourceId?: string | null
   isCommander?: boolean
+  commanderSlot?: CommanderSlot
   isLifelink?: boolean
   isPoison?: boolean
 }
@@ -134,8 +169,11 @@ export interface LiveGameApi {
   endGame: () => void
   buildGame: () => Game
   reset: (cfg?: LiveConfig) => void
-  /** assign / change a seat's commander mid-flow (deferred "add later") */
+  /** assign / change a seat's whole deck mid-flow (deferred "add later");
+   *  a pick without a partner clears the partner */
   setCommander: (id: string, c: CommanderAssign) => void
+  /** set or clear just the second commander (partner, background…) */
+  setPartner: (id: string, partner: PartnerAssign | null) => void
   setDisplayName: (id: string, name: string) => void
   /** swap two players' seat positions before the game starts */
   swapSeats: (aId: string, bId: string) => void
@@ -147,6 +185,30 @@ export interface CommanderAssign {
   commanderColorIdentity?: MtgColor[]
   commanderManaCost?: string
   commanderTypeLine?: string
+  partnerName?: string
+  partnerImageUri?: string
+  partnerColorIdentity?: MtgColor[]
+  partnerManaCost?: string
+  partnerTypeLine?: string
+}
+
+export interface PartnerAssign {
+  partnerName: string
+  partnerImageUri?: string
+  partnerColorIdentity?: MtgColor[]
+  partnerManaCost?: string
+  partnerTypeLine?: string
+}
+
+function applyCommanderDamage(
+  cmdr: Record<string, Record<string, number>>,
+  targetId: string,
+  sourceId: string,
+  slot: CommanderSlot | undefined,
+  amount: number,
+) {
+  const key = commanderSourceKey(sourceId, slot ?? 0)
+  cmdr[targetId][key] = Math.max(0, (cmdr[targetId][key] ?? 0) + amount)
 }
 
 interface Core {
@@ -237,11 +299,12 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       if (amount === 0) return
       const sourceId = opts?.sourceId ?? null
       const isCommander = opts?.isCommander ?? false
+      const commanderSlot = isCommander ? opts?.commanderSlot ?? 0 : undefined
       const isLifelink = opts?.isLifelink ?? false
       const isPoison = opts?.isPoison ?? false
       setEvents((prev) => [
         ...prev,
-        { kind: "damage", id: genId(), turn, sourceId, targetId, amount, isCommander, isLifelink, isPoison, ts: Date.now() },
+        { kind: "damage", id: genId(), turn, sourceId, targetId, amount, isCommander, commanderSlot, isLifelink, isPoison, ts: Date.now() },
       ])
       setCore((prev) => {
         const life = { ...prev.life }
@@ -254,7 +317,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
           poison[targetId] = Math.max(0, (poison[targetId] ?? 0) + amount)
         }
         if (isCommander && sourceId) {
-          cmdr[targetId][sourceId] = Math.max(0, (cmdr[targetId][sourceId] ?? 0) + amount)
+          applyCommanderDamage(cmdr, targetId, sourceId, commanderSlot, amount)
         }
         if (isLifelink && sourceId && amount > 0) {
           life[sourceId] = (life[sourceId] ?? STARTING_LIFE) + amount
@@ -286,7 +349,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         poison[last.targetId] = Math.max(0, (poison[last.targetId] ?? 0) - last.amount)
       }
       if (last.isCommander && last.sourceId) {
-        cmdr[last.targetId][last.sourceId] = Math.max(0, (cmdr[last.targetId][last.sourceId] ?? 0) - last.amount)
+        applyCommanderDamage(cmdr, last.targetId, last.sourceId, last.commanderSlot, -last.amount)
       }
       if (last.isLifelink && last.sourceId && last.amount > 0) {
         life[last.sourceId] = (life[last.sourceId] ?? STARTING_LIFE) - last.amount
@@ -315,7 +378,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
         poison[ev.targetId] = Math.max(0, (poison[ev.targetId] ?? 0) + ev.amount)
       }
       if (ev.isCommander && ev.sourceId) {
-        cmdr[ev.targetId][ev.sourceId] = Math.max(0, (cmdr[ev.targetId][ev.sourceId] ?? 0) + ev.amount)
+        applyCommanderDamage(cmdr, ev.targetId, ev.sourceId, ev.commanderSlot, ev.amount)
       }
       if (ev.isLifelink && ev.sourceId && ev.amount > 0) {
         life[ev.sourceId] = (life[ev.sourceId] ?? STARTING_LIFE) + ev.amount
@@ -412,6 +475,29 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
               commanderColorIdentity: c.commanderColorIdentity,
               commanderManaCost: c.commanderManaCost,
               commanderTypeLine: c.commanderTypeLine,
+              partnerName: c.partnerName,
+              partnerImageUri: c.partnerImageUri,
+              partnerColorIdentity: c.partnerColorIdentity,
+              partnerManaCost: c.partnerManaCost,
+              partnerTypeLine: c.partnerTypeLine,
+            }
+          : p
+      ),
+    }))
+  }, [])
+
+  const setPartner = useCallback((id: string, partner: PartnerAssign | null) => {
+    setConfig((prev) => ({
+      ...prev,
+      players: prev.players.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              partnerName: partner?.partnerName,
+              partnerImageUri: partner?.partnerImageUri,
+              partnerColorIdentity: partner?.partnerColorIdentity,
+              partnerManaCost: partner?.partnerManaCost,
+              partnerTypeLine: partner?.partnerTypeLine,
             }
           : p
       ),
@@ -464,6 +550,15 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
       commanderColorIdentity: p.commanderColorIdentity,
       commanderManaCost: p.commanderManaCost,
       commanderTypeLine: p.commanderTypeLine,
+      partnerName: p.partnerName?.trim() || undefined,
+      partnerImageUri: p.partnerImageUri,
+      partnerColorIdentity: p.partnerColorIdentity,
+      partnerManaCost: p.partnerManaCost,
+      partnerTypeLine: p.partnerTypeLine,
+      companionName: p.companionName?.trim() || undefined,
+      companionImageUri: p.companionImageUri,
+      companionManaCost: p.companionManaCost,
+      companionTypeLine: p.companionTypeLine,
       seatPosition: p.seatPosition,
       displayName: p.displayName,
       knockoutTurn: runtime[p.id]?.knockoutTurn,
@@ -514,6 +609,7 @@ export function useLiveGame(initial: LiveConfig): LiveGameApi {
     buildGame,
     reset,
     setCommander,
+    setPartner,
     setDisplayName,
     swapSeats,
   }

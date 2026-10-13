@@ -8,6 +8,8 @@ export interface CommanderShortlistItem {
   commanderName?: string
   /** Second commander (partner, background…) when the deck is a pairing. */
   partner?: DeckHalf
+  /** The first commander's own colors; `colorIdentity` is the whole deck's. */
+  commanderColorIdentity?: MtgColor[]
   games: number
   winRate: number // 0..1
   lastPlayedISO?: string
@@ -15,6 +17,38 @@ export interface CommanderShortlistItem {
   manaCost?: string
   imageUri?: string
   typeLine?: string
+}
+
+export interface DeckAssignment {
+  commanderName: string
+  commanderImageUri?: string
+  commanderColorIdentity?: MtgColor[]
+  commanderManaCost?: string
+  commanderTypeLine?: string
+  partnerName?: string
+  partnerImageUri?: string
+  partnerColorIdentity?: MtgColor[]
+  partnerManaCost?: string
+  partnerTypeLine?: string
+}
+
+/** The fields to set on a player when a shortlist deck is picked. Always sets
+ *  the partner keys, so picking a solo deck clears a stale partner. The
+ *  item's colorIdentity is the whole deck's, so the halves' own identities are
+ *  used when known. */
+export function shortlistItemToDeck(item: CommanderShortlistItem): DeckAssignment {
+  return {
+    commanderName: item.commanderName ?? item.name,
+    commanderImageUri: item.imageUri,
+    commanderColorIdentity: item.partner ? item.commanderColorIdentity ?? item.colorIdentity : item.colorIdentity,
+    commanderManaCost: item.manaCost,
+    commanderTypeLine: item.typeLine,
+    partnerName: item.partner?.name,
+    partnerImageUri: item.partner?.imageUri,
+    partnerColorIdentity: item.partner?.colorIdentity,
+    partnerManaCost: item.partner?.manaCost,
+    partnerTypeLine: item.partner?.typeLine,
+  }
 }
 
 export interface ShortlistOccurrence {
@@ -91,6 +125,7 @@ export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderSho
     last: string
     commanderName?: string
     partner?: DeckHalf
+    commanderColorIdentity?: MtgColor[]
     colorIdentity?: MtgColor[]
     manaCost?: string
     imageUri?: string
@@ -109,6 +144,7 @@ export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderSho
       const [primary, secondary] = orderedDeck(player)
       const colors = deckColorIdentity(player)
       acc.commanderName = primary.name
+      acc.commanderColorIdentity = primary.colorIdentity ?? acc.commanderColorIdentity
       acc.colorIdentity = colors.length > 0 || player.commanderColorIdentity ? colors : acc.colorIdentity
       acc.manaCost = primary.manaCost ?? acc.manaCost
       acc.imageUri = primary.imageUri ?? acc.imageUri
@@ -124,6 +160,7 @@ export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderSho
       name,
       commanderName: a.commanderName,
       partner: a.partner,
+      commanderColorIdentity: a.commanderColorIdentity,
       games: a.games,
       winRate: a.games ? a.wins / a.games : 0,
       lastPlayedISO: a.last,
@@ -152,6 +189,7 @@ export function buildPartnerShortlist(
         imageUri: item.imageUri,
         manaCost: item.manaCost,
         typeLine: item.typeLine,
+        colorIdentity: item.commanderColorIdentity,
       },
       item.partner,
     ]
