@@ -1,4 +1,5 @@
 import type { Game, Player } from "@/types"
+import { deckLabel } from "@/lib/commanderIdentity"
 
 const STORAGE_KEY = "commando_games"
 const PODS_KEY = "commando_pods"
@@ -33,6 +34,11 @@ interface ExportPlayer {
   partnerManaCost?: string
   partnerTypeLine?: string
   partnerImageUri?: string
+  partnerColorIdentity?: string[]
+  companionName?: string
+  companionManaCost?: string
+  companionTypeLine?: string
+  companionImageUri?: string
   displayName?: string
   knockoutTurn?: number
   seatPosition: number
@@ -107,6 +113,7 @@ export function exportCSV(): string {
   headers.push("Bracket")
   for (let i = 1; i <= maxPlayers; i++) {
     headers.push(`Player ${i} Commander`)
+    headers.push(`Player ${i} Companion`)
     headers.push(`Player ${i} Fast Mana`)
     headers.push(`Player ${i} KO Turn`)
   }
@@ -127,26 +134,19 @@ export function exportCSV(): string {
     for (let i = 0; i < maxPlayers; i++) {
       const p = g.players[i]
       if (p) {
-        // Combine commander and partner names if partner exists
-        const commanderDisplay = p.partnerName 
-          ? `${p.commanderName ?? ""} // ${p.partnerName}`
-          : (p.commanderName ?? "")
-        row.push(commanderDisplay)
+        row.push(deckLabel(p))
+        row.push(p.companionName ?? "")
         const hasFast = p.fastMana?.hasFastMana
         const fastVal = hasFast ? (Array.isArray(p.fastMana?.cards) ? p.fastMana!.cards.join(', ') : '') : "No"
         row.push(fastVal)
         row.push(typeof p.knockoutTurn === "number" ? String(p.knockoutTurn) : "")
       } else {
-        row.push("")
-        row.push("")
-        row.push("")
+        row.push("", "", "", "")
       }
     }
 
     const winnerName = typeof g.winnerIndex === "number" && g.players[g.winnerIndex]
-      ? (g.players[g.winnerIndex].partnerName 
-          ? `${g.players[g.winnerIndex].commanderName ?? ""} // ${g.players[g.winnerIndex].partnerName}`
-          : (g.players[g.winnerIndex].commanderName ?? ""))
+      ? deckLabel(g.players[g.winnerIndex])
       : ""
     row.push(winnerName)
     row.push(String(g.winTurn ?? ""))
@@ -278,6 +278,7 @@ export function parseImportJson(json: string): { success: boolean; games: Game[]
           knockoutTurn: typeof p.knockoutTurn === "number" ? p.knockoutTurn : undefined,
           seatPosition: p.seatPosition as Player["seatPosition"],
           commanderColorIdentity: p.commanderColorIdentity as Player["commanderColorIdentity"],
+          partnerColorIdentity: p.partnerColorIdentity as Player["partnerColorIdentity"],
         }))
         // Rebuild playerNames map with the newly generated player IDs
         let playerNames: Record<string, string> | undefined

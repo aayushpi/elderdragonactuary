@@ -51,6 +51,16 @@ export const buttonVariants = cva(
   }
 )
 
+export function extractPartnerData(card: ScryfallCard) {
+  const d = extractCardData(card)
+  return {
+    partnerImageUri: d.commanderImageUri,
+    partnerColorIdentity: d.commanderColorIdentity,
+    partnerManaCost: d.commanderManaCost,
+    partnerTypeLine: d.commanderTypeLine,
+  }
+}
+
 export function extractCardData(card: ScryfallCard) {
   return {
     commanderImageUri: resolveArtCrop(card),

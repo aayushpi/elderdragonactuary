@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react"
+import { deckLabel } from "@/lib/commanderIdentity"
 import { toast } from "sonner"
 import { Download, Upload, Trash2, FileText, Loader2, LogOut, MessageSquarePlus, Megaphone, Map, HelpCircle } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -9,6 +10,8 @@ import { ACCENT_SWATCH, ACCENT_NAMES, type AccentName } from "@/lib/accent"
 import { CARD, SECTION_LABEL } from "@/components/modern/primitives"
 import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
+
+type DeckNames = { commanderName?: string; partnerName?: string }
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return ""
@@ -133,7 +136,7 @@ export function SettingsPage({
     )
     const headers: string[] = ["Date", "Bracket"]
     for (let i = 1; i <= maxPlayers; i++) {
-      headers.push(`Player ${i} Commander`, `Player ${i} Fast Mana`, `Player ${i} KO Turn`)
+      headers.push(`Player ${i} Commander`, `Player ${i} Companion`, `Player ${i} Fast Mana`, `Player ${i} KO Turn`)
     }
     headers.push("Winner", "Win Turn", "Notes", "Win Conditions", "Key Wincon Cards")
     const rows: string[] = [headers.join(",")]
@@ -145,24 +148,18 @@ export function SettingsPage({
       for (let i = 0; i < maxPlayers; i++) {
         const p = players[i]
         if (p) {
-          const cmd = p.partnerName
-            ? `${p.commanderName ?? ""} // ${p.partnerName}`
-            : String(p.commanderName ?? "")
-          row.push(csvEscape(cmd))
+          row.push(csvEscape(deckLabel(p as DeckNames)))
+          row.push(csvEscape(String(p.companionName ?? "")))
           const fm = p.fastMana as { hasFastMana?: boolean; cards?: string[] } | undefined
           row.push(csvEscape(fm?.hasFastMana ? fm.cards?.join(", ") ?? "" : "No"))
           row.push(csvEscape(typeof p.knockoutTurn === "number" ? p.knockoutTurn : ""))
         } else {
-          row.push("", "", "")
+          row.push("", "", "", "")
         }
       }
       const wi = g.winnerIndex as number
       const wp = players[wi]
-      const wn = wp
-        ? wp.partnerName
-          ? `${wp.commanderName ?? ""} // ${wp.partnerName}`
-          : String(wp.commanderName ?? "")
-        : ""
+      const wn = wp ? deckLabel(wp as DeckNames) : ""
       row.push(csvEscape(wn))
       row.push(csvEscape(g.winTurn ?? ""))
       row.push(csvEscape(g.notes ?? ""))

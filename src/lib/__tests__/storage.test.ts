@@ -218,7 +218,7 @@ describe("exportCSV", () => {
     expect(csv).toContain(",6,")
   })
 
-  it("renders partner commanders as Name // Partner", () => {
+  it("renders partner commanders as Name + Partner", () => {
     const me = makePlayer({
       isMe: true,
       commanderName: "Tymna",
@@ -229,7 +229,17 @@ describe("exportCSV", () => {
     saveGames([makeGame({ players: [me, opp], winnerId: me.id, winTurn: 7 })])
 
     const csv = exportCSV()
-    expect(csv).toContain("Tymna // Thrasios")
+    expect(csv).toContain("Tymna + Thrasios")
+  })
+
+  it("exports each player's companion in its own column", () => {
+    const me = makePlayer({ isMe: true, commanderName: "Atraxa", seatPosition: 1 })
+    const opp = makePlayer({ commanderName: "Korvold", seatPosition: 2 })
+    saveGames([makeGame({ players: [{ ...me, companionName: "Lurrus of the Dream-Den" }, opp], winnerId: me.id, winTurn: 7 })])
+
+    const csv = exportCSV()
+    expect(csv.split("\n")[0]).toContain("Player 1 Companion")
+    expect(csv).toContain("Lurrus of the Dream-Den")
   })
 
   it("escapes cells with commas", () => {

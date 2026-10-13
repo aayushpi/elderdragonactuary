@@ -1,4 +1,5 @@
 import type { Game } from "@/types"
+import { isBackgroundTypeLine } from "@/lib/commanderIdentity"
 import type { DeviceKind, GameShapeProps } from "./events"
 
 function deviceKind(): DeviceKind {
@@ -19,6 +20,10 @@ export function gameShapeProps(game: Game): GameShapeProps {
     win_turn: game.winTurn,
     is_win: Boolean(me && game.winnerId === me.id),
     has_partners: game.players.some((p) => Boolean(p.partnerName)),
+    has_background: game.players.some(
+      (p) => Boolean(p.partnerName) && (isBackgroundTypeLine(p.partnerTypeLine) || isBackgroundTypeLine(p.commanderTypeLine))
+    ),
+    has_companion: game.players.some((p) => Boolean(p.companionName)),
     fast_mana_used: game.players.some((p) => Boolean(p.fastMana?.hasFastMana)),
     bracket: game.bracket ?? null,
     win_conditions_count: game.winConditions?.length ?? 0,

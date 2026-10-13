@@ -85,6 +85,8 @@ describe("analytics — configured", () => {
       win_turn: 8,
       is_win: true,
       has_partners: false,
+      has_background: false,
+      has_companion: false,
       fast_mana_used: false,
       bracket: 3,
       win_conditions_count: 1,

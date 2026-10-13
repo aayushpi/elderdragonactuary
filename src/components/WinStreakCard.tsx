@@ -1,14 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Game } from "@/types"
+import { deckLabel } from "@/lib/commanderIdentity"
 
 function commanderDisplayName(game: Game, playerId: string | undefined): string {
   if (!playerId) return "Unknown Commander"
   const player = game.players.find((p) => p.id === playerId)
   if (!player) return "Unknown Commander"
-  return player.partnerName
-    ? `${player.commanderName} // ${player.partnerName}`
-    : player.commanderName
+  return deckLabel(player, "Unknown Commander")
 }
 
 interface WinStreakCardProps {

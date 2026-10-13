@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { computeStats } from "@/lib/stats"
+import { computeStats, computeCommanderElo } from "@/lib/stats"
 import { makeGame, makePlayer, resetIdCounter } from "./helpers"
 import type { Game } from "@/types"
 
@@ -409,5 +409,83 @@ describe("top win conditions", () => {
     ]
     const stats = computeStats(games)
     expect(stats.topWinConditions).toEqual([])
+  })
+})
+
+// ─── Partner / background decks ─────────────────────────────────────────────
+
+describe("paired commanders", () => {
+  it("treats each pairing as its own deck, regardless of entry order", () => {
+    const opp = makePlayer({ commanderName: "Korvold" })
+    const a = makePlayer({ isMe: true, commanderName: "Tymna", partnerName: "Thrasios" })
+    const b = makePlayer({ isMe: true, commanderName: "Thrasios", partnerName: "Tymna" })
+    const c = makePlayer({ isMe: true, commanderName: "Tymna", partnerName: "Kraum" })
+    const stats = computeStats([
+      makeGame({ players: [a, opp], winnerId: a.id }),
+      makeGame({ players: [b, opp], winnerId: opp.id }),
+      makeGame({ players: [c, opp], winnerId: c.id }),
+    ])
+    const byName = new Map(stats.byCommander.map((s) => [s.name, s]))
+    expect(byName.get("Thrasios + Tymna")?.games).toBe(2)
+    expect(byName.get("Thrasios + Tymna")?.wins).toBe(1)
+    expect(byName.get("Kraum + Tymna")?.games).toBe(1)
+    expect(byName.has("Tymna")).toBe(false)
+  })
+
+  it("uses both halves for color identity", () => {
+    const me = makePlayer({
+      isMe: true,
+      commanderName: "Tymna",
+      commanderColorIdentity: ["W", "B"],
+      partnerName: "Thrasios",
+      partnerColorIdentity: ["G", "U"],
+    })
+    const stats = computeStats([makeGame({ players: [me, makePlayer()], winnerId: me.id })])
+    expect(stats.mostPlayedCommanderColorIdentity?.key).toBe("WUBG")
+    expect(stats.byCommander[0].colorIdentity).toEqual(["W", "U", "B", "G"])
+  })
+
+  it("names the winning deck in recent results", () => {
+    const me = makePlayer({ isMe: true, commanderName: "Atraxa" })
+    const opp = makePlayer({ commanderName: "Wilson", partnerName: "Candlekeep Sage" })
+    const stats = computeStats([makeGame({ players: [me, opp], winnerId: opp.id })])
+    expect(stats.byCommander[0].recentResults[0].winningCommander).toBe("Wilson + Candlekeep Sage")
+  })
+
+  it("breaks a deck's record down by companion", () => {
+    const me1 = makePlayer({ isMe: true, commanderName: "Atraxa", companionName: "Lurrus" })
+    const me2 = makePlayer({ isMe: true, commanderName: "Atraxa", companionName: "Lurrus" })
+    const me3 = makePlayer({ isMe: true, commanderName: "Atraxa" })
+    const opp = makePlayer()
+    const stats = computeStats([
+      makeGame({ players: [me1, opp], winnerId: me1.id }),
+      makeGame({ players: [me2, opp], winnerId: opp.id }),
+      makeGame({ players: [me3, opp], winnerId: me3.id }),
+    ])
+    expect(stats.byCommander[0].companions).toEqual([{ name: "Lurrus", wins: 1, games: 2 }])
+  })
+})
+
+describe("commander ELO with pairings", () => {
+  it("rates a pairing as one deck, order-independent", () => {
+    const opp = makePlayer({ commanderName: "Korvold" })
+    const a = makePlayer({ isMe: true, commanderName: "Tymna", partnerName: "Thrasios" })
+    const b = makePlayer({ isMe: true, commanderName: "Thrasios", partnerName: "Tymna" })
+    const elo = computeCommanderElo([
+      makeGame({ playedAt: "2025-06-01T00:00:00.000Z", players: [a, opp], winnerId: a.id }),
+      makeGame({ playedAt: "2025-06-02T00:00:00.000Z", players: [b, opp], winnerId: b.id }),
+    ])
+    expect(elo).toHaveLength(1)
+    expect(elo[0].name).toBe("Thrasios + Tymna")
+    expect(elo[0].games).toBe(2)
+    expect(elo[0].partnerName).toBe("Tymna")
+  })
+
+  it("doesn't let a deck play itself when two seats share it", () => {
+    const me = makePlayer({ isMe: true, commanderName: "Atraxa" })
+    const opp = makePlayer({ commanderName: "Atraxa" })
+    const elo = computeCommanderElo([makeGame({ players: [me, opp], winnerId: me.id })])
+    expect(elo[0].games).toBe(1)
+    expect(elo[0].currentRating).toBe(1500)
   })
 })

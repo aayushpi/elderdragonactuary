@@ -33,6 +33,10 @@ export interface GameShapeProps {
   /** Did the logging user win this one? Drives the win-rate cohort splits. */
   is_win: boolean
   has_partners: boolean
+  /** Any seat paired a commander with a Background. */
+  has_background: boolean
+  /** Any seat declared a companion. */
+  has_companion: boolean
   fast_mana_used: boolean
   bracket: number | null
   win_conditions_count: number

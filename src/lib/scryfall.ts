@@ -10,35 +10,63 @@ async function parseCardResponse(res: Response): Promise<ScryfallCard> {
 export interface CommanderSuggestion {
   name: string
   manaCost: string
+  typeLine?: string
+  card?: ScryfallCard
 }
 
-export async function fetchCommanderSuggestions(q: string): Promise<CommanderSuggestion[]> {
-  const res = await fetch(
-    `${BASE}/cards/search?q=${encodeURIComponent("name:" + q + " is:commander legal:commander")}&order=name&unique=cards`
-  )
+function toSuggestion(card: ScryfallCard): CommanderSuggestion {
+  return {
+    name: card.name,
+    manaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
+    typeLine: card.type_line,
+    card,
+  }
+}
+
+async function searchCards(query: string): Promise<CommanderSuggestion[]> {
+  const res = await fetch(`${BASE}/cards/search?q=${encodeURIComponent(query)}&order=name&unique=cards`)
   if (res.status === 404) return []
   if (!res.ok) throw new Error("Search failed")
   const json = await res.json() as { data: ScryfallCard[] }
-  return json.data.slice(0, 20).map((card) => ({
-    name: card.name,
-    manaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
-  }))
+  for (const card of json.data) cardCache.set(card.name.toLowerCase(), Promise.resolve(card))
+  return json.data.slice(0, 20).map(toSuggestion)
 }
 
-export async function fetchCardSuggestions(q: string): Promise<CommanderSuggestion[]> {
-  const res = await fetch(
-    `${BASE}/cards/search?q=${encodeURIComponent(q)}&order=name&unique=cards`
-  )
-  if (res.status === 404) return []
-  if (!res.ok) throw new Error("Search failed")
-  const json = await res.json() as { data: ScryfallCard[] }
-  return json.data.slice(0, 20).map((card) => ({
-    name: card.name,
-    manaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost ?? "",
-  }))
+export function fetchCommanderSuggestions(q: string): Promise<CommanderSuggestion[]> {
+  return searchCards(`name:${q} is:commander legal:commander`)
 }
 
-export async function fetchCardByName(name: string): Promise<ScryfallCard> {
+/** Commanders plus Backgrounds — the search for a deck's second slot. */
+export function fetchPairingSuggestions(q: string): Promise<CommanderSuggestion[]> {
+  return searchCards(`name:${q} (is:commander or t:background) legal:commander`)
+}
+
+export function fetchCompanionSuggestions(q: string): Promise<CommanderSuggestion[]> {
+  return searchCards(`name:${q} keyword:companion`)
+}
+
+export function fetchCardSuggestions(q: string): Promise<CommanderSuggestion[]> {
+  return searchCards(q)
+}
+
+/** Raw Scryfall query, e.g. the legal partners for a commander. */
+export function fetchSuggestionsByQuery(query: string): Promise<CommanderSuggestion[]> {
+  return searchCards(query)
+}
+
+const cardCache = new Map<string, Promise<ScryfallCard>>()
+
+export function fetchCardByName(name: string): Promise<ScryfallCard> {
+  const key = name.toLowerCase()
+  const cached = cardCache.get(key)
+  if (cached) return cached
+  const pending = lookupCard(name)
+  cardCache.set(key, pending)
+  pending.catch(() => cardCache.delete(key))
+  return pending
+}
+
+async function lookupCard(name: string): Promise<ScryfallCard> {
   const exactRes = await fetch(`${BASE}/cards/named?exact=${encodeURIComponent(name)}`)
   if (exactRes.ok) return parseCardResponse(exactRes)
 

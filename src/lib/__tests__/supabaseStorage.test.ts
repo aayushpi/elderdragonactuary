@@ -41,3 +41,35 @@ describe("replaceAllGames ordering for date-only playedAt", () => {
     expect(res).toHaveLength(3)
   })
 })
+
+describe("player field round-trip", () => {
+  it("keeps partner color identity and companion through insert and read-back", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(supabase as any).from = () => ({
+      delete: () => ({ eq: async () => ({ error: null }) }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      insert: (rows: any) => ({ select: async () => ({ data: rows, error: null }) }),
+    })
+    const player = {
+      id: "p1",
+      isMe: true,
+      commanderName: "Wilson, Refined Grizzly",
+      partnerName: "Candlekeep Sage",
+      partnerColorIdentity: ["U"],
+      partnerTypeLine: "Legendary Enchantment — Background",
+      companionName: "Lurrus of the Dream-Den",
+      companionImageUri: "lurrus.jpg",
+      seatPosition: 1,
+      fastMana: { hasFastMana: false, cards: [] },
+    }
+    const game = { id: "g", playedAt: "2026-02-26T12:00:00.000Z", winTurn: 5, winnerId: "p1", players: [player] }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [saved] = await replaceAllGames([game] as any)
+    expect(saved.players[0]).toMatchObject({
+      partnerColorIdentity: ["U"],
+      partnerTypeLine: "Legendary Enchantment — Background",
+      companionName: "Lurrus of the Dream-Den",
+      companionImageUri: "lurrus.jpg",
+    })
+  })
+})

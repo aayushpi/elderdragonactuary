@@ -1,6 +1,11 @@
 import { Pencil } from "lucide-react"
 import type { Game, MtgColor } from "@/types"
 import { Pips, ResultBadge } from "@/components/modern/primitives"
+import { DECK_SEPARATOR, deckColorIdentity, deckLabel, deckNames } from "@/lib/commanderIdentity"
+
+function shortName(name: string): string {
+  return name.split(" // ")[0].split(",")[0]
+}
 
 interface GameRowProps {
   game: Game
@@ -10,12 +15,12 @@ interface GameRowProps {
 export function GameRow({ game, onEdit }: GameRowProps) {
   const me = game.players.find((p) => p.isMe)
   const won = !!me && game.winnerId === me.id
-  const cmdr = me?.commanderName ?? "Unknown commander"
-  const colors = (me?.commanderColorIdentity ?? []) as MtgColor[]
+  const cmdr = me ? deckLabel(me, "Unknown commander") : "Unknown commander"
+  const colors: MtgColor[] = me ? deckColorIdentity(me) : []
   const seat = me?.seatPosition
   const vs = game.players
     .filter((p) => !p.isMe)
-    .map((p) => p.commanderName.split(" // ")[0].split(",")[0])
+    .map((p) => deckNames(p).map(shortName).join(DECK_SEPARATOR))
     .join(" · ")
   const date = new Date(game.playedAt).toLocaleDateString(undefined, {
     weekday: "short",

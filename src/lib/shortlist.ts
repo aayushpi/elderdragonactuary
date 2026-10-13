@@ -1,7 +1,13 @@
 import type { Game, MtgColor, Player } from "@/types"
+import { deckColorIdentity, deckKey, orderedDeck, type DeckHalf } from "@/lib/commanderIdentity"
 
 export interface CommanderShortlistItem {
+  /** Deck label: the commander, or "A + B" for a pairing. */
   name: string
+  /** The first (or only) commander's card name. */
+  commanderName?: string
+  /** Second commander (partner, background…) when the deck is a pairing. */
+  partner?: DeckHalf
   games: number
   winRate: number // 0..1
   lastPlayedISO?: string
@@ -76,12 +82,15 @@ export function buildWinconShortlist(games: Game[]): WinconShortlistItem[] {
 }
 
 /** Collapse a player's game appearances into a recents shortlist (games, win
- *  rate, recency, color identity), ordered most-recently-played first. */
+ *  rate, recency, color identity), ordered most-recently-played first. A
+ *  partner pairing is one deck, not two commanders. */
 export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderShortlistItem[] {
   interface Acc {
     games: number
     wins: number
     last: string
+    commanderName?: string
+    partner?: DeckHalf
     colorIdentity?: MtgColor[]
     manaCost?: string
     imageUri?: string
@@ -89,7 +98,7 @@ export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderSho
   }
   const map = new Map<string, Acc>()
   for (const { playedAt, won, player } of occurrences) {
-    const name = player.commanderName
+    const name = deckKey(player)
     if (!name) continue
     const acc = map.get(name) ?? { games: 0, wins: 0, last: playedAt }
     acc.games += 1
@@ -97,16 +106,24 @@ export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderSho
     const isLatest = new Date(playedAt).getTime() >= new Date(acc.last).getTime()
     if (isLatest || !acc.colorIdentity) {
       if (isLatest) acc.last = playedAt
-      acc.colorIdentity = player.commanderColorIdentity ?? acc.colorIdentity
-      acc.manaCost = player.commanderManaCost ?? acc.manaCost
-      acc.imageUri = player.commanderImageUri ?? acc.imageUri
-      acc.typeLine = player.commanderTypeLine ?? acc.typeLine
+      const [primary, secondary] = orderedDeck(player)
+      const colors = deckColorIdentity(player)
+      acc.commanderName = primary.name
+      acc.colorIdentity = colors.length > 0 || player.commanderColorIdentity ? colors : acc.colorIdentity
+      acc.manaCost = primary.manaCost ?? acc.manaCost
+      acc.imageUri = primary.imageUri ?? acc.imageUri
+      acc.typeLine = primary.typeLine ?? acc.typeLine
+      acc.partner = secondary
+        ? { ...secondary, imageUri: secondary.imageUri ?? acc.partner?.imageUri }
+        : undefined
     }
     map.set(name, acc)
   }
   return Array.from(map.entries())
     .map(([name, a]) => ({
       name,
+      commanderName: a.commanderName,
+      partner: a.partner,
       games: a.games,
       winRate: a.games ? a.wins / a.games : 0,
       lastPlayedISO: a.last,
@@ -116,6 +133,56 @@ export function buildShortlist(occurrences: ShortlistOccurrence[]): CommanderSho
       typeLine: a.typeLine,
     }))
     .sort((a, b) => new Date(b.lastPlayedISO).getTime() - new Date(a.lastPlayedISO).getTime())
+}
+
+/** Single cards this player has used as either half of a pairing — the
+ *  one-tap list for the second-commander picker. Excludes `exclude` (the
+ *  commander already in the first slot). */
+export function buildPartnerShortlist(
+  items: CommanderShortlistItem[],
+  exclude?: string,
+): CommanderShortlistItem[] {
+  const skip = exclude?.trim().toLowerCase()
+  const map = new Map<string, CommanderShortlistItem>()
+  for (const item of items) {
+    if (!item.partner) continue
+    const halves: DeckHalf[] = [
+      {
+        name: item.commanderName ?? item.name,
+        imageUri: item.imageUri,
+        manaCost: item.manaCost,
+        typeLine: item.typeLine,
+      },
+      item.partner,
+    ]
+    for (const half of halves) {
+      if (!half.name || half.name.toLowerCase() === skip) continue
+      const prev = map.get(half.name)
+      if (prev) {
+        const wins = prev.winRate * prev.games + item.winRate * item.games
+        prev.games += item.games
+        prev.winRate = wins / prev.games
+        if ((item.lastPlayedISO ?? "") > (prev.lastPlayedISO ?? "")) prev.lastPlayedISO = item.lastPlayedISO
+        prev.imageUri ??= half.imageUri
+        prev.colorIdentity ??= half.colorIdentity
+        continue
+      }
+      map.set(half.name, {
+        name: half.name,
+        commanderName: half.name,
+        games: item.games,
+        winRate: item.winRate,
+        lastPlayedISO: item.lastPlayedISO,
+        colorIdentity: half.colorIdentity,
+        manaCost: half.manaCost,
+        imageUri: half.imageUri,
+        typeLine: half.typeLine,
+      })
+    }
+  }
+  return [...map.values()].sort(
+    (a, b) => (b.lastPlayedISO ?? "").localeCompare(a.lastPlayedISO ?? "")
+  )
 }
 
 /** Build the "you" shortlist plus a per-opponent map (keyed by lowercased
@@ -133,20 +200,6 @@ export function buildPlayerShortlists(games: Game[]): {
       const occ = occByKey.get(key) ?? []
       const won = game.winnerId === p.id
       occ.push({ playedAt: game.playedAt, won, player: p })
-      // Partners are commanders this player has played too — surface them in
-      // the same recents list so both pickers can offer them one-tap.
-      if (p.partnerName?.trim()) {
-        occ.push({
-          playedAt: game.playedAt,
-          won,
-          player: {
-            commanderName: p.partnerName,
-            commanderImageUri: p.partnerImageUri,
-            commanderManaCost: p.partnerManaCost,
-            commanderTypeLine: p.partnerTypeLine,
-          },
-        })
-      }
       occByKey.set(key, occ)
     }
   }

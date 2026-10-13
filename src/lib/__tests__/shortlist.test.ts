@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { buildWinconShortlist, matchScore } from "@/lib/shortlist"
-import { makeGame } from "./helpers"
+import { buildPartnerShortlist, buildPlayerShortlists, buildWinconShortlist, matchScore } from "@/lib/shortlist"
+import { makeGame, makePlayer } from "./helpers"
 
 describe("buildWinconShortlist", () => {
   it("returns empty for games without wincon cards", () => {
@@ -50,5 +50,36 @@ describe("matchScore", () => {
     const early = matchScore("Craterhoof Behemoth", "crater")!
     const late = matchScore("Behemoth of Craterhoof", "crater")!
     expect(early).toBeLessThan(late)
+  })
+})
+
+describe("buildPlayerShortlists with pairings", () => {
+  it("lists a partner pairing as one deck that fills both slots", () => {
+    const me = makePlayer({
+      isMe: true,
+      commanderName: "Thrasios, Triton Hero",
+      partnerName: "Tymna the Weaver",
+      commanderColorIdentity: ["G", "U"],
+      partnerColorIdentity: ["W", "B"],
+    })
+    const { myShortlist } = buildPlayerShortlists([makeGame({ players: [me, makePlayer()] })])
+    expect(myShortlist).toHaveLength(1)
+    expect(myShortlist[0].name).toBe("Thrasios, Triton Hero + Tymna the Weaver")
+    expect(myShortlist[0].commanderName).toBe("Thrasios, Triton Hero")
+    expect(myShortlist[0].partner?.name).toBe("Tymna the Weaver")
+    expect(myShortlist[0].colorIdentity).toEqual(["W", "U", "B", "G"])
+  })
+
+  it("offers each half of past pairings as second-slot candidates", () => {
+    const g1 = makePlayer({ isMe: true, commanderName: "Tymna the Weaver", partnerName: "Thrasios, Triton Hero" })
+    const g2 = makePlayer({ isMe: true, commanderName: "Tymna the Weaver", partnerName: "Kraum, Ludevic's Opus" })
+    const solo = makePlayer({ isMe: true, commanderName: "Atraxa, Praetors' Voice" })
+    const { myShortlist } = buildPlayerShortlists([
+      makeGame({ players: [g1, makePlayer()] }),
+      makeGame({ players: [g2, makePlayer()] }),
+      makeGame({ players: [solo, makePlayer()] }),
+    ])
+    const names = buildPartnerShortlist(myShortlist, "Tymna the Weaver").map((i) => i.name)
+    expect(names.sort()).toEqual(["Kraum, Ludevic's Opus", "Thrasios, Triton Hero"])
   })
 })

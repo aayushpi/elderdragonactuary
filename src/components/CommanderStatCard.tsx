@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { fetchCardByName, resolveArtCrop, resolvePng } from "@/lib/scryfall"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useCard } from "@/hooks/useScryfall"
 import type { CommanderStat, WinRateStat } from "@/types"
 
 const statsImageCache = new Map<string, string | null>()
@@ -36,6 +37,44 @@ function MiniStatCard({ label, value, sub }: MiniStatCardProps) {
         <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">{label}</p>
         <p className="text-2xl font-bold mt-1 leading-none">{value}</p>
         {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Second commander's art, overlapping the first. Resolves from Scryfall when
+ *  older games didn't store an image. */
+function PartnerAvatar({ name, imageUri }: { name: string; imageUri?: string }) {
+  const card = useCard(imageUri ? undefined : name)
+  const src = imageUri ?? (card ? resolveArtCrop(card) : undefined)
+  return src ? (
+    <img
+      src={src}
+      alt={name}
+      className="-ml-5 w-10 h-10 self-end rounded-full object-cover object-center border-2 border-card shrink-0"
+    />
+  ) : (
+    <div className="-ml-5 w-10 h-10 self-end rounded-full bg-muted border-2 border-card grid place-items-center text-xs text-muted-foreground shrink-0">
+      {name.slice(0, 1).toUpperCase()}
+    </div>
+  )
+}
+
+function CompanionsCard({ companions }: { companions: CommanderStat["companions"] }) {
+  return (
+    <Card className="h-full sm:col-span-2">
+      <CardContent className="pt-4 pb-4">
+        <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">With companion</p>
+        <ul className="mt-2 space-y-1">
+          {companions.map((c) => (
+            <li key={c.name} className="flex items-center justify-between gap-2 text-sm">
+              <span className="truncate">{c.name}</span>
+              <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                {Math.round((c.wins / c.games) * 100)}% · {c.wins}/{c.games}
+              </span>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   )
@@ -257,7 +296,7 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
     }
 
     try {
-      const card = await fetchCardByName(stat.name)
+      const card = await fetchCardByName(stat.commanderName ?? stat.name)
       const imageUri = resolvePng(card) ?? resolveArtCrop(card)
       commanderHoverImageCache.set(stat.name, imageUri ?? null)
       if (thumbnailActiveRef.current !== stat.name) return
@@ -292,7 +331,7 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
       }
 
       try {
-        const card = await fetchCardByName(stat.name)
+        const card = await fetchCardByName(stat.commanderName ?? stat.name)
         const fetchedImage = resolveArtCrop(card) ?? null
         statsImageCache.set(stat.name, fetchedImage)
         if (!isCancelled) {
@@ -310,13 +349,14 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
     return () => {
       isCancelled = true
     }
-  }, [stat.name, stat.imageUri])
+  }, [stat.name, stat.commanderName, stat.imageUri])
 
   return (
     <div className="rounded-lg border bg-card p-3 space-y-3">
       {/* Header: thumbnail + rank badge + name */}
       <div className="flex items-center gap-3">
         {/* Thumbnail with hover preview (prefer full PNG) */}
+        <div className="flex shrink-0">
         <div
           className="relative"
           onMouseEnter={(e) => {
@@ -365,6 +405,8 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
             </div>
           )}
         </div>
+        {stat.partnerName && <PartnerAvatar name={stat.partnerName} imageUri={stat.partnerImageUri} />}
+        </div>
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {rank !== undefined && rank <= 3 && <RankBadge rank={rank} />}
           <p className="text-sm font-semibold leading-snug">{stat.name}</p>
@@ -383,6 +425,7 @@ export function CommanderStatCard({ stat, rank }: CommanderStatCardProps) {
         <MiniStatCard label="vs Fast Mana" value={vsFm.val} sub={vsFm.sub} />
         <RecentResultsCard results={stat.recentResults} />
         <KeyCardsStatCard cards={stat.keyCards} />
+        {stat.companions?.length > 0 && <CompanionsCard companions={stat.companions} />}
       </div>
     </div>
   )
