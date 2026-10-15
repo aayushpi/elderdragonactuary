@@ -1,4 +1,5 @@
 import type { Game, WinRateStat, SeatStats, ComputedStats, SeatPosition, MtgColor, PodEloGroup, PodPlayerElo, PodEloSnapshot, CommanderEloEntry } from "@/types"
+import { deckColorIdentity, deckKey, deckLabel, orderedDeck } from "@/lib/commanderIdentity"
 
 function winRate(wins: number, games: number): WinRateStat {
   return { wins, games, rate: games === 0 ? 0 : wins / games }
@@ -6,13 +7,6 @@ function winRate(wins: number, games: number): WinRateStat {
 
 function getMe(game: Game) {
   return game.players.find((p) => p.isMe)
-}
-
-const COLOR_ORDER: MtgColor[] = ["W", "U", "B", "R", "G"]
-
-function normalizeColorIdentity(colors?: MtgColor[]): MtgColor[] {
-  if (!colors || colors.length === 0) return []
-  return [...new Set(colors)].sort((a, b) => COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b))
 }
 
 function colorIdentityKey(colors: MtgColor[]): string {
@@ -77,10 +71,15 @@ export function computeStats(games: Game[]): ComputedStats {
     }
   })
 
-  // By commander (with per-commander breakdowns)
+  // By deck — a commander, or a partner / background pairing keyed so the
+  // order the halves were entered in doesn't matter.
   const commanderMap = new Map<string, {
     wins: number
     games: number
+    commanderName: string
+    partnerName?: string
+    partnerImageUri?: string
+    colorIdentity: MtgColor[]
     manaCost?: string
     imageUri?: string
     winTurnSum: number
@@ -88,45 +87,56 @@ export function computeStats(games: Game[]): ComputedStats {
     withFmGames: number
     vsFmWins: number
     vsFmGames: number
+    games_: Game[]
+    companions: Map<string, { wins: number; games: number }>
   }>()
 
   for (const game of myGames) {
     const me = getMe(game)
     if (!me) continue
     const iWon = game.winnerId === me.id
-    const name = me.commanderName
+    const name = deckKey(me)
+    const [primary, secondary] = orderedDeck(me)
     const entry = commanderMap.get(name) ?? {
       wins: 0, games: 0,
-      manaCost: me.commanderManaCost, imageUri: me.commanderImageUri,
+      commanderName: primary?.name ?? me.commanderName,
+      partnerName: secondary?.name,
+      partnerImageUri: secondary?.imageUri,
+      colorIdentity: [],
+      manaCost: primary?.manaCost, imageUri: primary?.imageUri,
       winTurnSum: 0,
       withFmWins: 0, withFmGames: 0,
       vsFmWins: 0, vsFmGames: 0,
+      games_: [] as Game[],
+      companions: new Map(),
     }
+    const colors = deckColorIdentity(me)
+    if (colors.length > entry.colorIdentity.length) entry.colorIdentity = colors
+    entry.imageUri ??= primary?.imageUri
+    entry.manaCost ??= primary?.manaCost
+    entry.partnerImageUri ??= secondary?.imageUri
     entry.games++
+    entry.games_.push(game)
     if (iWon) { entry.wins++; entry.winTurnSum += game.winTurn }
     if (me.fastMana.hasFastMana) { entry.withFmGames++; if (iWon) entry.withFmWins++ }
     if (game.players.some((p) => !p.isMe && p.fastMana.hasFastMana)) { entry.vsFmGames++; if (iWon) entry.vsFmWins++ }
+    const companion = me.companionName?.trim()
+    if (companion) {
+      const c = entry.companions.get(companion) ?? { wins: 0, games: 0 }
+      c.games++
+      if (iWon) c.wins++
+      entry.companions.set(companion, c)
+    }
     commanderMap.set(name, entry)
   }
 
   const byCommander = Array.from(commanderMap.entries())
-    .map(([name, e]) => ({
-      commanderGames: myGames
-        .filter((g) => getMe(g)?.commanderName === name)
+    .map(([name, e]) => {
+      const commanderGames = e.games_
         .slice()
-        .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()),
-      name,
-      manaCost: e.manaCost,
-      imageUri: e.imageUri,
-      wins: e.wins,
-      games: e.games,
-      rate: e.games === 0 ? 0 : e.wins / e.games,
-      averageWinTurn: e.wins === 0 ? null : e.winTurnSum / e.wins,
-      withFastMana: winRate(e.withFmWins, e.withFmGames),
-      againstFastMana: winRate(e.vsFmWins, e.vsFmGames),
-    }))
-    .map((entry) => {
-      const recentResults = entry.commanderGames
+        .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+
+      const recentResults = commanderGames
         .slice(0, 10)
         .map((game) => {
           const me = getMe(game)
@@ -135,12 +145,12 @@ export function computeStats(games: Game[]): ComputedStats {
             result: me && game.winnerId === me.id ? "W" as const : "L" as const,
             date: game.playedAt,
             winTurn: game.winTurn,
-            winningCommander: winner?.commanderName ?? "Unknown Commander",
+            winningCommander: winner ? deckLabel(winner, "Unknown Commander") : "Unknown Commander",
           }
         })
 
       const keyCardCounts = new Map<string, number>()
-      for (const game of entry.commanderGames) {
+      for (const game of commanderGames) {
         for (const card of game.keyWinconCards ?? []) {
           keyCardCounts.set(card, (keyCardCounts.get(card) ?? 0) + 1)
         }
@@ -151,12 +161,27 @@ export function computeStats(games: Game[]): ComputedStats {
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
         .slice(0, 5)
 
-      const { commanderGames: _, ...rest } = entry
-      void _
+      const companions = Array.from(e.companions.entries())
+        .map(([companionName, c]) => ({ name: companionName, ...c }))
+        .sort((a, b) => b.games - a.games || a.name.localeCompare(b.name))
+
       return {
-        ...rest,
+        name,
+        commanderName: e.commanderName,
+        partnerName: e.partnerName,
+        partnerImageUri: e.partnerImageUri,
+        colorIdentity: e.colorIdentity,
+        manaCost: e.manaCost,
+        imageUri: e.imageUri,
+        wins: e.wins,
+        games: e.games,
+        rate: e.games === 0 ? 0 : e.wins / e.games,
+        averageWinTurn: e.wins === 0 ? null : e.winTurnSum / e.wins,
+        withFastMana: winRate(e.withFmWins, e.withFmGames),
+        againstFastMana: winRate(e.vsFmWins, e.vsFmGames),
         recentResults,
         keyCards,
+        companions,
       }
     })
     .sort((a, b) => b.rate - a.rate || b.games - a.games)
@@ -172,7 +197,7 @@ export function computeStats(games: Game[]): ComputedStats {
     const me = getMe(game)
     if (!me) continue
 
-    const colors = normalizeColorIdentity(me.commanderColorIdentity)
+    const colors = deckColorIdentity(me)
     const key = colorIdentityKey(colors)
     const entry = colorIdentityMap.get(key) ?? {
       colors,
@@ -181,7 +206,7 @@ export function computeStats(games: Game[]): ComputedStats {
       games: 0,
     }
 
-    entry.commanders.add(me.commanderName)
+    entry.commanders.add(deckKey(me))
     entry.games++
     if (game.winnerId === me.id) {
       entry.wins++
@@ -441,7 +466,7 @@ export function computeCommanderElo(games: Game[]): CommanderEloEntry[] {
   const histories = new Map<string, PodEloSnapshot[]>()
   const winCounts = new Map<string, number>()
   const gameCounts = new Map<string, number>()
-  const metaMap = new Map<string, { manaCost?: string; imageUri?: string }>()
+  const metaMap = new Map<string, Omit<CommanderEloEntry, "name" | "currentRating" | "history" | "wins" | "games">>()
   const myCommanders = new Set<string>()
 
   // Track per-commander game index for the x-axis
@@ -451,24 +476,31 @@ export function computeCommanderElo(games: Game[]): CommanderEloEntry[] {
     const game = sorted[gi]
     const winner = game.players.find((p) => p.id === game.winnerId)
     if (!winner) continue
-    const winnerCmd = winner.commanderName
+    const winnerCmd = deckKey(winner)
 
-    const commanders = game.players.map((p) => p.commanderName)
+    // Two seats on the same deck are one entrant: a deck can't play itself.
+    const commanders = [...new Set(game.players.map((p) => deckKey(p)).filter(Boolean))]
 
-    // Track which commanders "I" have played
     const me = getMe(game)
-    if (me) myCommanders.add(me.commanderName)
+    if (me) myCommanders.add(deckKey(me))
 
-    // Initialize any new commanders
     for (const p of game.players) {
-      const cmd = p.commanderName
+      const cmd = deckKey(p)
+      if (!cmd) continue
       if (!ratings.has(cmd)) {
+        const [primary, secondary] = orderedDeck(p)
         ratings.set(cmd, DEFAULT_ELO)
         histories.set(cmd, [])
         winCounts.set(cmd, 0)
         gameCounts.set(cmd, 0)
         perCommanderGameIndex.set(cmd, 0)
-        metaMap.set(cmd, { manaCost: p.commanderManaCost, imageUri: p.commanderImageUri })
+        metaMap.set(cmd, {
+          commanderName: primary?.name ?? p.commanderName,
+          partnerName: secondary?.name,
+          partnerImageUri: secondary?.imageUri,
+          manaCost: primary?.manaCost,
+          imageUri: primary?.imageUri,
+        })
       }
     }
 
@@ -498,6 +530,9 @@ export function computeCommanderElo(games: Game[]): CommanderEloEntry[] {
     const rating = ratings.get(name) ?? DEFAULT_ELO
     result.push({
       name,
+      commanderName: metaMap.get(name)?.commanderName ?? name,
+      partnerName: metaMap.get(name)?.partnerName,
+      partnerImageUri: metaMap.get(name)?.partnerImageUri,
       manaCost: metaMap.get(name)?.manaCost,
       imageUri: metaMap.get(name)?.imageUri,
       currentRating: rating,

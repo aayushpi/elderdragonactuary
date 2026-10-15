@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Search, Loader2, Check, Pencil } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Search, Loader2, Check, Pencil, AlertTriangle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -7,12 +7,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { useScryfall } from "@/hooks/useScryfall"
+import { useCard, useScryfall, useScryfallQuery, type ScryfallSearchType } from "@/hooks/useScryfall"
 import { extractCardData } from "@/lib/shared"
+import type { CommanderSuggestion } from "@/lib/scryfall"
+import {
+  isLegalPairing,
+  pairingAbility,
+  pairingSearchQuery,
+  secondSlotLabel,
+} from "@/lib/commanderIdentity"
 import { ManaCost } from "@/components/ManaCost"
 import { Pips, SECTION_LABEL, SHEET_CONTENT_CLASS } from "@/components/modern/primitives"
 import type { MtgColor } from "@/types"
-import { formatRelative, matchScore, type CommanderShortlistItem } from "@/lib/shortlist"
+import { formatRelative, matchScore, shortlistItemToDeck, type CommanderShortlistItem } from "@/lib/shortlist"
 import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 
 export type { CommanderShortlistItem } from "@/lib/shortlist"
@@ -23,6 +30,24 @@ export interface CommanderPick {
   commanderColorIdentity?: MtgColor[]
   commanderManaCost?: string
   commanderTypeLine?: string
+  /** Set (or cleared) when the pick is a whole deck from the recents list. */
+  partnerName?: string
+  partnerImageUri?: string
+  partnerColorIdentity?: MtgColor[]
+  partnerManaCost?: string
+  partnerTypeLine?: string
+}
+
+/** A pick that replaces the whole deck: a single commander clears any partner. */
+function deckPick(base: Omit<CommanderPick, `partner${string}`>): CommanderPick {
+  return {
+    ...base,
+    partnerName: undefined,
+    partnerImageUri: undefined,
+    partnerColorIdentity: undefined,
+    partnerManaCost: undefined,
+    partnerTypeLine: undefined,
+  }
 }
 
 interface CommanderPickerProps {
@@ -37,6 +62,11 @@ interface CommanderPickerProps {
   value?: string
   items: CommanderShortlistItem[]
   onPick: (pick: CommanderPick) => void
+  /** Second-slot mode: the commander already chosen. Lists legal partners /
+   *  backgrounds and flags picks that don't pair (a warning, never a block). */
+  pairWith?: string
+  /** Companion mode: searches companions instead of commanders. */
+  searchType?: Extract<ScryfallSearchType, "commander" | "companion">
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -80,21 +110,39 @@ export function CommanderPicker({
   value,
   items,
   onPick,
+  pairWith,
+  searchType = "commander",
 }: CommanderPickerProps) {
+  const pairMode = Boolean(pairWith?.trim())
   const [mode, setMode] = useState<"recents" | "search">("recents")
   const [resolving, setResolving] = useState(false)
-  const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall("commander")
+  const { query, setQuery, suggestions, isLoading, fetchCard } = useScryfall(pairMode ? "pairing" : searchType)
   const inputRef = useRef<HTMLInputElement>(null)
   const keyboardInset = useKeyboardInset()
 
-  // Reset on open; jump straight to search when there are no recents.
+  const firstCard = useCard(open && pairMode ? pairWith : undefined)
+  const firstAbility = useMemo(() => (firstCard ? pairingAbility(firstCard) : null), [firstCard])
+  const browseQuery = open && firstAbility ? pairingSearchQuery(firstAbility) : null
+  const { results: legalBrowse, isLoading: browseLoading } = useScryfallQuery(browseQuery)
+  const slotNoun = pairMode ? secondSlotLabel(firstAbility).toLowerCase() : searchType
+
+  const pairWarning = useCallback((s: CommanderSuggestion): string | null => {
+    if (!pairMode || !firstCard || !firstAbility || !s.card) return null
+    const legal = isLegalPairing(
+      { name: firstCard.name, ability: firstAbility },
+      { name: s.name, ability: pairingAbility(s.card) },
+    )
+    return legal ? null : `Doesn't normally pair with ${firstCard.name.split(",")[0]}`
+  }, [pairMode, firstCard, firstAbility])
+
+  // Reset on open; jump straight to search when there's nothing to list.
   useEffect(() => {
     if (open) {
-      setMode(items.length > 0 ? "recents" : "search")
+      setMode(items.length > 0 || pairMode ? "recents" : "search")
       setResolving(false)
       setQuery("")
     }
-  }, [open, items.length, setQuery])
+  }, [open, items.length, pairMode, setQuery])
 
   // Focus the field when entering search — this is the one place the keyboard opens.
   useEffect(() => {
@@ -136,17 +184,19 @@ export function CommanderPicker({
 
   const searchMatches = useMemo(() => {
     const known = new Set(items.map((i) => i.name.toLowerCase()))
-    return suggestions.filter((s) => !known.has(s.name.toLowerCase()))
-  }, [suggestions, items])
+    const fresh = suggestions.filter((s) => !known.has(s.name.toLowerCase()))
+    if (!pairMode) return fresh
+    // Legal pairings first; the rest stay pickable (house rules happen).
+    return [...fresh].sort((a, b) => Number(Boolean(pairWarning(a))) - Number(Boolean(pairWarning(b))))
+  }, [suggestions, items, pairMode, pairWarning])
+
+  const browseMatches = useMemo(() => {
+    const known = new Set([...items.map((i) => i.name.toLowerCase()), pairWith?.trim().toLowerCase()])
+    return legalBrowse.filter((s) => !known.has(s.name.toLowerCase()))
+  }, [legalBrowse, items, pairWith])
 
   function pickItem(item: CommanderShortlistItem) {
-    onPick({
-      commanderName: item.name,
-      commanderImageUri: item.imageUri,
-      commanderColorIdentity: item.colorIdentity,
-      commanderManaCost: item.manaCost,
-      commanderTypeLine: item.typeLine,
-    })
+    onPick(shortlistItemToDeck(item))
     onOpenChange(false)
   }
 
@@ -154,14 +204,14 @@ export function CommanderPicker({
     setResolving(true)
     const card = await fetchCard(name)
     setResolving(false)
-    onPick({ commanderName: name, ...(card ? extractCardData(card) : {}) })
+    onPick(deckPick({ commanderName: name, ...(card ? extractCardData(card) : {}) }))
     onOpenChange(false)
   }
 
   // Escape hatch — save the raw text now, match it to a real card later.
   function saveAsWritten() {
     if (!trimmed) return
-    onPick({ commanderName: trimmed })
+    onPick(deckPick({ commanderName: trimmed }))
     onOpenChange(false)
   }
 
@@ -174,7 +224,8 @@ export function CommanderPicker({
     else saveAsWritten()
   }
 
-  const recentsHeading = label === "You" ? "Your commanders" : `${label}'s commanders`
+  const listNoun = pairMode ? "pairings" : searchType === "companion" ? "companions" : "commanders"
+  const recentsHeading = label === "You" ? `Your ${listNoun}` : `${label}'s ${listNoun}`
   const subtitle =
     mode === "search"
       ? [seatLabel, "results stay above the keyboard"].filter(Boolean).join(" · ")
@@ -188,7 +239,7 @@ export function CommanderPicker({
       >
         <DialogHeader className="space-y-1 px-5 pt-5 pb-4 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight">
-            {mode === "search" ? "Search commanders" : title}
+            {mode === "search" ? `Search ${pairMode ? slotNoun + "s" : listNoun}` : title}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">{subtitle}</DialogDescription>
         </DialogHeader>
@@ -196,9 +247,11 @@ export function CommanderPicker({
         {mode === "recents" ? (
           <>
             {/* Full played list — most played first, scrollable */}
-            <div className="flex items-center justify-between px-5 pb-2 pt-1">
-              <span className={SECTION_LABEL}>{recentsHeading}</span>
-            </div>
+            {playedSorted.length > 0 && (
+              <div className="flex items-center justify-between px-5 pb-2 pt-1">
+                <span className={SECTION_LABEL}>{recentsHeading}</span>
+              </div>
+            )}
 
             <div className="flex-1 min-h-0 overflow-y-auto border-t border-border">
               <div className="divide-y divide-border">
@@ -224,6 +277,33 @@ export function CommanderPicker({
                   </button>
                 ))}
               </div>
+
+              {pairMode && (browseMatches.length > 0 || browseLoading) && (
+                <>
+                  <div className="px-5 pb-2 pt-4">
+                    <span className={SECTION_LABEL}>Pairs with {pairWith?.split(",")[0]}</span>
+                  </div>
+                  <div className="divide-y divide-border border-t border-border">
+                    {browseMatches.map((s) => (
+                      <button
+                        key={`b-${s.name}`}
+                        onClick={() => pickSearchResult(s.name)}
+                        disabled={resolving}
+                        className="flex w-full items-center justify-between gap-2 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
+                      >
+                        <span className="truncate text-base">{s.name}</span>
+                        {s.manaCost && <ManaCost cost={s.manaCost} size="xs" />}
+                      </button>
+                    ))}
+                    {browseLoading && (
+                      <div className="flex items-center justify-center gap-2 px-5 py-4 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Finding pairings…
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Search affordance — tapping it switches to keyboard-aware search */}
@@ -248,7 +328,7 @@ export function CommanderPicker({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  placeholder="Search a commander…"
+                  placeholder={`Search a ${pairMode ? slotNoun : searchType}…`}
                   className="h-12 w-full rounded-lg border border-input bg-card pl-10 pr-10 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 {query && (
@@ -276,7 +356,7 @@ export function CommanderPicker({
             >
               {trimmed.length === 0 ? (
                 <p className="px-5 py-6 text-center text-sm text-muted-foreground">
-                  Start typing to search every commander.
+                  Start typing to search every {pairMode ? slotNoun : searchType}.
                 </p>
               ) : (
                 <>
@@ -299,17 +379,28 @@ export function CommanderPicker({
                     </button>
                   ))}
 
-                  {searchMatches.map((s) => (
-                    <button
-                      key={`s-${s.name}`}
-                      onClick={() => pickSearchResult(s.name)}
-                      disabled={resolving}
-                      className="flex w-full items-center justify-between gap-2 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
-                    >
-                      <span className="truncate text-base">{s.name}</span>
-                      {s.manaCost && <ManaCost cost={s.manaCost} size="xs" />}
-                    </button>
-                  ))}
+                  {searchMatches.map((s) => {
+                    const warning = pairWarning(s)
+                    return (
+                      <button
+                        key={`s-${s.name}`}
+                        onClick={() => pickSearchResult(s.name)}
+                        disabled={resolving}
+                        className="flex w-full items-center justify-between gap-2 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-base">{s.name}</div>
+                          {warning && (
+                            <div className="mt-0.5 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                              <AlertTriangle className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{warning}</span>
+                            </div>
+                          )}
+                        </div>
+                        {s.manaCost && <ManaCost cost={s.manaCost} size="xs" />}
+                      </button>
+                    )
+                  })}
 
                   {isLoading && (
                     <div className="flex items-center justify-center gap-2 px-5 py-4 text-sm text-muted-foreground">

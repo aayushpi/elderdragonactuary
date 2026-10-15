@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react"
 import { AlertCircle, ExternalLink, ChevronsUpDown, X } from "lucide-react"
-import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
-import type { MtgColor } from "@/types"
+import { fetchCardByName } from "@/lib/scryfall"
+import { extractCardData, extractPartnerData } from "@/lib/shared"
+import { splitDeckKey } from "@/lib/commanderIdentity"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -28,6 +29,52 @@ function makePlayer(isMe: boolean): Partial<Player> {
     commanderName: "",
     fastMana: { hasFastMana: false, cards: [] },
     // seatPosition intentionally omitted — user selects via SeatPicker
+  }
+}
+
+const DECK_FIELDS = [
+  "commanderName",
+  "commanderImageUri",
+  "commanderManaCost",
+  "commanderTypeLine",
+  "commanderColorIdentity",
+  "partnerName",
+  "partnerImageUri",
+  "partnerManaCost",
+  "partnerTypeLine",
+  "partnerColorIdentity",
+  "companionName",
+  "companionImageUri",
+  "companionManaCost",
+  "companionTypeLine",
+] as const satisfies ReadonlyArray<keyof Player>
+
+function deckFieldsOf(p: Partial<Player> | undefined): Partial<Player> {
+  const out: Partial<Player> = {}
+  if (!p) return out
+  for (const k of DECK_FIELDS) {
+    if (p[k] !== undefined) (out as Record<string, unknown>)[k] = p[k]
+  }
+  return out
+}
+
+/** A prefill is a deck label ("Tymna + Thrasios" or a single commander). */
+function prefillNames(prefill: string): Partial<Player> {
+  const [commanderName, partnerName] = splitDeckKey(prefill)
+  return { commanderName, partnerName }
+}
+
+async function resolvePrefill(prefill: string): Promise<Partial<Player>> {
+  const { commanderName, partnerName } = prefillNames(prefill)
+  const [main, partner] = await Promise.all([
+    commanderName ? fetchCardByName(commanderName).catch(() => null) : null,
+    partnerName ? fetchCardByName(partnerName).catch(() => null) : null,
+  ])
+  return {
+    commanderName,
+    partnerName,
+    ...(main ? extractCardData(main) : {}),
+    ...(partner ? extractPartnerData(partner) : {}),
   }
 }
 
@@ -162,7 +209,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       for (let i = 0; i < total; i++) {
         const p = makePlayer(i === 0)
         if (i === 0 && prefill) {
-          p.commanderName = prefill
+          Object.assign(p, prefillNames(prefill))
         }
         if (i === 0 && profile.displayName) {
           p.displayName = profile.displayName
@@ -171,27 +218,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       }
 
       // if we prefilling a commander, fetch card data for its image/stats
-      if (prefill) {
-        fetchCardByName(prefill)
-          .then((card) => {
-            const uri = resolveArtCrop(card)
-            setPlayers((prev) => {
-              const next = [...prev]
-              if (next[0]) {
-                next[0] = {
-                  ...next[0],
-                  commanderName: prefill,
-                  commanderImageUri: uri ?? undefined,
-                  commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
-                  commanderTypeLine: card.type_line,
-                  commanderColorIdentity: card.color_identity as MtgColor[],
-                }
-              }
-              return next
-            })
-          })
-          .catch(() => {})
-      }
+      if (prefill) applyPrefill(prefill)
     } else if (total > players.length) {
       newPlayers = [...players]
       for (let i = players.length; i < total; i++) {
@@ -244,6 +271,17 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     return Array.from(map.values())
   }, [games])
 
+  function applyPrefill(prefill: string) {
+    resolvePrefill(prefill).then((fields) => {
+      setPlayers((prev) => {
+        if (!prev[0]) return prev
+        const next = [...prev]
+        next[0] = { ...next[0], ...fields }
+        return next
+      })
+    })
+  }
+
   function applyPod(pod: { id: string; opponents: string[]; totalPlayers: number }) {
     setSelectedPodId(pod.id)
     const total = pod.totalPlayers
@@ -254,13 +292,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       id: meExisting?.id ?? generateId(),
       isMe: true,
       displayName: profile.displayName || "",
-      commanderName: meExisting?.commanderName ?? (prefillCommander || undefined),
-      commanderImageUri: meExisting?.commanderImageUri,
-      commanderManaCost: meExisting?.commanderManaCost,
-      commanderTypeLine: meExisting?.commanderTypeLine,
-      commanderColorIdentity: meExisting?.commanderColorIdentity,
-      partnerName: meExisting?.partnerName,
-      partnerImageUri: meExisting?.partnerImageUri,
+      ...(meExisting?.commanderName ? deckFieldsOf(meExisting) : prefillCommander ? prefillNames(prefillCommander) : {}),
       fastMana: meExisting?.fastMana ?? { hasFastMana: false, cards: [] },
       seatPosition: meExisting?.seatPosition,
       knockoutTurn: meExisting?.knockoutTurn,
@@ -272,13 +304,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
         id: existing?.id ?? generateId(),
         isMe: false,
         displayName: name,
-        commanderName: existing?.commanderName,
-        commanderImageUri: existing?.commanderImageUri,
-        commanderManaCost: existing?.commanderManaCost,
-        commanderTypeLine: existing?.commanderTypeLine,
-        commanderColorIdentity: existing?.commanderColorIdentity,
-        partnerName: existing?.partnerName,
-        partnerImageUri: existing?.partnerImageUri,
+        ...deckFieldsOf(existing),
         fastMana: existing?.fastMana ?? { hasFastMana: false, cards: [] },
         seatPosition: existing?.seatPosition,
         knockoutTurn: existing?.knockoutTurn,
@@ -290,25 +316,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
     // If we applied a pod onto an empty players array but have a prefill commander,
     // fetch its card data and populate the first player's commander fields.
     if (prefillCommander && (!players[0] || !players[0].commanderName)) {
-      fetchCardByName(prefillCommander)
-        .then((card) => {
-          const uri = resolveArtCrop(card)
-          setPlayers((prev) => {
-            const next = [...prev]
-            if (next[0]) {
-              next[0] = {
-                ...next[0],
-                commanderName: prefillCommander,
-                commanderImageUri: uri ?? undefined,
-                commanderManaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
-                commanderTypeLine: card.type_line,
-                commanderColorIdentity: card.color_identity as MtgColor[],
-              }
-            }
-            return next
-          })
-        })
-        .catch(() => {})
+      applyPrefill(prefillCommander)
     }
     setWinnerId(null)
     setWinTurn("")
@@ -519,6 +527,7 @@ export function LogGamePage({ onSave, onCancel, onDirtyChange, prefillCommander 
       player.commanderName?.trim()
       || player.seatPosition
       || player.partnerName?.trim()
+      || player.companionName?.trim()
       || player.fastMana?.hasFastMana
       || (player.fastMana?.cards?.length ?? 0) > 0
       || typeof player.knockoutTurn === "number"

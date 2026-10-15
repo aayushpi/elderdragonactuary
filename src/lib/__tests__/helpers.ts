@@ -21,6 +21,11 @@ interface MakePlayerOpts {
   fastManaCards?: string[]
   partnerName?: string
   knockoutTurn?: number
+  commanderTypeLine?: string
+  partnerTypeLine?: string
+  partnerColorIdentity?: MtgColor[]
+  companionName?: string
+  displayName?: string
 }
 
 export function makePlayer(opts: MakePlayerOpts = {}): Player {
@@ -37,6 +42,11 @@ export function makePlayer(opts: MakePlayerOpts = {}): Player {
     },
     partnerName: opts.partnerName,
     knockoutTurn: opts.knockoutTurn,
+    commanderTypeLine: opts.commanderTypeLine,
+    partnerTypeLine: opts.partnerTypeLine,
+    partnerColorIdentity: opts.partnerColorIdentity,
+    companionName: opts.companionName,
+    displayName: opts.displayName,
   }
 }
 

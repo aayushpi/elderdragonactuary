@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { ChevronsUpDown, X } from "lucide-react"
+import { ChevronsUpDown, Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import type { Game } from "@/types"
 import { buildWinconShortlist, type CommanderShortlistItem, type WinconShortlistItem } from "@/lib/shortlist"
 import { WinconCardPicker } from "@/components/WinconCardPicker"
+import { CommanderPicker } from "@/components/CommanderPicker"
 import { ThrowBoard } from "@/live/ThrowBoard"
 import { useLiveGame, type LiveConfig, type LivePlayer } from "@/live/engine"
 import { buildKnownPlayers, buildPlayerDecks, buildRecents, buildRichPods } from "@/live/setupData"
@@ -35,6 +36,14 @@ interface WinconSaveInfo {
   notes: string
   bracket: number | null
   fastMana: Record<string, boolean>
+  companions: Record<string, CompanionInfo>
+}
+
+interface CompanionInfo {
+  companionName: string
+  companionImageUri?: string
+  companionManaCost?: string
+  companionTypeLine?: string
 }
 
 function WinconEntry({
@@ -58,6 +67,8 @@ function WinconEntry({
   const [notes, setNotes] = useState("")
   const [bracket, setBracket] = useState<number | null>(null)
   const [fastMana, setFastMana] = useState<Record<string, boolean>>({})
+  const [companions, setCompanions] = useState<Record<string, CompanionInfo>>({})
+  const [companionFor, setCompanionFor] = useState<LivePlayer | null>(null)
 
   function toggleWincon(option: string) {
     setSelected((prev) =>
@@ -70,7 +81,7 @@ function WinconEntry({
   }
 
   function handleSave() {
-    onSave({ winConditions: selected, keyWinconCards: keyCards, notes, bracket, fastMana })
+    onSave({ winConditions: selected, keyWinconCards: keyCards, notes, bracket, fastMana, companions })
   }
 
   return (
@@ -162,6 +173,70 @@ function WinconEntry({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {players.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                Companions (optional)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {players.map((p) => {
+                  const c = companions[p.id]
+                  return c ? (
+                    <Badge key={p.id} variant="secondary" className="flex max-w-full items-center gap-1">
+                      <span className="truncate">{p.displayName}: {c.companionName.split(",")[0]}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCompanions((prev) => {
+                            const next = { ...prev }
+                            delete next[p.id]
+                            return next
+                          })
+                        }
+                        className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                        aria-label={`Remove ${p.displayName}'s companion`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ) : (
+                    <button
+                      key={p.id}
+                      onClick={() => setCompanionFor(p)}
+                      className="flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <Plus className="h-3 w-3" />
+                      {p.displayName}
+                    </button>
+                  )
+                })}
+              </div>
+              {companionFor && (
+                <CommanderPicker
+                  open
+                  onOpenChange={(o) => !o && setCompanionFor(null)}
+                  seatLabel={companionFor.displayName}
+                  label={companionFor.isMe ? "You" : companionFor.displayName}
+                  title="Pick a companion"
+                  items={[]}
+                  searchType="companion"
+                  onPick={(pick) => {
+                    setCompanions((prev) => ({
+                      ...prev,
+                      [companionFor.id]: {
+                        companionName: pick.commanderName,
+                        companionImageUri: pick.commanderImageUri,
+                        companionManaCost: pick.commanderManaCost,
+                        companionTypeLine: pick.commanderTypeLine,
+                      },
+                    }))
+                    setCompanionFor(null)
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -289,8 +364,12 @@ function PlayingBoard({
         keyWinconCards: info?.keyWinconCards?.length ? info.keyWinconCards : undefined,
         notes: info?.notes?.trim() || undefined,
         bracket: info?.bracket ?? undefined,
-        players: info?.fastMana
-          ? built.players.map((p) => ({ ...p, fastMana: { hasFastMana: !!info.fastMana[p.id], cards: [] } }))
+        players: info
+          ? built.players.map((p) => ({
+              ...p,
+              ...info.companions[p.id],
+              fastMana: { hasFastMana: !!info.fastMana[p.id], cards: [] },
+            }))
           : built.players,
       }
       await onSave(final)
@@ -310,7 +389,7 @@ function PlayingBoard({
         playerDecks={playerDecks}
         saving={saving}
         onSave={() => setPendingWincon(true)}
-        onRematch={() => { setPendingWincon(false); game.reset(config) }}
+        onRematch={() => { setPendingWincon(false); game.reset(game.config) }}
         onDiscard={onNewSetup}
       />
       {pendingWincon && (

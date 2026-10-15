@@ -3,11 +3,22 @@ import { Crosshair, GripHorizontal, GripVertical, Minus, Plus, Pencil, Swords } 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CommanderPicker } from "@/components/CommanderPicker"
-import type { CommanderShortlistItem } from "@/lib/shortlist"
+import { buildPartnerShortlist, type CommanderShortlistItem } from "@/lib/shortlist"
+import { fetchCardByName } from "@/lib/scryfall"
+import { canHaveSecondCommander, deckLabel, pairingAbility, partnerDealsCommanderDamage } from "@/lib/commanderIdentity"
 import { BoardChrome } from "./BoardChrome"
 import { SeatFrame, DragVector, DamageModal, HoldStepButton } from "./shared"
 import { useDragAttack, useDragLock } from "./drag"
-import { SEAT_COLORS, type DamageOpts, type LiveGameApi, type LivePlayer } from "./engine"
+import {
+  SEAT_COLORS,
+  commanderSourceLabel,
+  type CommanderSlot,
+  type DamageOpts,
+  type LiveGameApi,
+  type LivePlayer,
+} from "./engine"
+
+type HitOpts = Pick<DamageOpts, "isCommander" | "commanderSlot" | "isLifelink" | "isPoison">
 
 /* Sentinel target id for the centre "Damage all" drop zone — the drag hit-test
  * picks it up like any seat (it carries data-seat-id), but it fans the hit out
@@ -52,6 +63,8 @@ export function ThrowBoard({
   const [pending, setPending] = useState<PendingHit | null>(null)
   // seat assigning a commander in-game (upright picker, led by that player's decks)
   const [cmdrSeat, setCmdrSeat] = useState<LivePlayer | null>(null)
+  // second step after a pairable commander: partner / background / Doctor
+  const [partnerSeat, setPartnerSeat] = useState<LivePlayer | null>(null)
   // seat whose full damage breakdown is open
   const [damageSeat, setDamageSeat] = useState<LivePlayer | null>(null)
   // commanders are mandatory before a game can be saved (needed for stats)
@@ -107,7 +120,7 @@ export function ThrowBoard({
     window.addEventListener("pointercancel", up)
   }
 
-  function apply(amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) {
+  function apply(amount: number, opts: HitOpts) {
     if (!pending) return
     try { navigator.vibrate?.(opts.isPoison ? 60 : 40) } catch { /* unsupported */ }
     if (pending.targetId === DAMAGE_ALL_ID) {
@@ -126,12 +139,7 @@ export function ThrowBoard({
 
   function seat(p: LivePlayer, opts: { side: boolean; rollHighlight?: "rolling" | "picked" | null }) {
     const rt = game.runtime[p.id]
-    const commanderSources = Object.entries(rt.commanderFrom)
-      .filter(([, amt]) => amt > 0)
-      .map(([srcId, amt]) => ({
-        name: game.players.find((pl) => pl.id === srcId)?.displayName ?? "?",
-        amount: amt,
-      }))
+    const commanderSources = commanderSourcesFor(p.id)
     return (
       <SeatFrame
         player={p}
@@ -174,6 +182,23 @@ export function ThrowBoard({
         }
       />
     )
+  }
+
+  function commanderSourcesFor(id: string) {
+    return Object.entries(game.runtime[id]?.commanderFrom ?? {})
+      .filter(([, amt]) => amt > 0)
+      .map(([key, amt]) => ({ name: commanderSourceLabel(game.players, key), amount: amt }))
+  }
+
+  /** After a solo commander is picked, offer the second slot if it can pair. */
+  function offerPartner(seatId: string, commanderName: string) {
+    fetchCardByName(commanderName)
+      .then((card) => {
+        if (!canHaveSecondCommander(pairingAbility(card))) return
+        const seatNow = game.players.find((pl) => pl.id === seatId)
+        if (seatNow) setPartnerSeat({ ...seatNow, commanderName })
+      })
+      .catch(() => {})
   }
 
   function decksFor(p: LivePlayer): CommanderShortlistItem[] {
@@ -228,6 +253,9 @@ export function ThrowBoard({
             <StepperEntry
               key={`${pending.sourceId}-${pending.targetId}-${pending.x}`}
               sourceName={source.displayName}
+              sourceCommanders={
+                partnerDealsCommanderDamage(source) ? [source.commanderName, source.partnerName ?? ""] : undefined
+              }
               targetName={pendingAll ? "All players" : target?.displayName ?? "?"}
               onApply={apply}
             />
@@ -242,11 +270,35 @@ export function ThrowBoard({
           onOpenChange={(o) => !o && setCmdrSeat(null)}
           seatLabel={cmdrSeat.displayName}
           label={cmdrSeat.isMe ? "You" : cmdrSeat.displayName}
-          value={cmdrSeat.commanderName}
+          value={deckLabel(cmdrSeat)}
           items={decksFor(cmdrSeat)}
           onPick={(pick) => {
             game.setCommander(cmdrSeat.id, pick)
+            if (!pick.partnerName) offerPartner(cmdrSeat.id, pick.commanderName)
             setCmdrSeat(null)
+          }}
+        />
+      )}
+
+      {partnerSeat && (
+        <CommanderPicker
+          open
+          onOpenChange={(o) => !o && setPartnerSeat(null)}
+          seatLabel={`${partnerSeat.displayName} · close to skip`}
+          label={partnerSeat.isMe ? "You" : partnerSeat.displayName}
+          title={`Second commander for ${partnerSeat.commanderName.split(",")[0]}?`}
+          value={partnerSeat.partnerName}
+          items={buildPartnerShortlist(decksFor(partnerSeat), partnerSeat.commanderName)}
+          pairWith={partnerSeat.commanderName}
+          onPick={(pick) => {
+            game.setPartner(partnerSeat.id, {
+              partnerName: pick.commanderName,
+              partnerImageUri: pick.commanderImageUri,
+              partnerColorIdentity: pick.commanderColorIdentity,
+              partnerManaCost: pick.commanderManaCost,
+              partnerTypeLine: pick.commanderTypeLine,
+            })
+            setPartnerSeat(null)
           }}
         />
       )}
@@ -254,12 +306,7 @@ export function ThrowBoard({
       {damageSeat && (
         <DamageModal
           player={damageSeat}
-          commanderSources={Object.entries(game.runtime[damageSeat.id]?.commanderFrom ?? {})
-            .filter(([, amt]) => amt > 0)
-            .map(([srcId, amt]) => ({
-              name: game.players.find((pl) => pl.id === srcId)?.displayName ?? "?",
-              amount: amt,
-            }))}
+          commanderSources={commanderSourcesFor(damageSeat.id)}
           poison={game.runtime[damageSeat.id]?.poison ?? 0}
           onClose={() => setDamageSeat(null)}
         />
@@ -292,7 +339,7 @@ export function ThrowBoard({
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{p.displayName}</div>
                         <div className={cn("truncate text-xs", has ? "text-muted-foreground" : "text-destructive")}>
-                          {has ? p.commanderName : "No commander — tap to set"}
+                          {has ? deckLabel(p) : "No commander — tap to set"}
                         </div>
                       </div>
                       {has ? (
@@ -375,15 +422,19 @@ const MODS = [
 
 function StepperEntry({
   sourceName,
+  sourceCommanders,
   targetName,
   onApply,
 }: {
   sourceName: string
+  /** both commanders, when the source has a partner that deals damage */
+  sourceCommanders?: [string, string]
   targetName: string
-  onApply: (amount: number, opts: Pick<DamageOpts, "isCommander" | "isLifelink" | "isPoison">) => void
+  onApply: (amount: number, opts: HitOpts) => void
 }) {
   const [value, setValue] = useState(1)
   const [mods, setMods] = useState({ isCommander: false, isPoison: false, isLifelink: false })
+  const [slot, setSlot] = useState<CommanderSlot>(0)
 
   function toggle(key: keyof typeof mods) {
     setMods((m) => ({ ...m, [key]: !m[key] }))
@@ -436,8 +487,27 @@ function StepperEntry({
         ))}
       </div>
 
+      {mods.isCommander && sourceCommanders && (
+        <div className="mb-3 grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Which commander">
+          {sourceCommanders.map((name, i) => (
+            <button
+              key={name + i}
+              role="radio"
+              aria-checked={slot === i}
+              onClick={() => setSlot(i as CommanderSlot)}
+              className={cn(
+                "h-9 truncate rounded-lg px-2 text-[11px] font-bold transition-colors",
+                slot === i ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >
+              {name.split(",")[0]}
+            </button>
+          ))}
+        </div>
+      )}
+
       <button
-        onClick={() => onApply(value, mods)}
+        onClick={() => onApply(value, { ...mods, commanderSlot: mods.isCommander ? slot : undefined })}
         className="h-12 w-full rounded-xl bg-destructive text-base font-bold text-destructive-foreground active:scale-95"
       >
         {mods.isPoison ? `Poison ${value}` : `Deal ${value}`}

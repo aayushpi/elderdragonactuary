@@ -15,8 +15,15 @@ export interface ScryfallCard {
   mana_cost: string
   color_identity: string[]
   type_line: string
+  oracle_text?: string
+  keywords?: string[]
   image_uris?: ScryfallCardImageUris
-  card_faces?: Array<{ mana_cost?: string; image_uris?: ScryfallCardImageUris }>
+  card_faces?: Array<{
+    mana_cost?: string
+    type_line?: string
+    oracle_text?: string
+    image_uris?: ScryfallCardImageUris
+  }>
 }
 
 // ─── Domain models ──────────────────────────────────────────────────────────
@@ -50,6 +57,11 @@ export interface Player {
   partnerImageUri?: string
   partnerManaCost?: string
   partnerTypeLine?: string
+  partnerColorIdentity?: MtgColor[]
+  companionName?: string
+  companionImageUri?: string
+  companionManaCost?: string
+  companionTypeLine?: string
   knockoutTurn?: number
   seatPosition: SeatPosition
   displayName?: string
@@ -95,7 +107,12 @@ export interface SeatStats {
 }
 
 export interface CommanderStat {
+  /** Deck identity — the commander, or "A + B" for a pairing (see deckKey). */
   name: string
+  commanderName: string
+  partnerName?: string
+  partnerImageUri?: string
+  colorIdentity: MtgColor[]
   manaCost?: string
   imageUri?: string
   wins: number
@@ -113,6 +130,11 @@ export interface CommanderStat {
   keyCards: Array<{
     name: string
     count: number
+  }>
+  companions: Array<{
+    name: string
+    wins: number
+    games: number
   }>
 }
 
@@ -173,7 +195,11 @@ export interface PodEloGroup {
 
 /** ELO data for a single commander */
 export interface CommanderEloEntry {
+  /** Deck identity (see deckKey). */
   name: string
+  commanderName: string
+  partnerName?: string
+  partnerImageUri?: string
   manaCost?: string
   imageUri?: string
   currentRating: number

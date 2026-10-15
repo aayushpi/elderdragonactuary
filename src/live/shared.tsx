@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LETHAL_COMMANDER, LETHAL_POISON, SEAT_COLORS, type LivePlayer, type PlayerRuntime } from "./engine"
 import type { DragInfo } from "./drag"
+import { deckLabel } from "@/lib/commanderIdentity"
+
+const toArtCrop = (uri?: string) => uri?.replace(/\/(large|png|normal|small|border_crop)\//, "/art_crop/")
 
 /* The live attack vector drawn from the source handle to the finger. Lives here
  * (with the other components) so drag.tsx stays a hooks-only module. */
@@ -157,6 +160,7 @@ export function SeatFrame({
   const prevLifeRef = useRef(rt.life)
   const [flash, setFlash] = useState<"damage" | "heal" | null>(null)
   const [artFailed, setArtFailed] = useState(false)
+  const [failedPartnerArt, setFailedPartnerArt] = useState<string>()
 
   useEffect(() => {
     const prev = prevLifeRef.current
@@ -170,8 +174,11 @@ export function SeatFrame({
     }
   }, [rt.life])
   // Normalise any Scryfall size segment to art_crop for seat panel backgrounds
-  const art = player.commanderImageUri?.replace(/\/(large|png|normal|small|border_crop)\//, "/art_crop/")
+  const art = toArtCrop(player.commanderImageUri)
+  const partnerArtUri = player.partnerName?.trim() ? toArtCrop(player.partnerImageUri) : undefined
+  const partnerArt = partnerArtUri !== failedPartnerArt ? partnerArtUri : undefined
   const hasCommander = !!player.commanderName?.trim()
+  const commanderLabel = deckLabel(player)
 
   const totalCommanderDmg = commanderSources?.reduce((sum, s) => sum + s.amount, 0) ?? 0
   const hasDamageInfo = (commanderSources && commanderSources.length > 0) || rt.poison > 0
@@ -194,10 +201,22 @@ export function SeatFrame({
           <img
             src={art}
             onError={() => setArtFailed(true)}
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            className={cn(
+              "absolute inset-y-0 left-0 h-full object-cover object-center",
+              partnerArt ? "w-1/2" : "w-full"
+            )}
             alt=""
             aria-hidden
           />
+          {partnerArt && (
+            <img
+              src={partnerArt}
+              onError={() => setFailedPartnerArt(partnerArtUri)}
+              className="absolute inset-y-0 right-0 h-full w-1/2 border-l border-black/40 object-cover object-center"
+              alt=""
+              aria-hidden
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/60" />
         </>
       )}
@@ -218,7 +237,7 @@ export function SeatFrame({
               onClick={onSetCommander}
               className="flex max-w-[94%] items-center gap-1.5 rounded-full bg-black/35 px-4 py-2 text-[clamp(0.75rem,2.4vmin,1rem)] font-semibold text-white active:scale-95"
             >
-              <span className="truncate">{player.commanderName}</span>
+              <span className="truncate">{commanderLabel}</span>
               <Pencil className="h-3.5 w-3.5 shrink-0 opacity-70" />
             </button>
           ) : (
@@ -259,7 +278,7 @@ export function SeatFrame({
             </span>
             {hasCommander && (
               <span className="-mt-0.5 max-w-[92%] truncate text-[clamp(0.55rem,1.7vmin,0.8rem)] font-medium text-white/65">
-                {player.commanderName}
+                {commanderLabel}
               </span>
             )}
 

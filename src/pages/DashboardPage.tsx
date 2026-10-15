@@ -5,6 +5,7 @@ import { fetchCardByName, resolveArtCrop } from "@/lib/scryfall"
 import { CARD, SECTION_LABEL, Pips } from "@/components/modern/primitives"
 import { GameRow } from "@/components/modern/GameRow"
 import { CommanderSearch } from "@/components/CommanderSearch"
+import { DECK_SEPARATOR, splitDeckKey } from "@/lib/commanderIdentity"
 import type { Game, MtgColor } from "@/types"
 
 interface DashboardPageProps {
@@ -15,18 +16,6 @@ interface DashboardPageProps {
 }
 
 const SEAT_ORDINAL: Record<number, string> = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th" }
-
-/** Map each commander name to the color identity seen for "me" in any game. */
-function buildColorMap(games: Game[]): Map<string, MtgColor[]> {
-  const map = new Map<string, MtgColor[]>()
-  for (const g of games) {
-    const me = g.players.find((p) => p.isMe)
-    if (me && me.commanderColorIdentity && !map.has(me.commanderName)) {
-      map.set(me.commanderName, me.commanderColorIdentity)
-    }
-  }
-  return map
-}
 
 function StatCard({
   label,
@@ -57,22 +46,30 @@ function StatCard({
 
 function FavoriteCard({
   name,
+  commanderName,
+  imageUri,
   colors,
   games,
   rate,
   onTrack,
 }: {
   name: string
+  commanderName: string
+  imageUri?: string
   colors: MtgColor[]
   games: number
   rate: number
   onTrack: () => void
 }) {
-  const [artUri, setArtUri] = useState<string | undefined>()
+  const [artUri, setArtUri] = useState<string | undefined>(imageUri)
 
   useEffect(() => {
+    if (imageUri) {
+      setArtUri(imageUri)
+      return
+    }
     let cancelled = false
-    fetchCardByName(name)
+    fetchCardByName(commanderName)
       .then((card) => {
         if (!cancelled) setArtUri(resolveArtCrop(card) ?? undefined)
       })
@@ -82,7 +79,7 @@ function FavoriteCard({
     return () => {
       cancelled = true
     }
-  }, [name])
+  }, [commanderName, imageUri])
 
   return (
     <div data-carousel-card className={CARD + " flex-shrink-0 w-52 snap-start overflow-hidden"}>
@@ -119,7 +116,6 @@ function FavoriteCard({
 
 export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: DashboardPageProps) {
   const stats = useStats(games)
-  const colorMap = useMemo(() => buildColorMap(games), [games])
 
   const recentGames = useMemo(
     () =>
@@ -201,7 +197,7 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
         />
         <StatCard
           label="Top commander"
-          value={topCommander ? topCommander.name.split(",")[0] : "—"}
+          value={topCommander ? splitDeckKey(topCommander.name).map((n) => n.split(",")[0]).join(DECK_SEPARATOR) : "—"}
           sub={
             topCommander
               ? `${Math.round(topCommander.rate * 100)}% over ${topCommander.games} games`
@@ -219,7 +215,9 @@ export function DashboardPage({ games, onNavigate, onOpenLogGame, onEditGame }: 
               <FavoriteCard
                 key={c.name}
                 name={c.name}
-                colors={colorMap.get(c.name) ?? []}
+                commanderName={c.commanderName}
+                imageUri={c.imageUri}
+                colors={c.colorIdentity}
                 games={c.games}
                 rate={c.rate}
                 onTrack={() => onOpenLogGame(c.name)}

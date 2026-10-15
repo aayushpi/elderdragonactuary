@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Trophy, UserPlus, X, Minus, Plus, HelpCircle, ChevronsUpDown } from "lucide-react"
+import { Trophy, UserPlus, X, Minus, Plus, HelpCircle, ChevronsUpDown, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { loadProfile } from "@/lib/storage"
@@ -9,6 +9,11 @@ import { FormField } from "@/components/ui/form-field"
 import { InputGroup, InputGroupText } from "@/components/ui/input-group"
 import { CommanderPicker, type CommanderShortlistItem } from "@/components/CommanderPicker"
 import { PlayerNamePicker } from "@/components/PlayerNamePicker"
+import { useCard } from "@/hooks/useScryfall"
+import { fetchCardByName } from "@/lib/scryfall"
+import { extractPartnerData } from "@/lib/shared"
+import { buildPartnerShortlist } from "@/lib/shortlist"
+import { deckKey, pairingAbility, secondSlotLabel } from "@/lib/commanderIdentity"
 // CommanderCard removed: using low-opacity background image instead
 import { FastManaPicker } from "@/components/FastManaPicker"
 import { Badge } from "@/components/ui/badge"
@@ -68,9 +73,19 @@ export function PlayerRow({
   fieldErrors,
   showWinnerError,
 }: PlayerRowProps) {
-  const [showPartner, setShowPartner] = useState(!!player.partnerName)
+  const [partnerSlotOpen, setPartnerSlotOpen] = useState(false)
+  const showPartner = partnerSlotOpen || !!player.partnerName
   const [pickerOpen, setPickerOpen] = useState(false)
   const [partnerPickerOpen, setPartnerPickerOpen] = useState(false)
+  const [companionPickerOpen, setCompanionPickerOpen] = useState(false)
+  const [companionSlotOpen, setCompanionSlotOpen] = useState(false)
+  const showCompanion = companionSlotOpen || !!player.companionName
+
+  const commanderCard = useCard(player.commanderName)
+  const ability = commanderCard ? pairingAbility(commanderCard) : null
+  const slotLabel = ability ? secondSlotLabel(ability) : "Partner / background"
+  const partnerWithName = ability?.kind === "partner-with" ? ability.name : null
+  const partnerItems = buildPartnerShortlist(shortlist ?? [], player.commanderName)
   const [namePickerOpen, setNamePickerOpen] = useState(false)
   const [fastManaPickerOpen, setFastManaPickerOpen] = useState(false)
 
@@ -83,8 +98,29 @@ export function PlayerRow({
   })()
 
   function handleRemovePartner() {
-    setShowPartner(false)
-    onChange({ partnerName: undefined, partnerImageUri: undefined, partnerManaCost: undefined, partnerTypeLine: undefined })
+    setPartnerSlotOpen(false)
+    onChange({
+      partnerName: undefined,
+      partnerImageUri: undefined,
+      partnerManaCost: undefined,
+      partnerTypeLine: undefined,
+      partnerColorIdentity: undefined,
+    })
+  }
+
+  function handleRemoveCompanion() {
+    setCompanionSlotOpen(false)
+    onChange({ companionName: undefined, companionImageUri: undefined, companionManaCost: undefined, companionTypeLine: undefined })
+  }
+
+  async function addNamedPartner(name: string) {
+    onChange({ partnerName: name })
+    try {
+      const card = await fetchCardByName(name)
+      onChange({ partnerName: card.name, ...extractPartnerData(card) })
+    } catch {
+      // keep the name as written
+    }
   }
 
   function addFastManaCard(card: string) {
@@ -369,26 +405,49 @@ export function PlayerRow({
           onOpenChange={setPickerOpen}
           seatLabel={seatLabel}
           label={pickerLabel ?? (isMe ? "You" : "Player")}
-          value={player.commanderName}
+          value={deckKey(player)}
           items={shortlist ?? []}
           onPick={(pick) => onChange(pick)}
         />
 
-        {/* Partner */}
+        {/* Second commander (partner, background, Doctor…) */}
         {player.commanderName && !showPartner && (
-          <button
-            type="button"
-            className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-            onClick={() => setShowPartner(true)}
-          >
-            <UserPlus className="h-3 w-3" />
-            Add partner
-          </button>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
+            {partnerWithName ? (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+                onClick={() => void addNamedPartner(partnerWithName)}
+              >
+                <UserPlus className="h-3 w-3" />
+                Add {partnerWithName.split(",")[0]}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+                onClick={() => setPartnerSlotOpen(true)}
+              >
+                <UserPlus className="h-3 w-3" />
+                Add {slotLabel.toLowerCase()}
+              </button>
+            )}
+            {!showCompanion && (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline"
+                onClick={() => setCompanionSlotOpen(true)}
+              >
+                <Sparkles className="h-3 w-3" />
+                Add companion
+              </button>
+            )}
+          </div>
         )}
         {showPartner && (
           <div className="space-y-1.5 border-t border-dashed border-border pt-2 mt-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">Partner</label>
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">{slotLabel}</label>
               <button
                 type="button"
                 className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-destructive"
@@ -404,7 +463,7 @@ export function PlayerRow({
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className={cn("truncate", !player.partnerName && "text-muted-foreground")}>
-                {player.partnerName || "Pick a partner"}
+                {player.partnerName || `Pick a ${slotLabel.toLowerCase()}`}
               </span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
@@ -412,16 +471,71 @@ export function PlayerRow({
               open={partnerPickerOpen}
               onOpenChange={setPartnerPickerOpen}
               seatLabel={seatLabel}
-              title="Pick a partner"
+              title={`Pick a ${slotLabel.toLowerCase()}`}
               label={pickerLabel ?? (isMe ? "You" : "Player")}
               value={player.partnerName}
-              items={shortlist ?? []}
+              items={partnerItems}
+              pairWith={player.commanderName}
               onPick={(pick) =>
                 onChange({
                   partnerName: pick.commanderName,
                   partnerImageUri: pick.commanderImageUri,
                   partnerManaCost: pick.commanderManaCost,
                   partnerTypeLine: pick.commanderTypeLine,
+                  partnerColorIdentity: pick.commanderColorIdentity,
+                })
+              }
+            />
+          </div>
+        )}
+        {showPartner && !showCompanion && (
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary hover:underline mt-0.5"
+            onClick={() => setCompanionSlotOpen(true)}
+          >
+            <Sparkles className="h-3 w-3" />
+            Add companion
+          </button>
+        )}
+        {showCompanion && (
+          <div className="space-y-1.5 border-t border-dashed border-border pt-2 mt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">Companion</label>
+              <button
+                type="button"
+                className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-destructive"
+                onClick={handleRemoveCompanion}
+              >
+                <X className="h-3 w-3" />
+                Remove
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCompanionPickerOpen(true)}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className={cn("truncate", !player.companionName && "text-muted-foreground")}>
+                {player.companionName || "Pick a companion"}
+              </span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+            <CommanderPicker
+              open={companionPickerOpen}
+              onOpenChange={setCompanionPickerOpen}
+              seatLabel={seatLabel}
+              title="Pick a companion"
+              label={pickerLabel ?? (isMe ? "You" : "Player")}
+              value={player.companionName}
+              items={[]}
+              searchType="companion"
+              onPick={(pick) =>
+                onChange({
+                  companionName: pick.commanderName,
+                  companionImageUri: pick.commanderImageUri,
+                  companionManaCost: pick.commanderManaCost,
+                  companionTypeLine: pick.commanderTypeLine,
                 })
               }
             />
